@@ -1,10 +1,12 @@
 import express from "express";
 import { auth } from "../middlewares/auth.js";
 import { rechargeQueue } from "../config/rechargeQueue.js";
+import { idempotencyMiddleware } from "../middlewares/idempotency.js";
+import { fraudDetectionMiddleware } from "../middlewares/fraudDetection.js";
 
 const router = express.Router();
 
-router.post("/", auth, async (req, res) => {
+router.post("/", auth, idempotencyMiddleware, fraudDetectionMiddleware, async (req, res) => {
   try {
     await rechargeQueue.add("recharge", {
       userId: req.user.id,

@@ -1,0 +1,37 @@
+import CommissionRule from "../models/CommissionRule.js";
+import { connection as redis } from "../config/redis.js";
+
+const CACHE_KEY = "commission_rules";
+const CACHE_TTL = 3600; // 1 hr
+
+export const getCommissionDetails = async (amount, operator, userTier = "Standard") => {
+  let rules = await redis.get(CACHE_KEY);
+
+  if (rules) {
+    rules = JSON.parse(rules);
+  } else {
+    rules = await CommissionRule.find({ isActive: true }).sort({ priority: -1 }).lean();
+    await redis.set(CACHE_KEY, JSON.stringify(rules), "EX", CACHE_TTL);
+  }
+
+  // Find the exact rule (highest priority comes first due to sorting above)
+  const applicableRule = rules.find(
+    (rule) => rule.operator === operator && rule.userTier === userTier
+  );
+
+  if (!applicableRule) {
+    // Return default values if no rule matches
+    return { commission: 0, cashback: 0, profit: 0 };
+  }
+
+  const commission = Number((amount * (applicableRule.commissionPercent / 100)).toFixed(2));
+  const cashback = Number((amount * (applicableRule.cashbackPercent / 100)).toFixed(2));
+  const profit = Number((commission - cashback).toFixed(2));
+
+  return { commission, cashback, profit };
+};
+
+// Admin operation to forcefully invalidate cache when updating rules
+export const invalidateCommissionCache = async () => {
+    await redis.del(CACHE_KEY);
+};
