@@ -6,11 +6,14 @@ import rechargeRoutes from "./routes/rechargeRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import webhookRoutes from "./webhooks/webhookRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
-import walletRoutes from "./routes/walletRoutes.js"; // ✅ ADD THIS
+import walletRoutes from "./routes/walletRoutes.js"; //ADD THIS
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: "*",
+  credentials: true
+}));
 app.use(express.json());
 
 app.get("/test", (req, res) => {
