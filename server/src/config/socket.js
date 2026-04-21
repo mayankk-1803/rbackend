@@ -26,6 +26,11 @@ export const initSocket = (server) => {
   eventBus.on("provider_status", (data) => adminNamespace.emit("provider_status", data));
   eventBus.on("fraud_alert", (data) => adminNamespace.emit("fraud_alert", data));
   
+  // New events for health and blacklisting
+  eventBus.on("provider_health_update", (data) => adminNamespace.emit("provider_health_update", data));
+  eventBus.on("provider_down_alert", (data) => adminNamespace.emit("provider_down_alert", data));
+  eventBus.on("provider_blacklisted", (data) => adminNamespace.emit("provider_blacklisted", data));
+  
   return io;
 };
 

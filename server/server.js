@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import http from "http";
 import { initSocket } from "./src/config/socket.js";
+import { startHealthMonitoring } from "./src/services/healthService.js";
 
 dotenv.config();
 
@@ -14,6 +15,9 @@ mongoose.connect(process.env.MONGO_URI)
   
   const server = http.createServer(app);
   initSocket(server);
+  
+  // Start Health Monitoring Service
+  startHealthMonitoring(60000); // Check every 1 minute
   
   server.listen(PORT, () =>
     console.log("Server running on port " + PORT)

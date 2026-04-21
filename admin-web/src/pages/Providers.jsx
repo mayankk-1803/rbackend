@@ -77,19 +77,39 @@ export const Providers = () => {
                 </div>
 
                 {/* Success Rate */}
-                <div
-                  className={`flex items-center text-sm font-bold ${
-                    prov.trend === 'down'
-                      ? 'text-red-500'
-                      : 'text-emerald-500'
-                  }`}
-                >
-                  {prov.trend === 'down' ? (
-                    <ArrowDownRight className="w-4 h-4 mr-1" />
-                  ) : (
-                    <ArrowUpRight className="w-4 h-4 mr-1" />
-                  )}
-                  {Number(prov.successRate || 0).toFixed(2)}%
+                <div className="flex flex-col items-end gap-2">
+                  <div
+                    className={`flex items-center text-sm font-bold ${
+                      prov.trend === 'down'
+                        ? 'text-red-500'
+                        : 'text-emerald-500'
+                    }`}
+                  >
+                    {prov.trend === 'down' ? (
+                      <ArrowDownRight className="w-4 h-4 mr-1" />
+                    ) : (
+                      <ArrowUpRight className="w-4 h-4 mr-1" />
+                    )}
+                    {Number(prov.successRate || 0).toFixed(2)}%
+                  </div>
+                  
+                  <button
+                    onClick={async () => {
+                      try {
+                        await api.post('/admin/providers/set-active', { code: prov.code });
+                        window.location.reload(); // Simple way to refresh state
+                      } catch (err) {
+                        alert('Failed to set active provider');
+                      }
+                    }}
+                    className={`text-[10px] font-bold px-3 py-1 rounded-lg transition-colors ${
+                      prov.isActive 
+                        ? 'bg-blue-600 text-white cursor-default' 
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {prov.isActive ? 'ACTIVE' : 'SET ACTIVE'}
+                  </button>
                 </div>
               </div>
 

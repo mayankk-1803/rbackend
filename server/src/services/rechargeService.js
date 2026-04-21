@@ -6,7 +6,7 @@ import eventBus from "../config/eventBus.js";
 import { executeIntelligentRecharge } from "./routingService.js";
 
 export const recharge = async (data) => {
-  const { userId, amount, mobile, operator, idempotencyKey } = data;
+  const { userId, amount, mobile, operator, idempotencyKey, providerCode } = data;
 
   console.log("Processing job:", data);
 
@@ -73,7 +73,7 @@ export const recharge = async (data) => {
 
       // 🔥 SMART ROUTING
       try {
-          result = await executeIntelligentRecharge({ mobile });
+          result = await executeIntelligentRecharge({ mobile, amount, operator, providerCode });
       } catch (err) {
           console.log("Routing Layer failed:", err.message);
       }
