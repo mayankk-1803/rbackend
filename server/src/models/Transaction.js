@@ -5,7 +5,7 @@ const schema = new mongoose.Schema(
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     amount: { type: Number, required: true },
     type: { type: String, required: true },
-    status: { type: String, default: "pending" },
+    status: { type: String, enum: ["success", "failed", "pending"], default: "pending" },
     mobile: String,
     operator: String,
     cashback: { type: Number, default: 0 },
