@@ -3,12 +3,13 @@ import api from '../services/api';
 import { useSocket } from '../hooks/useSocket';
 import { TransactionsPieChart } from '../components/TransactionsPieChart';
 import { RevenueBarChart } from '../components/RevenueBarChart';
+import { Card, CardContent } from '../components/ui/Card';
 
 const StatCard = ({ title, value }) => (
-  <div className="bg-white border border-gray-200 rounded-md p-5 shadow-sm">
-    <h3 className="text-xs text-gray-500 uppercase font-medium tracking-wider mb-1">{title}</h3>
-    <p className="text-xl font-semibold text-gray-900">{value}</p>
-  </div>
+  <Card className="p-4 bg-white border-[#E2E8F0]">
+    <h3 className="text-xs text-[#64748B] uppercase font-bold tracking-wider mb-1">{title}</h3>
+    <p className="text-xl font-bold text-[#0F172A]">{value}</p>
+  </Card>
 );
 
 export const Dashboard = () => {
@@ -75,57 +76,43 @@ export const Dashboard = () => {
   });
 
   return (
-    <div className="p-6 bg-[#F9FAFB] min-h-screen font-sans text-[#111827]">
-      <header className="mb-8">
-        <h1 className="text-xl font-semibold">Dashboard Overview</h1>
-        <p className="text-sm text-gray-500 mt-1">System-wide performance metrics</p>
+    <div className="space-y-6">
+      <header>
+        <h1 className="text-xl font-bold text-[#0F172A] tracking-tight">Dashboard Overview</h1>
+        <p className="text-sm text-[#64748B] mt-0.5">Real-time system health and transaction metrics</p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <StatCard 
-          title="Total Users" 
-          value={loading ? '...' : stats.totalUsers} 
-        />
-        <StatCard 
-          title="Total Revenue" 
-          value={loading ? '...' : `₹${stats.totalRevenue.toLocaleString()}`} 
-        />
-        <StatCard 
-          title="Total Transactions" 
-          value={loading ? '...' : stats.totalTransactions} 
-        />
-        <StatCard 
-          title="Pending" 
-          value={loading ? '...' : stats.pendingCount} 
-        />
-        <StatCard 
-          title="Success Rate" 
-          value={loading ? '...' : `${stats.successRate}%`} 
-        />
-        <StatCard 
-          title="Fraud Alerts" 
-          value={loading ? '...' : stats.fraudAlerts} 
-        />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatCard title="Total Users" value={loading ? '...' : stats.totalUsers} />
+        <StatCard title="Revenue" value={loading ? '...' : `₹${stats.totalRevenue.toLocaleString()}`} />
+        <StatCard title="Total Transactions" value={loading ? '...' : stats.totalTransactions} />
+        <StatCard title="Pending" value={loading ? '...' : stats.pendingCount} />
+        <StatCard title="Success Rate" value={loading ? '...' : `${stats.successRate}%`} />
+        <StatCard title="Fraud Alerts" value={loading ? '...' : stats.fraudAlerts} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-        <div className="bg-white border border-gray-200 rounded-md p-5 shadow-sm">
-          <h3 className="text-xs text-gray-500 uppercase font-medium mb-4">Transaction Distribution</h3>
+        <Card className="p-5">
+          <h3 className="text-xs text-[#64748B] font-bold uppercase tracking-wider mb-6">Transaction Distribution</h3>
           {chartsLoading ? (
-            <div className="h-64 bg-gray-50 animate-pulse rounded-md" />
+            <div className="h-64 bg-[#F8FAFC] animate-pulse rounded-md" />
           ) : (
-            <TransactionsPieChart {...chartData} />
+            <div className="h-64 flex items-center justify-center">
+              <TransactionsPieChart {...chartData} />
+            </div>
           )}
-        </div>
+        </Card>
         
-        <div className="bg-white border border-gray-200 rounded-md p-5 shadow-sm">
-          <h3 className="text-xs text-gray-500 uppercase font-medium mb-4">Revenue Trend</h3>
+        <Card className="p-5">
+          <h3 className="text-xs text-[#64748B] font-bold uppercase tracking-wider mb-6">Revenue Trend</h3>
           {chartsLoading ? (
-            <div className="h-64 bg-gray-50 animate-pulse rounded-md" />
+            <div className="h-64 bg-[#F8FAFC] animate-pulse rounded-md" />
           ) : (
-            <RevenueBarChart dailyRevenue={chartData.dailyRevenue} />
+            <div className="h-64 flex items-center justify-center">
+              <RevenueBarChart dailyRevenue={chartData.dailyRevenue} />
+            </div>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );

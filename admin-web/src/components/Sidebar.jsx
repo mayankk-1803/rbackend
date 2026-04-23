@@ -5,9 +5,11 @@ import {
   Smartphone, 
   Wallet, 
   Bell, 
-  Server
+  Server,
+  Zap,
+  LogOut,
+  FileText
 } from 'lucide-react';
-import clsx from 'clsx';
 
 const navItems = [
   { name: 'Dashboard', path: '/', icon: LayoutDashboard },
@@ -15,52 +17,73 @@ const navItems = [
   { name: 'Transactions', path: '/transactions', icon: Wallet },
   { name: 'Alerts', path: '/alerts', icon: Bell },
   { name: 'Providers', path: '/providers', icon: Server },
+  { name: 'API Docs', path: '/api-docs', icon: FileText },
 ];
 
 export const Sidebar = () => {
   const location = useLocation();
 
   return (
-    <div className="w-64 bg-white border-r border-slate-200 h-full flex flex-col">
-      <div className="h-16 flex items-center px-6 border-b border-slate-200">
-        <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-          Dizipay Admin
+    <aside className="w-64 bg-white border-r border-[#E2E8F0] h-full flex flex-col z-40 relative">
+      <div className="h-16 flex items-center px-6 gap-3 border-b border-[#E2E8F0]">
+        <div className="w-8 h-8 bg-[#6D28D9] rounded flex items-center justify-center">
+          <Zap className="w-5 h-5 text-white fill-current" />
+        </div>
+        <h1 className="text-xl font-bold text-[#0F172A] tracking-tight">
+          Dizipay
         </h1>
       </div>
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.name}
-              to={item.path}
-              className={clsx(
-                "flex items-center px-4 py-3 rounded-xl transition-all duration-200 group text-sm font-medium",
-                isActive 
-                  ? "bg-blue-50 text-blue-700" 
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-              )}
-            >
-              <Icon 
-                className={clsx(
-                  "w-5 h-5 mr-3 transition-colors",
-                  isActive ? "text-blue-600" : "text-slate-400 group-hover:text-slate-600"
-                )} 
-              />
-              {item.name}
-            </Link>
-          );
-        })}
-      </nav>
-      <div className="p-4 border-t border-slate-200">
-        <div className="flex items-center px-4 py-2">
-          <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-bold mr-3">
-            A
-          </div>
-          <div className="text-sm font-medium text-slate-700">Admin User</div>
+      
+      <div className="flex-1 py-6 flex flex-col">
+        <nav className="flex-1 space-y-1">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.name}
+                to={item.path}
+                className={`
+                  flex items-center px-6 py-3 transition-all duration-150 text-sm font-medium
+                  ${isActive 
+                    ? "bg-[#F3E8FF] text-[#6D28D9] border-l-2 border-[#6D28D9]" 
+                    : "text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#0F172A] border-l-2 border-transparent"
+                  }
+                `}
+              >
+                <Icon className={`w-5 h-5 mr-3 ${isActive ? "text-[#6D28D9]" : "text-[#94A3B8]"}`} />
+                {item.name}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="px-4 mt-auto pt-6 border-t border-[#E2E8F0]">
+          <button 
+            onClick={() => {
+              localStorage.removeItem('adminToken');
+              localStorage.removeItem('adminUser');
+              window.location.href = '/login';
+            }}
+            className="w-full flex items-center px-4 py-3 text-[#64748B] hover:bg-[#FEF2F2] hover:text-[#DC2626] rounded-md transition-all group"
+          >
+            <LogOut className="w-5 h-5 mr-3 text-[#94A3B8] group-hover:text-[#DC2626]" />
+            <span className="text-sm font-medium">Logout</span>
+          </button>
         </div>
       </div>
-    </div>
+
+      <div className="p-4 border-t border-[#E2E8F0] bg-[#F8FAFC]">
+        <div className="flex items-center gap-3 p-2">
+          <div className="w-8 h-8 rounded bg-[#E2E8F0] flex items-center justify-center text-[#64748B] font-bold text-xs">
+            AZ
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-[#0F172A] truncate">Admin Account</p>
+            <p className="text-[10px] text-[#94A3B8] truncate">v1.2.0-stable</p>
+          </div>
+        </div>
+      </div>
+    </aside>
   );
 };

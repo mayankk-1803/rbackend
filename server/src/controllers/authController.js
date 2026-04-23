@@ -5,32 +5,45 @@ import User from "../models/User.js";
 
 export const signup = async (req, res) => {
   try {
-    const { email, password, referralCode: givenReferralCode } = req.body;
+    const { name, email, password, referralCode: givenReferralCode } = req.body;
     const referralCode = crypto.randomBytes(4).toString("hex").toUpperCase();
     
     let referredBy = null;
+    let initialWalletBalance = 0;
+
     if (givenReferralCode) {
       const referrer = await User.findOne({ referralCode: givenReferralCode });
       if (referrer) {
         referredBy = referrer._id;
+        // Referrer -> ₹100
         await User.findByIdAndUpdate(referrer._id, {
-          $inc: { referralEarnings: 10 }
+          $inc: { referralEarnings: 100, walletBalance: 100 }
         });
+        // New user -> ₹50
+        initialWalletBalance = 50;
       }
     }
 
     const hash = await bcrypt.hash(password, 10);
     const user = await User.create({
+      name,
       email,
       password: hash,
       referralCode,
-      referredBy
+      referredBy,
+      walletBalance: initialWalletBalance
     });
+
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET || "fallback_secret",
+      { expiresIn: "7d" }
+    );
 
     res.json({
       success: true,
-      message: "Signup successful",
-      data: { id: user._id, email: user.email, referralCode: user.referralCode }
+      token,
+      user: { id: user._id, name: user.name, email: user.email, role: user.role }
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -51,7 +64,18 @@ export const login = async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    res.json({ success: true, message: "Login successful", data: { token } });
+    res.json({ 
+      success: true, 
+      message: "Login successful", 
+      data: { 
+        token,
+        user: {
+          id: user._id,
+          email: user.email,
+          role: user.role
+        }
+      } 
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

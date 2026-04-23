@@ -37,9 +37,10 @@ const ProvidersScreen = () => {
   };
 
   const renderItem = ({ item }) => {
+    const status = item.status?.toLowerCase();
     let dotColor = "#dc3545";
-    if (item.status === "healthy") dotColor = "#28a745";
-    if (item.status === "warning") dotColor = "#ffc107";
+    if (status === "healthy") dotColor = "#28a745";
+    if (status === "warning") dotColor = "#ffc107";
 
     return (
       <View style={styles.card}>
@@ -47,7 +48,7 @@ const ProvidersScreen = () => {
           <Text style={styles.name}>{item.name}</Text>
           <View style={styles.statusBadge}>
             <View style={[styles.dot, { backgroundColor: dotColor }]} />
-            <Text style={styles.status}>{item.status.toUpperCase()}</Text>
+            <Text style={styles.status}>{status?.toUpperCase() || 'UNKNOWN'}</Text>
           </View>
         </View>
         <View style={styles.metricRow}>

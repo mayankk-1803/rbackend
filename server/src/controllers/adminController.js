@@ -185,18 +185,6 @@ export const getProviders = async (req, res) => {
   try {
     let providers = await Provider.find().sort({ priority: -1 });
     
-    // Seed initial providers if none exist
-    if (providers.length === 0) {
-      const defaultProviders = [
-        { name: "Primary API", code: "P1", baseUrl: "https://api.p1.com", apiKey: "key_p1", isActive: true, priority: 10, costPerTxn: 1.5, successRate: 98, avgResponseTime: 800 },
-        { name: "Backup API", code: "P2", baseUrl: "https://api.p2.com", apiKey: "key_p2", isActive: false, priority: 5, costPerTxn: 2.0, successRate: 95, avgResponseTime: 1200 },
-        { name: "Speedy API", code: "P3", baseUrl: "https://api.p3.com", apiKey: "key_p3", isActive: false, priority: 8, costPerTxn: 1.8, successRate: 92, avgResponseTime: 600 },
-        { name: "Economy API", code: "P4", baseUrl: "https://api.p4.com", apiKey: "key_p4", isActive: false, priority: 2, costPerTxn: 1.0, successRate: 85, avgResponseTime: 2000 }
-      ];
-      await Provider.insertMany(defaultProviders);
-      providers = await Provider.find().sort({ priority: -1 });
-    }
-
     // Map for frontend compatibility
     const mappedProviders = providers.map(p => ({
       ...p.toObject(),

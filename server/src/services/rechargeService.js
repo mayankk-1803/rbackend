@@ -3,132 +3,171 @@ import User from "../models/User.js";
 import { getCommissionDetails } from "./commissionEngine.js";
 import { connection as redis } from "../config/redis.js";
 import eventBus from "../config/eventBus.js";
-import { executeIntelligentRecharge } from "./routingService.js";
+import { getSortedProviders, updateProviderMetrics } from "./routingService.js";
+import { simulateProviderAPI } from "./providerSimulator.js";
+import { getIO } from "../config/socket.js";
 
 export const recharge = async (data) => {
-  const { userId, amount, mobile, operator, idempotencyKey, providerCode } = data;
+    const { userId, amount, mobile, operator, idempotencyKey, providerCode, txnId } = data;
+    const io = getIO();
 
-  console.log("Processing job:", data);
+    console.log(`[PROCESS] Processing job for txnId: ${txnId}`);
 
-  // Distributed Lock
-  const lockKey = `lock:recharge:${idempotencyKey || userId + mobile + Date.now()}`;
-  const lock = await redis.setnx(lockKey, "1");
-  if (!lock) {
-      console.log(`[PROCESS] Job already processing for lock ${lockKey}`);
-      return { success: false, message: "Concurrently processing" };
-  }
-  // Set TTL for safety so lock doesn't stay forever if process crashes
-  await redis.expire(lockKey, 30);
+    // Distributed Lock
+    const lockKey = `lock:recharge:${txnId || idempotencyKey || userId + mobile + Date.now()}`;
+    const lock = await redis.setnx(lockKey, "1");
+    if (!lock) {
+        console.log(`[PROCESS] Job already processing for lock ${lockKey}`);
+        return { success: false, message: "Concurrently processing" };
+    }
+    await redis.expire(lockKey, 60);
 
-  try {
-      // Idempotency DB check as final safety
-      let txn = null;
-      if (idempotencyKey) {
-        txn = await Transaction.findOne({ idempotencyKey });
+    let txn = null;
+    try {
+        // 1. FIND TRANSACTION
+        txn = await Transaction.findById(txnId);
+        if (!txn && idempotencyKey) {
+            txn = await Transaction.findOne({ idempotencyKey });
+        }
+
         if (txn && txn.status === "success") {
-          return { success: false, message: "Duplicate transaction", data: txn };
-        }
-      }
-
-      if (!txn) {
-        // User check
-        const user = await User.findById(userId);
-        if (!user) return { success: false, message: "User not found" };
-        if (user.walletBalance < amount) {
-          return { success: false, message: "Insufficient balance" };
+            console.log(`[PROCESS] Transaction ${txn._id} already succeeded.`);
+            return { success: true, message: "Already succeeded", data: txn };
         }
 
-        // Create transaction
-        txn = await Transaction.create({
-          userId,
-          amount,
-          mobile,
-          operator,
-          type: "recharge",
-          status: "pending",
-          idempotencyKey,
-          isLocked: true,
-          amountDeducted: false,
-          retryCount: 0
-        });
-      }
-
-      // 1. Increment retryCount on each execution
-      txn.retryCount = (txn.retryCount || 0) + 1;
-      txn.lastRetryAt = new Date();
-
-      // 2. Add retry limit:
-      if (txn.retryCount > 3) {
-          txn.status = "failed";
-          txn.isLocked = false;
-          await txn.save();
-          eventBus.emit("recharge_failed", { mobile, amount, alert: "Max retries reached" });
-          return { success: false, message: "Max retries reached", data: txn };
-      }
-
-      txn.isLocked = true;
-      await txn.save();
-
-      let result = null;
-
-      // 🔥 SMART ROUTING
-      try {
-          result = await executeIntelligentRecharge({ mobile, amount, operator, providerCode });
-      } catch (err) {
-          console.log("Routing Layer failed:", err.message);
-      }
-
-      // ❌ FAILED
-      if (!result) {
-        if (txn.retryCount >= 3) {
-          txn.status = "failed";
-          txn.isLocked = false;
-          await txn.save();
-          eventBus.emit("recharge_failed", { mobile, amount, msg: "Recharge permanently failed" });
-          return { success: false, message: "Recharge failed", data: txn };
+        if (!txn) {
+            throw new Error("Transaction not found in database.");
         }
 
-        txn.isLocked = false;
-        await txn.save();
-        throw new Error("Provider failure, triggering BullMQ auto-retry");
-      }
-
-      // SUCCESS FLOW
-      // Dynamic Commission
-      const userDoc = await User.findById(userId).select("tier").lean();
-      const userTier = userDoc?.tier || "Standard";
-      
-      const { commission, cashback, profit } = await getCommissionDetails(amount, operator, userTier);
-
-      txn.status = "success";
-      txn.commission = commission;
-      txn.cashback = cashback;
-      txn.profit = profit;
-      txn.provider = result.provider;
-      txn.providerTxnId = result.providerTxnId;
-      txn.isLocked = false;
-      txn.amountDeducted = true;
-
-      // Deduct wallet + add cashback
-      await User.findByIdAndUpdate(userId, {
-        $inc: {
-          walletBalance: -amount,
-          cashbackBalance: cashback
+        // 2. FETCH PROVIDER LIST FOR FALLBACK
+        let providers = await getSortedProviders();
+        
+        // Priority 1: Manual provider (if specified)
+        if (providerCode) {
+            const manualIdx = providers.findIndex(p => p.code === providerCode);
+            if (manualIdx > -1) {
+                const manualProvider = providers.splice(manualIdx, 1)[0];
+                providers.unshift(manualProvider);
+            }
         }
-      });
 
-      await txn.save();
+        if (!providers.length) {
+            throw new Error("No active providers available");
+        }
 
-      console.log(
-        `Recharge success. Provider: ${result.provider}, Comm: ${commission}, Cash: ${cashback}`
-      );
-      
-      // Emit Success Event
-      eventBus.emit("recharge_success", { mobile, amount, provider: result.provider });
+        let result = null;
+        let selectedProvider = null;
+        let lastError = null;
 
-      return { success: true, message: "Recharge successful", data: txn };
-  } finally {
-      // Always release lock
-      await redis.del(lockKey);
-  }
+        // 3. AUTO-FALLBACK LOOP
+        for (const provider of providers) {
+            console.log(`🔁 Trying provider: ${provider.name} (${provider.code})`);
+            
+            const startTime = Date.now();
+            try {
+                result = await simulateProviderAPI(provider);
+                const duration = Date.now() - startTime;
+
+                const isSuccess = result.status?.toLowerCase() === "success";
+                await updateProviderMetrics(provider.code, isSuccess, duration);
+
+                if (isSuccess) {
+                    selectedProvider = provider;
+                    console.log(`✅ SUCCESS via: ${provider.name}`);
+                    break;
+                } else {
+                    console.warn(`[PROCESS] Provider ${provider.code} failed: ${result.message}`);
+                    lastError = new Error(result.message || "Provider failed");
+                }
+            } catch (err) {
+                console.error(`[PROCESS] Critical provider error (${provider.code}): ${err.message}`);
+                lastError = err;
+            }
+        }
+
+        // 4. FINAL STATUS HANDLING
+        if (result && result.status?.toLowerCase() === "success") {
+            const user = await User.findById(userId);
+            if (!user) throw new Error("User not found");
+            
+            if (user.walletBalance < amount) {
+                txn.status = "failed";
+                txn.failureReason = "Insufficient balance at execution";
+                await txn.save();
+                eventBus.emit("recharge_failed", { txnId: txn._id, mobile, amount, reason: "Insufficient balance" });
+                return { success: false, message: "Insufficient balance" };
+            }
+
+            const userTier = user.tier || "Standard";
+            const { commission, cashback, profit } = await getCommissionDetails(amount, operator, userTier);
+
+            // Update Wallet and Cashback
+            user.walletBalance -= amount;
+            user.cashbackBalance = (user.cashbackBalance || 0) + cashback;
+            await user.save();
+
+            // 🔥 SOCKET EMIT: WALLET UPDATE
+            io.emit("wallet_update", {
+                userId: user._id,
+                walletBalance: user.walletBalance,
+                cashbackBalance: user.cashbackBalance
+            });
+
+            // Update Transaction
+            txn.status = "success";
+            txn.provider = selectedProvider.name;
+            txn.providerTxnId = result.operatorId;
+            txn.apiResponse = result;
+            txn.commission = commission;
+            txn.cashback = cashback;
+            txn.profit = profit;
+            txn.amountDeducted = true;
+            await txn.save();
+
+            // 🔥 SOCKET EMIT (Strict as per user request)
+            io.emit("recharge_update", { 
+                txnId: txn._id, 
+                status: "success",
+                transaction: txn
+            });
+
+            // 🔥 SOCKET EMIT via EventBus
+            eventBus.emit("recharge_success", { txnId: txn._id, mobile, amount, transaction: txn });
+            
+            // Save recent success for smart duplicate delay
+            await redis.set(`recent_success:${mobile}`, "1", "EX", 120);
+
+            return { success: true, data: txn };
+        } else {
+            // ❌ ALL PROVIDERS FAILED
+            txn.status = "failed";
+            txn.failureReason = lastError?.message || "All providers failed";
+            txn.provider = "SYSTEM_FAILURE";
+            await txn.save();
+            
+            // 🔥 SOCKET EMIT (Strict as per user request)
+            io.emit("recharge_update", { 
+                txnId: txn._id, 
+                status: "failed",
+                reason: txn.failureReason
+            });
+
+            // 🔥 SOCKET EMIT via EventBus
+            eventBus.emit("recharge_failed", { txnId: txn._id, mobile, amount, reason: txn.failureReason });
+            
+            return { success: false, message: txn.failureReason };
+        }
+
+    } catch (err) {
+        console.error(`❌ WORKER ERROR: ${err.message}`);
+        if (txn) {
+            txn.status = "failed";
+            txn.failureReason = err.message;
+            await txn.save();
+            eventBus.emit("recharge_failed", { txnId: txn._id, mobile, amount, reason: err.message });
+        }
+        return { success: false, message: err.message };
+    } finally {
+        await redis.del(lockKey);
+    }
 };

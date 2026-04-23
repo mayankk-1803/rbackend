@@ -72,10 +72,5 @@ export const monitorProviderHealth = async () => {
 
 // Start the periodic health check
 export const startHealthMonitoring = (intervalMs = 60000) => {
-    // Run immediately on start
-    monitorProviderHealth();
-    
-    // Then run periodically
-    setInterval(monitorProviderHealth, intervalMs);
-    console.log(`[HEALTH] Monitoring service scheduled every ${intervalMs / 1000}s`);
+    console.log("⚠️ Health monitoring disabled (Simulation Mode)");
 };

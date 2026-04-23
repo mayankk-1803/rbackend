@@ -1,8 +1,49 @@
 @import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
+@theme {
+  --color-primary: #0F172A;
+  --color-secondary: #64748B;
+  --color-muted: #94A3B8;
+  --color-accent: #2563EB;
+  --color-accent-hover: #1D4ED8;
+  --color-bg-page: #F8FAFC;
+  --color-border-default: #E2E8F0;
+  --color-border-hover: #CBD5F5;
+}
+
 body {
-  background-color: #F9FAFB;
-  color: #111827;
+  background-color: #F8FAFC;
+  color: #0F172A;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Force Light Mode Global Background */
+#root {
+  background-color: #F8FAFC;
+  min-h-screen: 100vh;
+}
+
+/* Remove Dark Mode Classes and Gradients */
+.dark body, .dark #root, .dark .glass, .dark ::-webkit-scrollbar-thumb {
+  background-color: #F8FAFC !important;
+  color: #0F172A !important;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #E2E8F0;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #CBD5E1;
 }

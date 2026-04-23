@@ -47,43 +47,66 @@ export const updateProviderMetrics = async (providerCode, isSuccess, durationMs)
 };
 
 const calculateScore = (provider) => {
-    if (provider.isBlacklisted) return -1;
+    if (provider.isBlacklisted || !provider.isActive) return -1;
     
-    const successRateScore = provider.successRate / 100; // 0 to 1
-    const responseTimeScore = provider.avgResponseTime > 0 ? (1 / provider.avgResponseTime) : 1;
-    const costScore = provider.costPerTxn > 0 ? (1 / provider.costPerTxn) : 1;
+    const latency = provider.avgResponseTime > 0 ? provider.avgResponseTime : 1;
+    const cost = provider.costPerTxn > 0 ? provider.costPerTxn : 1;
 
-    // score = (0.5 * successRate) + (0.3 * (1 / avgResponseTime)) + (0.2 * (1 / costPerTxn))
-    return (0.5 * successRateScore) + (0.3 * responseTimeScore) + (0.2 * costScore);
+    // score = (0.5 * successRate) + (0.3 * (1 / latency)) + (0.2 * (1 / cost))
+    return (0.5 * provider.successRate) + (0.3 * (1 / latency)) + (0.2 * (1 / cost));
+};
+
+/**
+ * Returns a list of active providers sorted by their success rate for fallback logic
+ */
+export const getProviderList = async () => {
+    return await Provider.find({ isActive: true, isBlacklisted: false }).sort({ successRate: -1 });
 };
 
 export const getProvider = async (data) => {
-    // ✅ STEP 1: PROVIDER OVERRIDE (HIGHEST PRIORITY)
+    // 1. Fetch all active providers
+    const providers = await Provider.find({ isActive: true, isBlacklisted: false });
+    
+    if (!providers.length) {
+        throw new Error("No active providers available in the system.");
+    }
+
+    // 2. Specific provider selection (High Priority)
     if (data.providerCode) {
-        const provider = await Provider.findOne({ code: data.providerCode });
-        if (!provider) throw new Error("Invalid providerCode");
-        if (provider.isBlacklisted) throw new Error("Selected provider is blacklisted");
-        return provider;
+        const selected = providers.find(p => p.code === data.providerCode);
+        if (selected) return selected;
+        console.log(`[ROUTING] Requested provider ${data.providerCode} not active/found, falling back to smart routing.`);
     }
 
-    // ✅ STEP 2: SMART ROUTING
-    if (SMART_ROUTING) {
-        const providers = await Provider.find({ isBlacklisted: false });
-        if (providers.length > 0) {
-            const scoredProviders = providers.map(p => ({
-                provider: p,
-                score: calculateScore(p)
-            })).sort((a, b) => b.score - a.score);
-            return scoredProviders[0].provider;
-        }
-    }
+    // 3. Smart Routing Engine (Score-based)
+    // score = (0.5 * successRate) + (0.3 * (1 / latency)) + (0.2 * (1 / cost))
+    const scoredProviders = providers.map(p => {
+        const latency = Math.max(p.avgResponseTime || 200, 1);
+        const cost = Math.max(p.costPerTxn || 1, 0.1);
+        const successRate = p.successRate || 90;
 
-    // ✅ STEP 3: MANUAL MODE (FALLBACK)
-    const activeProvider = await Provider.findOne({ isActive: true, isBlacklisted: false });
-    if (!activeProvider) {
-        throw new Error("No active provider configured in manual mode.");
-    }
-    return activeProvider;
+        const score = (0.5 * successRate) + (0.3 * (1000 / latency)) + (0.2 * (1 / cost));
+        return { provider: p, score };
+    }).sort((a, b) => b.score - a.score);
+
+    console.log(`[ROUTING] Smart routing selected: ${scoredProviders[0].provider.name} (Score: ${scoredProviders[0].score.toFixed(2)})`);
+    return scoredProviders[0].provider;
+};
+
+/**
+ * Returns a list of active providers sorted by their smart score for fallback logic
+ */
+export const getSortedProviders = async () => {
+    const providers = await Provider.find({ isActive: true, isBlacklisted: false });
+    
+    return providers.map(p => {
+        const latency = Math.max(p.avgResponseTime || 200, 1);
+        const cost = Math.max(p.costPerTxn || 1, 0.1);
+        const successRate = p.successRate || 90;
+
+        const score = (0.5 * successRate) + (0.3 * (1000 / latency)) + (0.2 * (1 / cost));
+        return { provider: p, score };
+    }).sort((a, b) => b.score - a.score).map(sp => sp.provider);
 };
 
 export const executeIntelligentRecharge = async (data) => {
