@@ -1,7 +1,9 @@
 import Transaction from "../models/Transaction.js";
 import User from "../models/User.js";
 import FraudLog from "../models/FraudLog.js";
+import Provider from "../models/Provider.js";
 import { addRechargeJob } from "../services/queueService.js";
+import { compareProviders } from "../services/compareService.js";
 
 export const getDashboard = async (req, res) => {
   try {
@@ -143,9 +145,7 @@ export const getTransactions = async (req, res) => {
       if (!normOperator || normOperator === ".") normOperator = "Wallet";
       
       let normProvider = t.provider;
-      if (normProvider === "primary") normProvider = "Primary API";
-      else if (normProvider === "backup") normProvider = "Backup API";
-      else if (!normProvider) normProvider = "Unknown";
+      if (!normProvider) normProvider = "Unknown";
 
       return { ...t, operator: normOperator, provider: normProvider };
     });
@@ -183,35 +183,39 @@ export const getAlerts = async (req, res) => {
 
 export const getProviders = async (req, res) => {
   try {
-    const stats = await Transaction.aggregate([
-      { 
-        $group: { 
-          _id: "$provider", 
-          total: { $sum: 1 }, 
-          success: { $sum: { $cond: [{ $eq: ["$status", "success"] }, 1, 0] } } 
-        } 
-      }
-    ]);
+    let providers = await Provider.find().sort({ priority: -1 });
+    
+    // Map for frontend compatibility
+    const mappedProviders = providers.map(p => ({
+      ...p.toObject(),
+      status: p.healthStatus, // For frontend compatibility
+      latency: `${p.avgResponseTime}ms`
+    }));
 
-    const providers = stats.map(p => {
-      const successRate = p.total > 0 ? (p.success / p.total) * 100 : 0;
-      let status = "critical";
-      if (successRate >= 90) status = "healthy";
-      else if (successRate >= 70) status = "warning";
+    res.json({ success: true, data: mappedProviders });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
 
-      let normName = p._id;
-      if (normName === "primary") normName = "Primary API";
-      else if (normName === "backup") normName = "Backup API";
-      else if (!normName) normName = "Unknown";
+export const setActiveProvider = async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) {
+      return res.status(400).json({ success: false, message: "Provider code is required" });
+    }
 
-      return {
-        name: normName,
-        successRate: Number(successRate.toFixed(2)),
-        status
-      };
-    });
+    // Set all to inactive
+    await Provider.updateMany({}, { isActive: false });
+    
+    // Set selected to active
+    const provider = await Provider.findOneAndUpdate({ code }, { isActive: true }, { new: true });
+    
+    if (!provider) {
+      return res.status(404).json({ success: false, message: "Provider not found" });
+    }
 
-    res.json({ success: true, data: providers });
+    res.json({ success: true, message: `Provider ${provider.name} is now active`, data: provider });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -245,6 +249,7 @@ export const getCharts = async (req, res) => {
       revenue: item.revenue
     }));
 
+    // Return in format expected by frontend
     res.json({
       success: successCount,
       pending: pendingCount,
@@ -254,5 +259,27 @@ export const getCharts = async (req, res) => {
   } catch (err) {
     console.error("Error in getCharts:", err);
     res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+
+export const compareRecharge = async (req, res) => {
+  try {
+    const { mobile, amount, operator, providers, testMode } = req.body;
+    
+    if (!providers || !Array.isArray(providers) || providers.length === 0) {
+      return res.status(400).json({ success: false, message: "Providers list is required" });
+    }
+
+    const results = await compareProviders({
+      mobile,
+      amount,
+      operator,
+      providers,
+      testMode: testMode !== false // Default to true for safety
+    });
+
+    res.json({ success: true, data: results });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };

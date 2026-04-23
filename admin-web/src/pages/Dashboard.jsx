@@ -1,20 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import { useSocket } from '../hooks/useSocket';
-import { Activity, Users, CreditCard, RefreshCw, AlertTriangle, CheckCircle } from 'lucide-react';
 import { TransactionsPieChart } from '../components/TransactionsPieChart';
 import { RevenueBarChart } from '../components/RevenueBarChart';
+import { Card, CardContent } from '../components/ui/Card';
 
-const StatCard = ({ title, value, icon: Icon, colorClass }) => (
-  <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex items-center shadow-slate-200/50">
-    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mr-4 ${colorClass}`}>
-      <Icon className="w-6 h-6" />
-    </div>
-    <div>
-      <h3 className="text-sm font-medium text-slate-500">{title}</h3>
-      <p className="text-2xl font-bold text-slate-800">{value}</p>
-    </div>
-  </div>
+const StatCard = ({ title, value }) => (
+  <Card className="p-4 bg-white border-[#E2E8F0]">
+    <h3 className="text-xs text-[#64748B] uppercase font-bold tracking-wider mb-1">{title}</h3>
+    <p className="text-xl font-bold text-[#0F172A]">{value}</p>
+  </Card>
 );
 
 export const Dashboard = () => {
@@ -29,7 +24,7 @@ export const Dashboard = () => {
   const [chartData, setChartData] = useState({ success: 0, pending: 0, failed: 0, dailyRevenue: [] });
   const [loading, setLoading] = useState(true);
   const [chartsLoading, setChartsLoading] = useState(true);
-  const [chartsError, setChartsError] = useState(false);
+  
   const { useSocketEvent } = useSocket();
 
   const fetchStats = async () => {
@@ -49,7 +44,6 @@ export const Dashboard = () => {
   const fetchCharts = async () => {
     try {
       setChartsLoading(true);
-      setChartsError(false);
       const { data } = await api.get('/admin/charts');
       if (data) {
         setChartData({
@@ -61,7 +55,6 @@ export const Dashboard = () => {
       }
     } catch (error) {
       console.error('Error fetching dashboard charts:', error);
-      setChartsError(true);
     } finally {
       setChartsLoading(false);
     }
@@ -72,79 +65,54 @@ export const Dashboard = () => {
     fetchCharts();
   }, []);
 
-  useSocketEvent('recharge_success', (data) => {
-    // Optionally display a toast, for now just refetch the stats
+  useSocketEvent('recharge_success', () => {
     fetchStats();
     fetchCharts();
   });
 
-  useSocketEvent('recharge_failed', (data) => {
+  useSocketEvent('recharge_failed', () => {
     fetchStats();
     fetchCharts();
   });
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">Dashboard Overview</h1>
-        <p className="text-slate-500 mt-1">Real-time statistics and system health</p>
-      </div>
+    <div className="space-y-6">
+      <header>
+        <h1 className="text-xl font-bold text-[#0F172A] tracking-tight">Dashboard Overview</h1>
+        <p className="text-sm text-[#64748B] mt-0.5">Real-time system health and transaction metrics</p>
+      </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <StatCard 
-          title="Total Users" 
-          value={loading ? '...' : stats.totalUsers} 
-          icon={Users} 
-          colorClass="bg-blue-50 text-blue-600" 
-        />
-        <StatCard 
-          title="Total Revenue (₹)" 
-          value={loading ? '...' : `₹${stats.totalRevenue.toLocaleString()}`} 
-          icon={CreditCard} 
-          colorClass="bg-emerald-50 text-emerald-600" 
-        />
-        <StatCard 
-          title="Total Transactions" 
-          value={loading ? '...' : stats.totalTransactions} 
-          icon={Activity} 
-          colorClass="bg-purple-50 text-purple-600" 
-        />
-        <StatCard 
-          title="Pending Recharges" 
-          value={loading ? '...' : stats.pendingCount} 
-          icon={RefreshCw} 
-          colorClass="bg-amber-50 text-amber-600" 
-        />
-        <StatCard 
-          title="Success Rate" 
-          value={loading ? '...' : `${stats.successRate}%`} 
-          icon={CheckCircle} 
-          colorClass="bg-blue-50 text-blue-600" 
-        />
-        <StatCard 
-          title="Fraud Alerts" 
-          value={loading ? '...' : stats.fraudAlerts} 
-          icon={AlertTriangle} 
-          colorClass="bg-red-50 text-red-600" 
-        />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatCard title="Total Users" value={loading ? '...' : stats.totalUsers} />
+        <StatCard title="Revenue" value={loading ? '...' : `₹${stats.totalRevenue.toLocaleString()}`} />
+        <StatCard title="Total Transactions" value={loading ? '...' : stats.totalTransactions} />
+        <StatCard title="Pending" value={loading ? '...' : stats.pendingCount} />
+        <StatCard title="Success Rate" value={loading ? '...' : `${stats.successRate}%`} />
+        <StatCard title="Fraud Alerts" value={loading ? '...' : stats.fraudAlerts} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-        {chartsLoading ? (
-          <>
-            <div className="bg-slate-100 rounded-2xl h-[400px] animate-pulse shadow-sm border border-slate-100"></div>
-            <div className="bg-slate-100 rounded-2xl h-[400px] animate-pulse shadow-sm border border-slate-100"></div>
-          </>
-        ) : chartsError ? (
-          <div className="col-span-1 lg:col-span-2 bg-red-50 text-red-600 font-medium p-6 rounded-2xl text-center shadow-sm border border-red-100">
-            Failed to load analytics
-          </div>
-        ) : (
-          <>
-            <TransactionsPieChart {...chartData} />
-            <RevenueBarChart dailyRevenue={chartData.dailyRevenue} />
-          </>
-        )}
+        <Card className="p-5">
+          <h3 className="text-xs text-[#64748B] font-bold uppercase tracking-wider mb-6">Transaction Distribution</h3>
+          {chartsLoading ? (
+            <div className="h-64 bg-[#F8FAFC] animate-pulse rounded-md" />
+          ) : (
+            <div className="h-64 flex items-center justify-center">
+              <TransactionsPieChart {...chartData} />
+            </div>
+          )}
+        </Card>
+        
+        <Card className="p-5">
+          <h3 className="text-xs text-[#64748B] font-bold uppercase tracking-wider mb-6">Revenue Trend</h3>
+          {chartsLoading ? (
+            <div className="h-64 bg-[#F8FAFC] animate-pulse rounded-md" />
+          ) : (
+            <div className="h-64 flex items-center justify-center">
+              <RevenueBarChart dailyRevenue={chartData.dailyRevenue} />
+            </div>
+          )}
+        </Card>
       </div>
     </div>
   );

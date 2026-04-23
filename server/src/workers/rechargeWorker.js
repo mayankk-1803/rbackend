@@ -19,7 +19,7 @@ export const dlqQueue = new Queue("recharge_dlq", { connection });
 const worker = new Worker(
   "recharge",
   async (job) => {
-    console.log(" Processing job:", job.data);
+    console.log("Incoming job:", job.data);
     await recharge(job.data);
   },
   { 

@@ -1,11 +1,13 @@
 import express from "express";
 import Transaction from "../models/Transaction.js";
 import User from "../models/User.js";
+import { getIO } from "../config/socket.js";
 
 const router = express.Router();
 
 router.post("/nexgate", async (req, res) => {
   console.log("🔥 Webhook HIT:", req.body);
+  const io = getIO();
 
   const { order_id, status } = req.body;
 
@@ -20,11 +22,27 @@ router.post("/nexgate", async (req, res) => {
     txn.status = "success";
     await txn.save();
 
-    await User.findByIdAndUpdate(txn.userId, {
-      $inc: { walletBalance: txn.amount }
-    });
+    const user = await User.findByIdAndUpdate(
+      txn.userId,
+      { $inc: { walletBalance: txn.amount } },
+      { new: true }
+    );
 
     console.log("Wallet credited");
+
+    // 🔥 SOCKET EMIT: WALLET UPDATE
+    io.emit("wallet_update", {
+      userId: user._id,
+      walletBalance: user.walletBalance,
+      cashbackBalance: user.cashbackBalance
+    });
+
+    // 🔥 SOCKET EMIT: TRANSACTION UPDATE
+    io.emit("recharge_update", {
+      txnId: txn._id,
+      status: "success",
+      transaction: txn
+    });
   }
 
   if (status === "FAILED") {
@@ -32,6 +50,13 @@ router.post("/nexgate", async (req, res) => {
     await txn.save();
 
     console.log("Payment failed");
+
+    // 🔥 SOCKET EMIT: TRANSACTION UPDATE
+    io.emit("recharge_update", {
+      txnId: txn._id,
+      status: "failed",
+      transaction: txn
+    });
   }
 
   res.json({ ok: true });

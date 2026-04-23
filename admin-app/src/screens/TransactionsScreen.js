@@ -59,10 +59,11 @@ const TransactionsScreen = () => {
   };
 
   const renderItem = ({ item }) => {
+    const status = item.status?.toLowerCase();
     let statusColor = "#888";
-    if (item.status === "success") statusColor = "#28a745";
-    if (item.status === "failed") statusColor = "#dc3545";
-    if (item.status === "pending") statusColor = "#fd7e14";
+    if (status === "success") statusColor = "#28a745";
+    if (status === "failed") statusColor = "#dc3545";
+    if (status === "pending") statusColor = "#fd7e14";
 
     return (
       <View style={styles.card}>
@@ -75,11 +76,11 @@ const TransactionsScreen = () => {
             {item.operator} • {item.provider}
           </Text>
           <Text style={[styles.status, { color: statusColor }]}>
-            {item.status.toUpperCase()}
+            {status?.toUpperCase() || "PENDING"}
           </Text>
         </View>
 
-        {item.status === "pending" && (
+        {status === "pending" && (
           <Text style={styles.processingText}>⏳ Processing (1–2 min)</Text>
         )}
 
@@ -87,7 +88,7 @@ const TransactionsScreen = () => {
           <Text style={styles.date}>
             {new Date(item.createdAt).toLocaleString()}
           </Text>
-          {item.status === "failed" && (
+          {status === "failed" && (
             <TouchableOpacity
               style={styles.retryBtn}
               onPress={() => handleRetry(item._id)}

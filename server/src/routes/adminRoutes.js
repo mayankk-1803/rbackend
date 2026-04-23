@@ -1,7 +1,18 @@
 import express from "express";
 import { auth } from "../middlewares/auth.js";
 import { isAdmin } from "../middlewares/admin.js"; 
-import { getDashboard, getTopUsers, retryTxn, getRetryStats, getTransactions, getAlerts, getProviders, getCharts } from "../controllers/adminController.js";
+import { 
+  getDashboard, 
+  getTopUsers, 
+  retryTxn, 
+  getRetryStats, 
+  getTransactions, 
+  getAlerts, 
+  getProviders, 
+  setActiveProvider,
+  getCharts,
+  compareRecharge 
+} from "../controllers/adminController.js";
 
 const router = express.Router();
 
@@ -14,6 +25,8 @@ router.get("/retry-stats", getRetryStats);
 router.get("/transactions", getTransactions);
 router.get("/alerts", getAlerts);
 router.get("/providers", getProviders);
+router.post("/providers/set-active", setActiveProvider);
 router.get("/charts", getCharts);
+router.post("/compare-recharge", compareRecharge);
 
 export default router;

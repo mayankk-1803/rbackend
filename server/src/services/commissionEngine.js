@@ -21,7 +21,10 @@ export const getCommissionDetails = async (amount, operator, userTier = "Standar
 
   if (!applicableRule) {
     // Return default values if no rule matches
-    return { commission: 0, cashback: 0, profit: 0 };
+    const commission = Number((amount * 0.05).toFixed(2)); // Default 5% commission
+    const cashback = Number((amount * 0.02).toFixed(2));   // Default 2% cashback
+    const profit = Number((commission - cashback).toFixed(2));
+    return { commission, cashback, profit };
   }
 
   const commission = Number((amount * (applicableRule.commissionPercent / 100)).toFixed(2));

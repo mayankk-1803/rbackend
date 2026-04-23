@@ -6,7 +6,7 @@ const schema = new mongoose.Schema(
     amount: { type: Number, required: true },
     type: { type: String, required: true },
     status: { type: String, enum: ["success", "failed", "pending"], default: "pending" },
-    mobile: String,
+    mobile: Number,
     operator: String,
     cashback: { type: Number, default: 0 },
     commission: { type: Number, default: 0 },

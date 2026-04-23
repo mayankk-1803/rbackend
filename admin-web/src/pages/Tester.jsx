@@ -1,170 +1,386 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { useSocket } from '../hooks/useSocket';
-import { Play, RotateCcw, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { Zap, Activity, Clock, ChevronRight } from 'lucide-react';
 
 export const Tester = () => {
   const [mobileNumber, setMobileNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
+  const [providers, setProviders] = useState([]);
+  const [selectedProvider, setSelectedProvider] = useState('');
+  const [selectedForCompare, setSelectedForCompare] = useState([]);
+  const [compareResults, setCompareResults] = useState(null);
+  const [isTestMode, setIsTestMode] = useState(true);
+  const [showAll, setShowAll] = useState(false);
+  
   const { useSocketEvent } = useSocket();
 
-  // Handle standard real-time updates for history
+  useEffect(() => {
+    const fetchProviders = async () => {
+      try {
+        const { data } = await api.get('/admin/providers');
+        setProviders(data.data || []);
+      } catch (err) {
+        console.error('Failed to fetch providers', err);
+      }
+    };
+    fetchProviders();
+  }, []);
+
   useSocketEvent('recharge_success', (data) => {
     updateHistory(data.transaction);
-    if(result && result.transactionId === data.transaction.transactionId) {
-      setResult(prev => ({ ...prev, status: 'SUCCESS', details: data.transaction }));
+    if(result && result.transactionId === data.transaction?.transactionId) {
+      setResult(prev => ({ ...prev, status: 'success', details: data.transaction }));
+      toast.success('Recharge successful');
     }
   });
 
   useSocketEvent('recharge_failed', (data) => {
     updateHistory(data.transaction);
-    if(result && result.transactionId === data.transaction.transactionId) {
-      setResult(prev => ({ ...prev, status: 'FAILED', details: data.transaction }));
+    if(result && result.transactionId === data.transaction?.transactionId) {
+      setResult(prev => ({ ...prev, status: 'failed', details: data.transaction }));
+      toast.error('Recharge failed');
     }
   });
 
   const updateHistory = (tx) => {
+    if (!tx) return;
     setHistory(prev => {
-      const idx = prev.findIndex(t => t.transactionId === tx.transactionId);
+      const idx = prev.findIndex(t => (t.transactionId === tx.transactionId) || (t._id === tx._id));
       if (idx > -1) {
         const newHist = [...prev];
         newHist[idx] = tx;
         return newHist;
       }
-      return [tx, ...prev].slice(0, 50); // keep last 50
+      return [tx, ...prev].slice(0, 50);
     });
   };
 
   const handleTest = async (e) => {
     e.preventDefault();
-    if (mobileNumber.length !== 10) return alert('Enter valid 10-digit number');
+    if (mobileNumber.length !== 10) return toast.error('Enter valid 10-digit number');
 
+    const loadingToast = toast.loading("Processing recharge...");
     try {
       setLoading(true);
       setResult(null);
       const { data } = await api.post('/recharge', {
-        mobileNumber,
+        mobile: mobileNumber,
         amount: 10,
-        provider: 'TEST_PROVIDER'
+        operator: 'Jio',
+        providerCode: selectedProvider || null
       });
       
-      setResult({ status: 'PENDING', message: data.message, transactionId: data.transaction?.transactionId, details: data.transaction });
-      if(data.transaction) updateHistory(data.transaction);
-      
+      setResult({ 
+        status: 'pending', 
+        message: data.message, 
+        transactionId: data.data?.transactionId || data.data?._id, 
+        details: data.data 
+      });
+      if(data.data) updateHistory(data.data);
+      toast.success("Request sent successfully", { id: loadingToast });
     } catch (err) {
-      setResult({ status: 'FAILED_API', message: err.response?.data?.message || err.message });
+      const msg = err.response?.data?.message || err.message;
+      setResult({ status: 'failed_api', message: msg });
+      toast.error(msg, { id: loadingToast });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRetry = async (txId) => {
+  const handleCompare = async () => {
+    if (mobileNumber.length !== 10) return toast.error('Enter valid 10-digit number');
+    if (selectedForCompare.length === 0) return toast.error('Select providers to compare');
+
+    const loadingToast = toast.loading("Benchmarking APIs...");
     try {
       setLoading(true);
-      await api.post(`/recharge/retry/${txId}`);
-      // UI will update via socket when retry processes
+      setCompareResults(null);
+      const { data } = await api.post('/admin/compare-recharge', {
+        mobile: mobileNumber,
+        amount: 10,
+        operator: 'Jio',
+        providers: selectedForCompare,
+        testMode: isTestMode
+      });
+      
+      setCompareResults(data.data);
+      toast.success("Benchmark completed", { id: loadingToast });
     } catch (err) {
-      alert(err.response?.data?.message || err.message);
+      const msg = err.response?.data?.message || err.message;
+      toast.error(msg, { id: loadingToast });
     } finally {
       setLoading(false);
     }
   };
 
+  const toggleCompareProvider = (code) => {
+    setSelectedForCompare(prev => 
+      prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]
+    );
+  };
+
+  const getBestProvider = (results) => {
+    if (!results || results.length === 0) return null;
+    const successOnly = results.filter(r => r.status === 'SUCCESS');
+    if (successOnly.length === 0) return null;
+    return successOnly.reduce((prev, curr) => prev.responseTime < curr.responseTime ? prev : curr);
+  };
+
+  const bestProvider = compareResults ? getBestProvider(compareResults.results) : null;
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-500">
-      <div className="lg:col-span-1 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">API Tester</h1>
-          <p className="text-slate-500 mt-1">Simulate recharge workflows</p>
-        </div>
+    <div className="space-y-6">
+      <header>
+        <h1 className="text-xl font-bold text-[#0F172A] tracking-tight">API Tester</h1>
+        <p className="text-sm text-[#64748B] mt-0.5">Benchmark and test provider routing in real-time</p>
+      </header>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <form onSubmit={handleTest} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Mobile Number</label>
-              <input 
-                type="tel"
-                value={mobileNumber}
-                onChange={(e) => setMobileNumber(e.target.value.replace(/[^0-9]/g, ''))}
-                maxLength={10}
-                placeholder="e.g. 9876543210"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-slate-700"
-              />
-            </div>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setMobileNumber('9999999999')} className="px-3 py-1 bg-slate-100 text-slate-600 text-xs rounded-lg hover:bg-slate-200 transition-colors focus:outline-none">Success Test</button>
-              <button type="button" onClick={() => setMobileNumber('0000000000')} className="px-3 py-1 bg-slate-100 text-slate-600 text-xs rounded-lg hover:bg-slate-200 transition-colors focus:outline-none">Fail Test</button>
-            </div>
-            <button 
-              type="submit"
-              disabled={loading || mobileNumber.length !== 10}
-              className="w-full flex items-center justify-center py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors focus:outline-none"
-            >
-              {loading ? <RotateCcw className="w-5 h-5 animate-spin" /> : <><Play className="w-4 h-4 mr-2" /> Trigger Recharge</>}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* LEFT PANEL: Trigger Recharge */}
+        <div className="space-y-6">
+          <section className="bg-white border border-[#E2E8F0] rounded-md p-5 shadow-sm">
+            <h2 className="text-sm font-bold text-[#0F172A] mb-4">Trigger Recharge</h2>
+            <form onSubmit={handleTest} className="space-y-4">
+              <div>
+                <label className="block text-xs text-[#64748B] mb-1.5 font-bold uppercase tracking-wider">Mobile Number</label>
+                <input 
+                  type="tel"
+                  value={mobileNumber}
+                  onChange={(e) => setMobileNumber(e.target.value.replace(/[^0-9]/g, ''))}
+                  maxLength={10}
+                  placeholder="9876543210"
+                  className="w-full px-3 py-2 text-sm border border-[#E2E8F0] rounded-md outline-none focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB] transition duration-150"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-[#64748B] mb-3 font-bold uppercase tracking-wider">Provider Override</label>
+                <div className="space-y-2">
+                  <label className={`flex items-center p-3 border rounded-md cursor-pointer transition ${!selectedProvider ? 'border-[#6D28D9] bg-[#F3E8FF]' : 'border-[#E5E7EB] hover:border-[#C4B5FD]'}`}>
+                    <input 
+                      type="radio" 
+                      name="provider" 
+                      value="" 
+                      checked={selectedProvider === ""} 
+                      onChange={(e) => setSelectedProvider(e.target.value)}
+                      className="w-4 h-4 text-[#6D28D9] border-gray-300 focus:ring-[#6D28D9]"
+                    />
+                    <span className="ml-3 text-sm font-bold text-[#0F172A]">Smart Routing</span>
+                    <span className="ml-auto text-[10px] bg-[#E5E7EB] text-[#64748B] px-2 py-0.5 rounded-full font-bold">Recommended</span>
+                  </label>
+                  
+                  {(showAll ? providers : providers.slice(0, 4)).map((provider) => (
+                    <label 
+                      key={provider.code} 
+                      className={`flex items-center p-3 border rounded-md cursor-pointer transition ${
+                        provider.isBlacklisted ? 'opacity-50 cursor-not-allowed' : ''
+                      } ${selectedProvider === provider.code ? 'border-[#6D28D9] bg-[#F3E8FF]' : 'border-[#E5E7EB] hover:border-[#C4B5FD]'}`}
+                    >
+                      <input 
+                        type="radio" 
+                        name="provider" 
+                        value={provider.code} 
+                        checked={selectedProvider === provider.code} 
+                        onChange={(e) => setSelectedProvider(e.target.value)}
+                        disabled={provider.isBlacklisted}
+                        className="w-4 h-4 text-[#6D28D9] border-gray-300 focus:ring-[#6D28D9] disabled:bg-gray-200"
+                      />
+                      <div className="ml-3 flex justify-between w-full items-center">
+                        <span className="text-sm font-medium text-[#0F172A]">{provider.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-[#64748B] font-mono">{provider.latency || 300}ms</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded font-medium ${
+                             provider.isBlacklisted ? 'bg-[#FEF2F2] text-[#DC2626]' : 
+                             provider.successRate < 80 ? 'bg-[#FEF3C7] text-[#D97706]' : 'bg-[#ECFDF5] text-[#16A34A]'
+                          }`}>
+                            {provider.isBlacklisted ? 'Blacklisted' : 'Healthy'}
+                          </span>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                  
+                  {providers.length > 4 && (
+                    <button 
+                      type="button" 
+                      onClick={() => setShowAll(!showAll)}
+                      className="w-full py-2 text-xs font-semibold text-[#64748B] hover:text-[#0F172A] border border-dashed border-[#E5E7EB] hover:border-[#C4B5FD] rounded-md transition"
+                    >
+                      {showAll ? 'Show Less' : `Show More (${providers.length} APIs)`}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <button 
+                type="submit"
+                disabled={loading || mobileNumber.length !== 10}
+                className="w-full py-2 px-4 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-gray-300 text-white text-sm font-bold rounded-md transition duration-150 shadow-sm"
+              >
+                {loading ? 'Processing...' : 'Trigger Recharge'}
+              </button>
+            </form>
+          </section>
+
+          {/* Quick Actions / Shortcuts */}
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={() => setMobileNumber('9999999999')} className="text-xs py-2 px-3 border border-[#E2E8F0] rounded-md hover:bg-[#F1F5F9] transition text-[#64748B] font-medium">
+              Mock Success No.
             </button>
-          </form>
+            <button onClick={() => setMobileNumber('8888888888')} className="text-xs py-2 px-3 border border-[#E2E8F0] rounded-md hover:bg-[#F1F5F9] transition text-[#64748B] font-medium">
+              Mock Failure No.
+            </button>
+          </div>
+
+          {/* Result Card */}
+          {result && (
+            <div className="bg-white border border-[#E2E8F0] rounded-md p-5 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold text-[#0F172A]">Transaction Status</h3>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                  result.status?.toLowerCase() === 'success' ? 'bg-[#ECFDF5] text-[#16A34A]' : 
+                  result.status?.toLowerCase() === 'pending' ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#FEF2F2] text-[#DC2626]'
+                }`}>
+                  {result.status?.toUpperCase()}
+                </span>
+              </div>
+              <p className="text-xs text-[#64748B] mb-4">{result.message}</p>
+              {result.details && (
+                <div className="bg-[#F8FAFC] border border-[#E2E8F0] p-3 rounded-md overflow-auto max-h-40">
+                  <pre className="text-[10px] text-[#64748B] font-mono">{JSON.stringify(result.details, null, 2)}</pre>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {result && (
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-            <h3 className="text-sm font-semibold text-slate-800 mb-4">Latest Result</h3>
-            <div className="p-4 rounded-xl mb-4 text-sm font-medium border
-              {result.status.includes('FAILED') ? 'bg-red-50 text-red-700 border-red-100' : ''}
-              {result.status === 'SUCCESS' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : ''}
-              {result.status === 'PENDING' ? 'bg-amber-50 text-amber-700 border-amber-100' : ''}
-            ">
-              {result.status === 'PENDING' && <Clock className="w-5 h-5 inline mr-2 text-amber-600" />}
-              {result.status === 'SUCCESS' && <CheckCircle2 className="w-5 h-5 inline mr-2 text-emerald-600" />}
-              {result.status.includes('FAILED') && <XCircle className="w-5 h-5 inline mr-2 text-red-600" />}
-              {result.message || result.status}
+        {/* RIGHT PANEL: Compare APIs */}
+        <div className="space-y-6">
+          <section className="bg-white border border-[#E2E8F0] rounded-md p-5 shadow-sm">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-sm font-bold text-[#0F172A]">Compare APIs</h2>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <span className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">Sandbox</span>
+                <input 
+                  type="checkbox" 
+                  checked={isTestMode} 
+                  onChange={() => setIsTestMode(!isTestMode)}
+                  className="w-3 h-3 text-[#2563EB] rounded border-[#E2E8F0] focus:ring-[#2563EB]"
+                />
+              </label>
             </div>
-            {result.details && (
-              <div className="bg-slate-50 p-4 rounded-xl text-xs text-slate-600 font-mono overflow-auto max-h-48 border border-slate-200">
-                <pre>{JSON.stringify(result.details, null, 2)}</pre>
+
+            <div className="flex flex-wrap gap-2 mb-6">
+              {providers.map(p => (
+                <button 
+                  key={p.code}
+                  onClick={() => !p.isBlacklisted && toggleCompareProvider(p.code)}
+                  disabled={p.isBlacklisted}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition duration-150 border ${
+                    selectedForCompare.includes(p.code) 
+                      ? 'bg-[#2563EB] text-white border-[#2563EB]' 
+                      : 'bg-white text-[#64748B] border-[#E2E8F0] hover:bg-[#F1F5F9]'
+                  } ${p.isBlacklisted ? 'opacity-40 cursor-not-allowed' : ''}`}
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
+
+            <button 
+              onClick={handleCompare}
+              disabled={loading || mobileNumber.length !== 10 || selectedForCompare.length === 0}
+              className="w-full py-2 px-4 bg-[#0F172A] hover:bg-black disabled:bg-gray-300 text-white text-sm font-bold rounded-md transition duration-150"
+            >
+              {loading ? 'Benchmarking...' : 'Run Comparison'}
+            </button>
+
+            {compareResults && (
+              <div className="mt-6">
+                <div className="overflow-hidden border border-[#E2E8F0] rounded-md">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
+                        <th className="px-3 py-2 text-[10px] font-bold text-[#64748B] uppercase">Provider</th>
+                        <th className="px-3 py-2 text-[10px] font-bold text-[#64748B] uppercase">Status</th>
+                        <th className="px-3 py-2 text-[10px] font-bold text-[#64748B] uppercase text-right">Latency</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#E2E8F0]">
+                      {compareResults.results.map((res, idx) => (
+                        <tr key={idx} className="hover:bg-[#F1F5F9] transition duration-75">
+                          <td className="px-3 py-2.5">
+                            <div className="text-xs font-bold text-[#0F172A]">{res.name}</div>
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                              res.status?.toLowerCase() === 'success' ? 'bg-[#ECFDF5] text-[#16A34A]' : 'bg-[#FEF2F2] text-[#DC2626]'
+                            }`}>
+                              {res.status?.toUpperCase()}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5 text-right">
+                            <div className={`text-xs font-mono font-bold ${
+                              bestProvider?.provider === res.provider ? 'text-[#16A34A]' : 'text-[#64748B]'
+                            }`}>
+                              {res.responseTime}ms
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {bestProvider && (
+                  <div className="mt-4 p-3 bg-[#ECFDF5] border border-[#D1FAE5] rounded-md flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-[#16A34A] fill-current" />
+                    <span className="text-xs text-[#065F46] font-bold">
+                      ⚡ Fastest: {bestProvider.name} ({bestProvider.responseTime}ms)
+                    </span>
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
-      </div>
+          </section>
 
-      <div className="lg:col-span-2">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 h-full flex flex-col">
-          <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-            <h2 className="text-lg font-bold text-slate-800">Test History</h2>
-            <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full font-medium">{history.length} Session Records</span>
-          </div>
-          <div className="flex-1 overflow-y-auto p-2">
-            {history.length === 0 ? (
-              <div className="h-48 flex items-center justify-center text-slate-400 text-sm">No recent tests in this session.</div>
-            ) : (
-              <ul className="divide-y divide-slate-100">
-                {history.map((tx) => (
-                  <li key={tx.transactionId || tx._id} className="p-4 hover:bg-slate-50 transition-colors rounded-xl mx-2 my-1 flex justify-between items-center">
-                    <div>
-                      <div className="font-semibold text-slate-800 text-sm">{tx.mobileNumber} <span className="text-slate-400 ml-2 font-normal text-xs">₹{tx.amount}</span></div>
-                      <div className="text-xs text-slate-500 mt-1">{tx.transactionId}</div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className={`px-2.5 py-1 text-[10px] font-bold rounded-full uppercase tracking-wider
-                        ${tx.status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-700' : ''}
-                        ${tx.status === 'FAILED' ? 'bg-red-100 text-red-700' : ''}
-                        ${tx.status === 'PENDING' ? 'bg-amber-100 text-amber-700' : ''}
-                      `}>
-                        {tx.status}
-                      </span>
-                      {tx.status === 'FAILED' && tx.retryCount < 3 && (
-                        <button onClick={() => handleRetry(tx.transactionId || tx._id)} className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-blue-100 hover:text-blue-700 transition-colors" title="Retry">
-                          <RotateCcw className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          {/* Session History Table */}
+          <section className="bg-white border border-[#E2E8F0] rounded-md shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-[#E2E8F0] flex justify-between items-center bg-[#F8FAFC]">
+              <h2 className="text-sm font-bold text-[#0F172A]">Session History</h2>
+              <span className="text-[10px] font-bold text-[#94A3B8] uppercase">{history.length} Records</span>
+            </div>
+            <div className="max-h-[300px] overflow-y-auto">
+              {history.length === 0 ? (
+                <div className="p-8 text-center text-[#94A3B8] text-xs">No activity yet</div>
+              ) : (
+                <table className="w-full text-left">
+                  <tbody className="divide-y divide-[#E2E8F0]">
+                    {history.map((tx) => (
+                      <tr key={tx.transactionId || tx._id} className="hover:bg-[#F1F5F9] transition duration-75">
+                        <td className="px-4 py-3">
+                          <div className="text-xs font-bold text-[#0F172A]">{tx.mobile}</div>
+                          <div className="text-[10px] text-[#94A3B8] font-bold uppercase tracking-tight">{tx.provider || 'Smart Route'}</div>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full uppercase ${
+                            tx.status?.toLowerCase() === 'success' ? 'bg-[#ECFDF5] text-[#16A34A]' : 
+                            tx.status?.toLowerCase() === 'pending' ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#FEF2F2] text-[#DC2626]'
+                          }`}>
+                            {tx.status?.toUpperCase()}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </section>
         </div>
       </div>
     </div>

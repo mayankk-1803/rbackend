@@ -24,7 +24,7 @@ const TestRechargeScreen = ({ navigation }) => {
   // Feedback & History States
   const [feedback, setFeedback] = useState(null);
   const [history, setHistory] = useState([]);
-  const [historyFilter, setHistoryFilter] = useState("ALL");
+  const [historyFilter, setHistoryFilter] = useState("all");
 
   const mobileInputRef = useRef(null);
 
@@ -47,8 +47,8 @@ const TestRechargeScreen = ({ navigation }) => {
       });
       setHistory((prev) =>
         prev.map((item) =>
-          item.mobile === data.mobile && item.status === "PENDING"
-            ? { ...item, status: "SUCCESS" }
+          item.mobile === data.mobile && item.status?.toLowerCase() === "pending"
+            ? { ...item, status: "success" }
             : item,
         ),
       );
@@ -70,8 +70,8 @@ const TestRechargeScreen = ({ navigation }) => {
       });
       setHistory((prev) =>
         prev.map((item) =>
-          item.mobile === data.mobile && item.status === "PENDING"
-            ? { ...item, status: "FAILED" }
+          item.mobile === data.mobile && item.status?.toLowerCase() === "pending"
+            ? { ...item, status: "failed" }
             : item,
         ),
       );
@@ -124,7 +124,7 @@ const TestRechargeScreen = ({ navigation }) => {
         data: txnData,
       });
 
-      updateHistory(usedMobile, txType, "PENDING");
+      updateHistory(usedMobile, txType, "pending");
       setTestMobile("");
       setTestAmount("10");
 
@@ -134,7 +134,7 @@ const TestRechargeScreen = ({ navigation }) => {
     } catch (err) {
       const errMsg = err.response?.data?.message || "Test recharge failed";
       setFeedback({ type: "error", message: errMsg, data: null });
-      updateHistory(usedMobile, txType, "FAILED");
+      updateHistory(usedMobile, txType, "failed");
     } finally {
       setIsTesting(false);
     }
@@ -167,8 +167,8 @@ const TestRechargeScreen = ({ navigation }) => {
   const quickNumbers = ["9876543210", "9123456780", "8123456780"];
 
   const filteredHistory = useMemo(() => {
-    if (historyFilter === "ALL") return history;
-    return history.filter((h) => h.status === historyFilter);
+    if (historyFilter === "all") return history;
+    return history.filter((h) => h.status?.toLowerCase() === historyFilter);
   }, [history, historyFilter]);
 
   const getStatusColor = (status) => {
@@ -379,7 +379,7 @@ const TestRechargeScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.filterRow}>
-              {["ALL", "SUCCESS", "FAILED", "PENDING"].map((f) => (
+              {["all", "success", "failed", "pending"].map((f) => (
                 <TouchableOpacity
                   key={f}
                   onPress={() => setHistoryFilter(f)}
@@ -394,7 +394,7 @@ const TestRechargeScreen = ({ navigation }) => {
                       historyFilter === f && styles.filterTextActive,
                     ]}
                   >
-                    {f}
+                    {f.toUpperCase()}
                   </Text>
                 </TouchableOpacity>
               ))}
