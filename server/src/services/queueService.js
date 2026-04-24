@@ -1,5 +1,5 @@
 import { rechargeQueue } from "../config/rechargeQueue.js";
-import { connection as redis } from "../config/redis.js";
+import { redis } from "../config/redis.js";
 
 export const addRechargeJob = async (data) => {
   let delayMs = 0; // Default instant processing
@@ -16,7 +16,7 @@ export const addRechargeJob = async (data) => {
   
   return rechargeQueue.add("recharge", data, {
     delay: delayMs,
-    attempts: 1, // Reduced to 1 to avoid DLQ spam; fallback handled in worker
+    attempts: 3, // Set to 3 as per requirement
     backoff: {
       type: "exponential",
       delay: 5000

@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import { connection as redis } from "../config/redis.js";
+import {  redis } from "../config/redis.js";
 
 const COOLDOWN_TTL = 300; // 5 minutes
 

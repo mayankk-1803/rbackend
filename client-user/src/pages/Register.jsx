@@ -16,18 +16,29 @@ export default function Register() {
     if(!name || !email || !password) return;
     
     setLoading(true);
+    const data = { name, email, password };
+    
     try {
-      const { data } = await api.post(API_ROUTES.AUTH.REGISTER, { name, email, password });
-      
-      const { token, user } = data.data;
-      
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      
-      toast.success('Account created successfully');
-      window.location.href = '/';
+      // Use axios instance (api) but follow requested logic
+      const res = await api.post(API_ROUTES.AUTH.REGISTER, data);
+      console.log("Signup response:", res.data);
+
+      if (res.data.success) {
+        const { token, user } = res.data;
+        
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        
+        toast.success('Registration successful');
+        window.location.href = '/';
+      } else {
+        throw new Error(res.data.message || 'Registration failed');
+      }
     } catch(err) {
-      toast.error(err.response?.data?.message || 'Registration failed');
+      console.error("Signup error:", err);
+      // Handle axios error object if it exists
+      const errorMessage = err.response?.data?.message || err.message || 'Registration failed';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }

@@ -1,15 +1,14 @@
 import Transaction from "../models/Transaction.js";
 import User from "../models/User.js";
-import { getCommissionDetails } from "./commissionEngine.js";
-import { connection as redis } from "../config/redis.js";
+import Wallet from "../models/Wallet.js";
+import { calculateCommission } from "../utils/calculateCommission.js";
+import { redis } from "../config/redis.js";
 import eventBus from "../config/eventBus.js";
 import { getSortedProviders, updateProviderMetrics } from "./routingService.js";
 import { simulateProviderAPI } from "./providerSimulator.js";
-import { getIO } from "../config/socket.js";
 
 export const recharge = async (data) => {
     const { userId, amount, mobile, operator, idempotencyKey, providerCode, txnId } = data;
-    const io = getIO();
 
     console.log(`[PROCESS] Processing job for txnId: ${txnId}`);
 
@@ -87,31 +86,31 @@ export const recharge = async (data) => {
 
         // 4. FINAL STATUS HANDLING
         if (result && result.status?.toLowerCase() === "success") {
+            console.log(`[Worker Success] Recharge succeeded for txnId: ${txnId}`);
             const user = await User.findById(userId);
-            if (!user) throw new Error("User not found");
             
-            if (user.walletBalance < amount) {
-                txn.status = "failed";
-                txn.failureReason = "Insufficient balance at execution";
-                await txn.save();
-                eventBus.emit("recharge_failed", { txnId: txn._id, mobile, amount, reason: "Insufficient balance" });
-                return { success: false, message: "Insufficient balance" };
+            const userTier = user?.tier || "Standard";
+            const commission = calculateCommission(amount, operator);
+
+            // Give Cashback (balance is already deducted in controller)
+            if (commission > 0) {
+                console.log(`[Recharge Service] Crediting cashback for userId: ${userId}, amount: +${commission}`);
+                const updatedWallet = await Wallet.findOneAndUpdate(
+                    { userId },
+                    { $inc: { cashbackBalance: commission } },
+                    { new: true, upsert: true }
+                );
+                
+                if (updatedWallet) {
+                    eventBus.emit("wallet_updated", { userId: userId.toString() });
+                    
+                    eventBus.emit("wallet_update", {
+                        userId: updatedWallet.userId,
+                        walletBalance: updatedWallet.balance,
+                        cashbackBalance: updatedWallet.cashbackBalance
+                    });
+                }
             }
-
-            const userTier = user.tier || "Standard";
-            const { commission, cashback, profit } = await getCommissionDetails(amount, operator, userTier);
-
-            // Update Wallet and Cashback
-            user.walletBalance -= amount;
-            user.cashbackBalance = (user.cashbackBalance || 0) + cashback;
-            await user.save();
-
-            // 🔥 SOCKET EMIT: WALLET UPDATE
-            io.emit("wallet_update", {
-                userId: user._id,
-                walletBalance: user.walletBalance,
-                cashbackBalance: user.cashbackBalance
-            });
 
             // Update Transaction
             txn.status = "success";
@@ -119,54 +118,118 @@ export const recharge = async (data) => {
             txn.providerTxnId = result.operatorId;
             txn.apiResponse = result;
             txn.commission = commission;
-            txn.cashback = cashback;
-            txn.profit = profit;
-            txn.amountDeducted = true;
+            txn.cashback = commission; // In this context, cashback = commission given to user
+            txn.profit = 0; // Baseline profit or calculated differently if needed
             await txn.save();
 
-            // 🔥 SOCKET EMIT (Strict as per user request)
-            io.emit("recharge_update", { 
+            // 🔥 EVENT BUS EMIT
+            eventBus.emit("recharge_update", { 
                 txnId: txn._id, 
                 status: "success",
                 transaction: txn
             });
-
-            // 🔥 SOCKET EMIT via EventBus
-            eventBus.emit("recharge_success", { txnId: txn._id, mobile, amount, transaction: txn });
             
-            // Save recent success for smart duplicate delay
+            eventBus.emit("recharge_status", {
+                userId,
+                txnId: txn._id,
+                status: "success",
+                transaction: txn
+            });
+
+            eventBus.emit("recharge_success", { txnId: txn._id, mobile, amount, transaction: txn });
             await redis.set(`recent_success:${mobile}`, "1", "EX", 120);
 
             return { success: true, data: txn };
         } else {
             // ❌ ALL PROVIDERS FAILED
+            console.log(`[Worker Failure] Recharge failed for txnId: ${txnId}. Failure reason: ${lastError?.message || "All providers failed"}`);
+            
             txn.status = "failed";
             txn.failureReason = lastError?.message || "All providers failed";
             txn.provider = "SYSTEM_FAILURE";
             await txn.save();
             
-            // 🔥 SOCKET EMIT (Strict as per user request)
-            io.emit("recharge_update", { 
+            // AUTO REFUND (Atomic)
+            if (txn.amountDeducted && txn.refundStatus === "none") {
+                console.log(`[Refund Execution] Refunding userId: ${userId}, amount: +${amount} for failed txn: ${txnId}`);
+                const updatedWallet = await Wallet.findOneAndUpdate(
+                    { userId },
+                    { $inc: { balance: amount } },
+                    { new: true, upsert: true }
+                );
+                
+                if (updatedWallet) {
+                    txn.refundStatus = "processed";
+                    txn.refundedAt = new Date();
+                    await txn.save();
+                    
+                    eventBus.emit("wallet_updated", { userId: userId.toString() });
+                    
+                    eventBus.emit("wallet_update", {
+                        userId: updatedWallet.userId,
+                        walletBalance: updatedWallet.balance,
+                        cashbackBalance: updatedWallet.cashbackBalance
+                    });
+                }
+            }
+
+            // 🔥 EVENT BUS EMIT
+            eventBus.emit("recharge_update", { 
                 txnId: txn._id, 
                 status: "failed",
                 reason: txn.failureReason
             });
 
-            // 🔥 SOCKET EMIT via EventBus
+            eventBus.emit("recharge_status", {
+                userId,
+                txnId: txn._id,
+                status: "failed",
+                reason: txn.failureReason
+            });
+
             eventBus.emit("recharge_failed", { txnId: txn._id, mobile, amount, reason: txn.failureReason });
             
+            if (lastError?.message?.includes("timeout")) {
+                throw new Error("Provider timeout, triggering retry");
+            }
+
             return { success: false, message: txn.failureReason };
         }
 
     } catch (err) {
-        console.error(`❌ WORKER ERROR: ${err.message}`);
-        if (txn) {
+        console.error(`❌ WORKER CRITICAL ERROR: ${err.message}`);
+        if (txn && err.message !== "Provider timeout, triggering retry") {
             txn.status = "failed";
             txn.failureReason = err.message;
             await txn.save();
+            
+            // AUTO REFUND on unhandled non-retryable error
+            if (txn.amountDeducted && txn.refundStatus === "none") {
+                console.log(`[Refund Execution] Catch block refunding userId: ${userId}, amount: +${amount} for txn: ${txnId}`);
+                const updatedWallet = await Wallet.findOneAndUpdate(
+                    { userId },
+                    { $inc: { balance: amount } },
+                    { new: true, upsert: true }
+                );
+                if (updatedWallet) {
+                    txn.refundStatus = "processed";
+                    txn.refundedAt = new Date();
+                    await txn.save();
+                    
+                    io.to(userId.toString()).emit("wallet_updated");
+                    
+                    io.emit("wallet_update", {
+                        userId: updatedWallet.userId,
+                        walletBalance: updatedWallet.balance,
+                        cashbackBalance: updatedWallet.cashbackBalance
+                    });
+                }
+            }
+            
             eventBus.emit("recharge_failed", { txnId: txn._id, mobile, amount, reason: err.message });
         }
-        return { success: false, message: err.message };
+        
+        throw err;
     } finally {
         await redis.del(lockKey);
     }

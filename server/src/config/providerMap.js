@@ -1,0 +1,14 @@
+export const PROVIDER_MAP = {
+    PRIMARY: "PRIMARY",
+    SPEEDY: "SPEEDY",
+    BACKUP: "BACKUP",
+    ECONOMY: "ECONOMY",
+    GLOBAL: "GLOBAL",
+    FASTPAY: "FASTPAY",
+    SECURE: "SECURE",
+    LOCAL: "LOCAL",
+    ULTRA: "ULTRA",
+    LEGACY: "LEGACY"
+};
+
+export const PROVIDER_LIST = Object.values(PROVIDER_MAP);

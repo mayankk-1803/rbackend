@@ -6,11 +6,13 @@ import { motion } from 'framer-motion';
 import { Wallet, Smartphone, Tv, Zap, Droplets, Flame, Wifi, CreditCard, MoreHorizontal, ArrowUpRight } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { toast } from 'react-hot-toast';
+import PaymentModal from '../components/PaymentModal';
 
 export default function Home() {
   const [history, setHistory] = useState([]);
   const [wallet, setWallet] = useState({ balance: 0, cashback: 0 });
   const [showAddMoney, setShowAddMoney] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -26,10 +28,10 @@ export default function Home() {
 
   const fetchWallet = useCallback(async () => {
     try {
-      const res = await api.get(API_ROUTES.USER.WALLET);
+      const res = await api.get('/api/wallet');
       setWallet({
-        balance: res.data.data.walletBalance,
-        cashback: res.data.data.cashbackBalance
+        balance: res.data.balance || 0,
+        cashback: res.data.cashbackBalance || 0
       });
     } catch (err) {
       console.error(err);
@@ -40,21 +42,39 @@ export default function Home() {
     if (!amount || Number(amount) <= 0) {
       return toast.error("Please enter a valid amount");
     }
+    setShowAddMoney(false);
+    setShowPayment(true);
+  };
 
+  const handlePaymentFlow = async () => {
     setLoading(true);
     try {
-      await api.post(API_ROUTES.USER.TOP_UP, { 
-        amount: Number(amount) 
+      console.log("[Wallet] Creating order for add money...");
+      const res = await api.post('/api/payment/create-order', { 
+        amount: Number(amount),
+        upiId: 'demo@upi',
+        intent: 'WALLET_TOPUP'
       });
       
-      toast.success("Money added successfully 💰");
-      setShowAddMoney(false);
-      setAmount("");
-      fetchWallet();
+      const paymentId = res.data.data._id;
+      console.log("[Wallet] Order created:", paymentId);
+
+      console.log("[Wallet] Confirming payment...");
+      const confirmRes = await api.post('/api/payment/confirm', { paymentId });
+      
+      if (confirmRes.data.success) {
+        console.log("[Wallet] Payment success, wallet updated");
+        toast.success("Money added successfully!");
+        fetchWallet();
+      } else {
+        throw new Error("Payment confirmation failed");
+      }
     } catch (err) {
+      console.error("[Wallet Error]:", err);
       toast.error(err.response?.data?.message || "Failed to add money");
     } finally {
       setLoading(false);
+      setShowPayment(false);
     }
   };
 
@@ -64,7 +84,7 @@ export default function Home() {
 
     const socket = io(import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000');
 
-    socket.on('recharge_update', (data) => {
+    const handleRechargeUpdate = (data) => {
       console.log('📡 Live update:', data);
       setHistory((prev) => 
         prev.map((txn) => 
@@ -79,18 +99,20 @@ export default function Home() {
       } else if (data.status === "failed") {
         toast.error(`Recharge Failed: ${data.reason || 'Unknown error'} ❌`);
       }
+    };
+
+    socket.on('recharge_update', handleRechargeUpdate);
+    socket.on('recharge_status', handleRechargeUpdate);
+
+    socket.on('wallet_updated', () => {
+      console.log('💰 Wallet updated event received. Refetching...');
+      fetchWallet();
     });
 
-    socket.on('wallet_update', (data) => {
-      console.log('💰 Wallet update:', data);
-      // Only update if it's for the current user
-      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-      if (data.userId === currentUser.id || data.userId === currentUser._id) {
-        setWallet({
-          balance: data.walletBalance,
-          cashback: data.cashbackBalance
-        });
-        toast.success("Wallet Updated! 💰");
+    socket.on('payment_status', (data) => {
+      console.log('💳 Payment status:', data);
+      if (data.status === "SUCCESS") {
+        fetchWallet();
       }
     });
 
@@ -157,7 +179,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Add Money Modal */}
+      {/* Add Money Modal (Amount Entry) */}
       {showAddMoney && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <motion.div 
@@ -205,9 +227,7 @@ export default function Home() {
                   disabled={loading}
                   className="flex-1 bg-[#6D28D9] text-white px-4 py-2.5 rounded-md text-sm font-medium hover:bg-[#5B21B6] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {loading ? (
-                    <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
-                  ) : 'Add Money'}
+                  Proceed
                 </button>
               </div>
             </div>
@@ -215,90 +235,78 @@ export default function Home() {
         </div>
       )}
 
-      {/* Services Grid */}
-      <section>
-        <h2 className="text-lg font-semibold text-[#0F172A] mb-4">Recharge & Pay Bills</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {services.map((s, idx) => (
-            <Link 
-              key={idx} 
-              to={s.path} 
-              className="bg-white border border-[#E5E7EB] rounded-md p-5 flex flex-col items-center justify-center gap-3 hover:border-[#6D28D9] hover:shadow-sm transition group"
+      {/* Payment Modal */}
+      <PaymentModal
+        isOpen={showPayment}
+        onClose={() => setShowPayment(false)}
+        amount={amount}
+        onPaymentSuccess={handlePaymentFlow}
+        title="Add Money"
+      />
+
+      {/* Quick Services */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {services.map((service, idx) => (
+          <Link key={idx} to={service.path}>
+            <motion.div 
+              whileHover={{ y: -4, shadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)" }}
+              className="bg-white p-6 rounded-lg border border-[#E5E7EB] flex flex-col items-center gap-4 transition-all"
             >
-              <div className="w-10 h-10 rounded-full flex items-center justify-center text-[#64748B] group-hover:text-[#6D28D9] group-hover:bg-[#F3E8FF] transition-colors">
-                <s.icon className="w-5 h-5" />
+              <div className="w-12 h-12 bg-[#F3E8FF] rounded-full flex items-center justify-center">
+                <service.icon className="w-6 h-6 text-[#6D28D9]" />
               </div>
-              <span className="text-sm font-medium text-[#0F172A]">{s.label}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
+              <span className="text-sm font-medium text-[#0F172A]">{service.label}</span>
+            </motion.div>
+          </Link>
+        ))}
+      </div>
 
       {/* Recent Transactions */}
-      <section className="bg-white border border-[#E5E7EB] rounded-md overflow-hidden">
-        <div className="flex justify-between items-center p-5 border-b border-[#E5E7EB]">
-          <h2 className="text-lg font-semibold text-[#0F172A]">Recent Transactions</h2>
+      <div className="bg-white rounded-lg border border-[#E5E7EB] shadow-sm">
+        <div className="px-6 py-4 border-b border-[#E5E7EB] flex justify-between items-center">
+          <h2 className="text-lg font-bold text-[#0F172A]">Recent Transactions</h2>
           <Link to="/history" className="text-sm font-medium text-[#6D28D9] hover:text-[#5B21B6] flex items-center gap-1">
-            View all <ArrowUpRight className="w-4 h-4" />
+            View All <ArrowUpRight className="w-4 h-4" />
           </Link>
         </div>
-        
-        {history.length === 0 ? (
-          <div className="p-8 text-center text-[#64748B] text-sm">No recent transactions found.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm whitespace-nowrap group">
-              <thead className="bg-[#F8FAFC] border-b border-[#E5E7EB] text-[#64748B] text-xs uppercase tracking-wider font-semibold">
-                <tr>
-                  <th className="px-6 py-3">Service</th>
-                  <th className="px-6 py-3">Target Number</th>
-                  <th className="px-6 py-3">Amount</th>
-                  <th className="px-6 py-3 text-right">Status</th>
-                  <th className="px-6 py-3 text-right">Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E5E7EB]">
-                {history.map(t => {
-                  const status = t.status?.toLowerCase();
-                  return (
-                    <tr key={t._id} className="hover:bg-[#F8FAFC] transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded bg-[#F1F5F9] flex items-center justify-center text-[#64748B]">
-                            <Smartphone className="w-4 h-4" />
-                          </div>
-                          <span className="font-medium text-[#0F172A]">Mobile Recharge</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-[#0F172A] font-medium">{t.mobile}</td>
-                      <td className="px-6 py-4 font-semibold text-[#0F172A]">₹{t.amount}</td>
-                      <td className="px-6 py-4 text-right">
-                        {status === "pending" ? (
-                          <span className="flex items-center justify-end gap-2 text-yellow-600 font-semibold text-xs">
-                            <span className="animate-spin h-3 w-3 border-2 border-yellow-500 border-t-transparent rounded-full"></span>
-                            PROCESSING...
-                          </span>
-                        ) : (
-                          <span className={
-                            status === "success" 
-                              ? "text-green-600 bg-green-100 px-2 py-1 rounded text-xs font-semibold uppercase" 
-                              : "text-red-600 bg-red-100 px-2 py-1 rounded text-xs font-semibold uppercase"
-                          }>
-                            {status?.toUpperCase() || 'UNKNOWN'}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-right text-[#64748B]">
-                        {new Date(t.createdAt).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+        <div className="divide-y divide-[#E5E7EB]">
+          {history.length > 0 ? history.map((txn, idx) => (
+            <div key={idx} className="px-6 py-4 flex justify-between items-center hover:bg-[#F8FAFC] transition-colors">
+              <div className="flex items-center gap-4">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  txn.type === 'recharge' ? 'bg-blue-50' : 'bg-green-50'
+                }`}>
+                  {txn.type === 'recharge' ? (
+                    <Smartphone className={`w-5 h-5 ${txn.type === 'recharge' ? 'text-blue-600' : 'text-green-600'}`} />
+                  ) : (
+                    <Wallet className="w-5 h-5 text-green-600" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-[#0F172A] capitalize">{txn.type} {txn.operator && `- ${txn.operator}`}</p>
+                  <p className="text-xs text-[#64748B]">{new Date(txn.createdAt).toLocaleDateString()} • {txn.mobile || 'Wallet'}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className={`text-sm font-bold ${txn.type === 'recharge' ? 'text-[#0F172A]' : 'text-green-600'}`}>
+                  {txn.type === 'recharge' ? '-' : '+'}₹{txn.amount.toFixed(2)}
+                </p>
+                <p className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full inline-block ${
+                  txn.status === 'success' ? 'bg-green-100 text-green-700' : 
+                  txn.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 
+                  'bg-red-100 text-red-700'
+                }`}>
+                  {txn.status}
+                </p>
+              </div>
+            </div>
+          )) : (
+            <div className="px-6 py-12 text-center text-[#64748B]">
+              No transactions found. Start recharging!
+            </div>
+          )}
+        </div>
+      </div>
     </motion.div>
   );
 }

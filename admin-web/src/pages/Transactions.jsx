@@ -110,6 +110,15 @@ export const Transactions = () => {
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination placeholder if needed, right now backend handles default 50 */}
+        <div className="p-4 border-t border-[#E2E8F0] flex justify-between items-center text-xs text-[#64748B]">
+          <div>Showing {filteredData.length} entries</div>
+          <div className="flex gap-2">
+            <button className="px-3 py-1 border border-[#E2E8F0] rounded bg-white hover:bg-[#F8FAFC]">Previous</button>
+            <button className="px-3 py-1 border border-[#E2E8F0] rounded bg-white hover:bg-[#F8FAFC]">Next</button>
+          </div>
+        </div>
       </Card>
     </div>
   );

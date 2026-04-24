@@ -1,5 +1,5 @@
 import CommissionRule from "../models/CommissionRule.js";
-import { connection as redis } from "../config/redis.js";
+import { redis } from "../config/redis.js";
 
 const CACHE_KEY = "commission_rules";
 const CACHE_TTL = 3600; // 1 hr

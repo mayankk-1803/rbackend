@@ -1,4 +1,4 @@
-import { connection as redis } from "../config/redis.js";
+import { redis } from "../config/redis.js";
 
 const IDEMPOTENCY_TTL = 86400; // 24 hours
 

@@ -50,10 +50,32 @@ export const getDashboard = async (req, res) => {
 export const getTopUsers = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
-    const users = await User.find()
-      .sort({ referralEarnings: -1 })
-      .limit(limit)
-      .select("email referralEarnings walletBalance");
+    
+    const users = await User.aggregate([
+      { $sort: { referralEarnings: -1 } },
+      { $limit: limit },
+      {
+        $lookup: {
+          from: "wallets",
+          localField: "_id",
+          foreignField: "userId",
+          as: "walletData"
+        }
+      },
+      {
+        $project: {
+          email: 1,
+          referralEarnings: 1,
+          walletBalance: { 
+            $cond: { 
+              if: { $gt: [{ $size: "$walletData" }, 0] }, 
+              then: { $arrayElemAt: ["$walletData.balance", 0] }, 
+              else: 0 
+            } 
+          }
+        }
+      }
+    ]);
 
     res.json({ success: true, message: "Top users fetched", data: users });
   } catch (err) {
@@ -134,10 +156,17 @@ export const getRetryStats = async (req, res) => {
 
 export const getTransactions = async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const skip = (page - 1) * limit;
+
+    const total = await Transaction.countDocuments();
+    
     const transactions = await Transaction.find()
       .select("mobile amount operator status provider createdAt")
       .sort({ createdAt: -1 })
-      .limit(50)
+      .skip(skip)
+      .limit(limit)
       .lean();
 
     const normalizedTxns = transactions.map(t => {
@@ -150,7 +179,18 @@ export const getTransactions = async (req, res) => {
       return { ...t, operator: normOperator, provider: normProvider };
     });
 
-    res.json({ success: true, data: normalizedTxns });
+    res.json({ 
+      success: true, 
+      data: {
+        transactions: normalizedTxns,
+        pagination: {
+          total,
+          page,
+          pages: Math.ceil(total / limit),
+          limit
+        }
+      } 
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -282,4 +322,47 @@ export const compareRecharge = async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
+};
+
+export const topUpWallet = async (req, res) => {
+    try {
+        const { amount, userId } = req.body;
+        const targetUserId = userId || req.user.id;
+
+        if (!amount || amount <= 0) {
+            return res.status(400).json({ success: false, message: "Valid amount is required" });
+        }
+
+        const Wallet = (await import("../models/Wallet.js")).default;
+        const wallet = await Wallet.findOneAndUpdate(
+            { userId: targetUserId },
+            { $inc: { balance: amount } },
+            { new: true, upsert: true }
+        );
+
+        res.json({
+            success: true,
+            message: `Successfully added ₹${amount} to wallet`,
+            data: { balance: wallet.balance }
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+export const getAdminWallet = async (req, res) => {
+    try {
+        const Wallet = (await import("../models/Wallet.js")).default;
+        const wallet = await Wallet.findOne({ userId: req.user.id });
+        
+        res.json({
+            success: true,
+            data: {
+                balance: wallet?.balance || 0,
+                cashbackBalance: wallet?.cashbackBalance || 0
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
 };

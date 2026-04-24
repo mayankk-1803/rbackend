@@ -11,7 +11,9 @@ import {
   getProviders, 
   setActiveProvider,
   getCharts,
-  compareRecharge 
+  compareRecharge,
+  topUpWallet,
+  getAdminWallet
 } from "../controllers/adminController.js";
 
 const router = express.Router();
@@ -28,5 +30,7 @@ router.get("/providers", getProviders);
 router.post("/providers/set-active", setActiveProvider);
 router.get("/charts", getCharts);
 router.post("/compare-recharge", compareRecharge);
+router.post("/topup", topUpWallet);
+router.get("/wallet", getAdminWallet);
 
 export default router;

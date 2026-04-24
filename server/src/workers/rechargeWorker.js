@@ -1,7 +1,7 @@
 import { Worker, Queue } from "bullmq";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
-import { connection } from "../config/redis.js";
+import { redis } from "../config/redis.js";
 import { recharge } from "../services/rechargeService.js";
 import eventBus from "../config/eventBus.js";
 
@@ -14,7 +14,7 @@ mongoose.connect(process.env.MONGO_URI)
 
 console.log(" Worker started...");
 
-export const dlqQueue = new Queue("recharge_dlq", { connection });
+export const dlqQueue = new Queue("recharge_dlq", { redis });
 
 const worker = new Worker(
   "recharge",
@@ -23,7 +23,7 @@ const worker = new Worker(
     await recharge(job.data);
   },
   { 
-    connection,
+    connection: redis,
     settings: {
       backoffStrategies: {
          // Custom backoff if needed

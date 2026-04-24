@@ -1,6 +1,7 @@
 import express from "express";
 import { auth } from "../middlewares/auth.js";
 import User from "../models/User.js";
+import Wallet from "../models/Wallet.js";
 import Transaction from "../models/Transaction.js";
 
 const router = express.Router();
@@ -11,13 +12,17 @@ router.use(auth);
 // GET /user/wallet
 router.get("/wallet", async (req, res) => {
   try {
-    const user = await User.findById(req.user.id)
-      .select("walletBalance cashbackBalance");
+    const wallet = await Wallet.findOne({ userId: req.user.id });
 
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found"
+    if (!wallet) {
+      // If no wallet exists yet, just return 0 balance
+      return res.json({
+        success: true,
+        message: "Wallet fetched",
+        data: {
+          walletBalance: 0,
+          cashbackBalance: 0
+        }
       });
     }
 
@@ -25,8 +30,8 @@ router.get("/wallet", async (req, res) => {
       success: true,
       message: "Wallet fetched",
       data: {
-        walletBalance: user.walletBalance,
-        cashbackBalance: user.cashbackBalance
+        walletBalance: wallet.balance,
+        cashbackBalance: wallet.cashbackBalance
       }
     });
   } catch (err) {
@@ -71,15 +76,7 @@ router.get("/transactions", async (req, res) => {
 // GET /user/dashboard
 router.get("/dashboard", async (req, res) => {
   try {
-    const user = await User.findById(req.user.id)
-      .select("walletBalance cashbackBalance");
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found"
-      });
-    }
+    const wallet = await Wallet.findOne({ userId: req.user.id });
 
     const transactions = await Transaction.find({
       userId: req.user.id
@@ -92,8 +89,8 @@ router.get("/dashboard", async (req, res) => {
       success: true,
       message: "Dashboard fetched",
       data: {
-        walletBalance: user.walletBalance,
-        cashbackBalance: user.cashbackBalance,
+        walletBalance: wallet ? wallet.balance : 0,
+        cashbackBalance: wallet ? wallet.cashbackBalance : 0,
         recentTransactions: transactions
       }
     });

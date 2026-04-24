@@ -58,7 +58,7 @@ export const Login = () => {
               value={email}
               onChange={e => setEmail(e.target.value)}
               className="w-full px-3 py-2 border border-[#E5E7EB] rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-[#0F172A] focus:border-[#0F172A] sm:text-sm"
-              placeholder="admin@dizipay.com"
+              placeholder="Enter Email Address"
             />
           </div>
           <div>

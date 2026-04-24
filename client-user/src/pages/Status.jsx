@@ -15,7 +15,7 @@ export default function Status() {
     // Initialize Socket.io for live updates
     const socket = io(import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000');
 
-    socket.on('recharge_update', (data) => {
+    const handleUpdate = (data) => {
       console.log('📡 Status Update Received:', data);
       
       setTxn((prev) => {
@@ -32,7 +32,10 @@ export default function Status() {
         }
         return prev;
       });
-    });
+    };
+
+    socket.on('recharge_update', handleUpdate);
+    socket.on('recharge_status', handleUpdate);
 
     return () => {
       socket.disconnect();

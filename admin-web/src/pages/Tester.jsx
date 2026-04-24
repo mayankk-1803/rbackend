@@ -13,6 +13,7 @@ export const Tester = () => {
   const [selectedProvider, setSelectedProvider] = useState('');
   const [selectedForCompare, setSelectedForCompare] = useState([]);
   const [compareResults, setCompareResults] = useState(null);
+  const [amount, setAmount] = useState('10');
   const [isTestMode, setIsTestMode] = useState(true);
   const [showAll, setShowAll] = useState(false);
   
@@ -49,19 +50,21 @@ export const Tester = () => {
   const updateHistory = (tx) => {
     if (!tx) return;
     setHistory(prev => {
-      const idx = prev.findIndex(t => (t.transactionId === tx.transactionId) || (t._id === tx._id));
-      if (idx > -1) {
-        const newHist = [...prev];
-        newHist[idx] = tx;
-        return newHist;
-      }
-      return [tx, ...prev].slice(0, 50);
+      const map = new Map(prev.map(t => [t._id || t.transactionId, t]));
+      map.set(tx._id || tx.transactionId, tx);
+      return Array.from(map.values())
+        .sort((a, b) => new Date(b.createdAt || Date.now()) - new Date(a.createdAt || Date.now()))
+        .reverse()
+        .slice(0, 50);
     });
   };
 
   const handleTest = async (e) => {
     e.preventDefault();
     if (mobileNumber.length !== 10) return toast.error('Enter valid 10-digit number');
+    const amt = Number(amount);
+    if (!amt || amt <= 0) return toast.error('Enter valid amount');
+    if (amt > 5000) return toast.error('Max testing limit is ₹5000');
 
     const loadingToast = toast.loading("Processing recharge...");
     try {
@@ -69,9 +72,9 @@ export const Tester = () => {
       setResult(null);
       const { data } = await api.post('/recharge', {
         mobile: mobileNumber,
-        amount: 10,
+        amount: amt,
         operator: 'Jio',
-        providerCode: selectedProvider || null
+        ...(selectedProvider ? { providerCode: String(selectedProvider) } : {})
       });
       
       setResult({ 
@@ -93,6 +96,8 @@ export const Tester = () => {
 
   const handleCompare = async () => {
     if (mobileNumber.length !== 10) return toast.error('Enter valid 10-digit number');
+    const amt = Number(amount);
+    if (!amt || amt <= 0) return toast.error('Enter valid amount');
     if (selectedForCompare.length === 0) return toast.error('Select providers to compare');
 
     const loadingToast = toast.loading("Benchmarking APIs...");
@@ -101,7 +106,7 @@ export const Tester = () => {
       setCompareResults(null);
       const { data } = await api.post('/admin/compare-recharge', {
         mobile: mobileNumber,
-        amount: 10,
+        amount: amt,
         operator: 'Jio',
         providers: selectedForCompare,
         testMode: isTestMode
@@ -114,6 +119,16 @@ export const Tester = () => {
       toast.error(msg, { id: loadingToast });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTopUp = async () => {
+    const loadingToast = toast.loading("Adding balance...");
+    try {
+      await api.post('/admin/topup', { amount: 1000 });
+      toast.success("₹1000 added to your wallet", { id: loadingToast });
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Top-up failed", { id: loadingToast });
     }
   };
 
@@ -136,7 +151,16 @@ export const Tester = () => {
     <div className="space-y-6">
       <header>
         <h1 className="text-xl font-bold text-[#0F172A] tracking-tight">API Tester</h1>
-        <p className="text-sm text-[#64748B] mt-0.5">Benchmark and test provider routing in real-time</p>
+        <div className="flex justify-between items-center mt-0.5">
+          <p className="text-sm text-[#64748B]">Benchmark and test provider routing in real-time</p>
+          <button 
+            onClick={() => handleTopUp()}
+            className="flex items-center gap-1.5 px-3 py-1 bg-[#F3E8FF] text-[#6D28D9] text-[10px] font-bold rounded-md hover:bg-[#E9D5FF] transition"
+          >
+            <Zap className="w-3 h-3 fill-current" />
+            + ₹1000 Balance
+          </button>
+        </div>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -153,6 +177,17 @@ export const Tester = () => {
                   onChange={(e) => setMobileNumber(e.target.value.replace(/[^0-9]/g, ''))}
                   maxLength={10}
                   placeholder="9876543210"
+                  className="w-full px-3 py-2 text-sm border border-[#E2E8F0] rounded-md outline-none focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB] transition duration-150"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-[#64748B] mb-1.5 font-bold uppercase tracking-wider">Amount (₹)</label>
+                <input 
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="10"
                   className="w-full px-3 py-2 text-sm border border-[#E2E8F0] rounded-md outline-none focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB] transition duration-150"
                 />
               </div>
@@ -360,8 +395,8 @@ export const Tester = () => {
               ) : (
                 <table className="w-full text-left">
                   <tbody className="divide-y divide-[#E2E8F0]">
-                    {history.map((tx) => (
-                      <tr key={tx.transactionId || tx._id} className="hover:bg-[#F1F5F9] transition duration-75">
+                    {history.map((tx, idx) => (
+                      <tr key={`${tx._id || tx.transactionId || idx}-${idx}`} className="hover:bg-[#F1F5F9] transition duration-75">
                         <td className="px-4 py-3">
                           <div className="text-xs font-bold text-[#0F172A]">{tx.mobile}</div>
                           <div className="text-[10px] text-[#94A3B8] font-bold uppercase tracking-tight">{tx.provider || 'Smart Route'}</div>

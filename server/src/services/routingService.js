@@ -85,7 +85,7 @@ export const getProvider = async (data) => {
         const cost = Math.max(p.costPerTxn || 1, 0.1);
         const successRate = p.successRate || 90;
 
-        const score = (0.5 * successRate) + (0.3 * (1000 / latency)) + (0.2 * (1 / cost));
+        const score = (0.3 * successRate) + (0.6 * (1000 / latency)) + (0.1 * (1 / cost));
         return { provider: p, score };
     }).sort((a, b) => b.score - a.score);
 
@@ -104,7 +104,7 @@ export const getSortedProviders = async () => {
         const cost = Math.max(p.costPerTxn || 1, 0.1);
         const successRate = p.successRate || 90;
 
-        const score = (0.5 * successRate) + (0.3 * (1000 / latency)) + (0.2 * (1 / cost));
+        const score = (0.3 * successRate) + (0.6 * (1000 / latency)) + (0.1 * (1 / cost));
         return { provider: p, score };
     }).sort((a, b) => b.score - a.score).map(sp => sp.provider);
 };

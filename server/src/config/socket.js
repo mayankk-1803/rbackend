@@ -30,14 +30,35 @@ export const initSocket = (server) => {
 
   // Listen to inner-service events and broadcast them to everyone (User + Admin)
   eventBus.on("recharge_success", (data) => {
-    io.emit("recharge_update", { txnId: data.txnId, status: "success", transaction: data.transaction });
+    // Only emit success to admin, 'recharge_update' handles the user broadcast
     adminNamespace.emit("recharge_success", data);
   });
-
+  
   eventBus.on("recharge_failed", (data) => {
-    io.emit("recharge_update", { txnId: data.txnId, status: "failed", failureReason: data.alert || data.reason });
+    // Only emit failure to admin, 'recharge_update' handles the user broadcast
     adminNamespace.emit("recharge_failed", data);
   });
+  
+  eventBus.on("recharge_status", (data) => {
+    if (data.userId) {
+      io.to(data.userId.toString()).emit("recharge_status", data);
+    }
+  });
+
+  eventBus.on("wallet_updated", (data) => {
+    if (data.userId) {
+      io.to(data.userId.toString()).emit("wallet_updated", data);
+    }
+  });
+
+  eventBus.on("wallet_update", (data) => {
+    io.emit("wallet_update", data);
+  });
+
+  eventBus.on("recharge_update", (data) => {
+    io.emit("recharge_update", data);
+  });
+
   eventBus.on("provider_status", (data) => adminNamespace.emit("provider_status", data));
   eventBus.on("fraud_alert", (data) => adminNamespace.emit("fraud_alert", data));
   
@@ -52,19 +73,26 @@ export const initSocket = (server) => {
 export const getIO = () => {
   if (!io) {
     // Return a mock object if io is not initialized (e.g., in worker process)
-    // This allows calling io.emit() without crashing
-    return {
+    // This allows calling io.emit() or io.to().emit() without crashing
+    const mockIO = {
       emit: (event, data) => {
         console.log(`[SOCKET MOCK] Emitting ${event}:`, data);
-        eventBus.emit(event, data); // Relay through eventBus which is cross-process
+        eventBus.emit(event, data);
       },
-      of: () => ({
-        emit: (event, data) => {
-          console.log(`[SOCKET MOCK Namespace] Emitting ${event}:`, data);
-          eventBus.emit(`namespace_${event}`, data);
-        }
-      })
+      to: (room) => {
+        console.log(`[SOCKET MOCK] targeting room: ${room}`);
+        return mockIO; // Chainable
+      },
+      in: (room) => {
+        console.log(`[SOCKET MOCK] targeting room: ${room}`);
+        return mockIO; // Chainable
+      },
+      of: (namespace) => {
+        console.log(`[SOCKET MOCK] targeting namespace: ${namespace}`);
+        return mockIO; // Simplified for mock
+      }
     };
+    return mockIO;
   }
   return io;
 };

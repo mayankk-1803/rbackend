@@ -5,6 +5,7 @@ import http from "http";
 import { initSocket } from "./src/config/socket.js";
 import { startHealthMonitoring } from "./src/services/healthService.js";
 import { seedProviders } from "./src/utils/seedProviders.js";
+import { startPaymentWorker } from "./src/workers/paymentWorker.js";
 
 dotenv.config();
 
@@ -22,6 +23,9 @@ mongoose.connect(process.env.MONGO_URI)
   
   // Start Health Monitoring Service
   startHealthMonitoring(60000); // Check every 1 minute
+  
+  // Start Payment Worker
+  startPaymentWorker();
   
   server.listen(PORT, () =>
     console.log("Server running on port " + PORT)

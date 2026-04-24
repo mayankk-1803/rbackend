@@ -1,4 +1,4 @@
-import { connection as redis } from "../config/redis.js";
+import { redis } from "../config/redis.js";
 import FraudLog from "../models/FraudLog.js";
 import Transaction from "../models/Transaction.js";
 import { sendAlert } from "../services/alertService.js";

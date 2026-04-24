@@ -2,8 +2,9 @@ import express from "express";
 import { auth } from "../middlewares/auth.js";
 import { createPaymentLink } from "../services/walletService.js";
 import User from "../models/User.js";
+import Wallet from "../models/Wallet.js";
 import Transaction from "../models/Transaction.js";
-import { getIO } from "../config/socket.js";
+import eventBus from "../config/eventBus.js";
 
 const router = express.Router();
 
@@ -18,11 +19,11 @@ router.post("/top-up", auth, async (req, res) => {
     const { amount } = req.body;
     const userId = req.user.id;
 
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ success: false, message: "User not found" });
-
-    user.walletBalance += Number(amount);
-    await user.save();
+    const updatedWallet = await Wallet.findOneAndUpdate(
+      { userId },
+      { $inc: { balance: Number(amount) } },
+      { new: true, upsert: true }
+    );
 
     // Create a successful transaction record
     await Transaction.create({
@@ -34,14 +35,15 @@ router.post("/top-up", auth, async (req, res) => {
       paymentGateway: "simulated"
     });
 
-    const io = getIO();
-    io.emit("wallet_update", {
-      userId: user._id,
-      walletBalance: user.walletBalance,
-      cashbackBalance: user.cashbackBalance
+    eventBus.emit("wallet_update", {
+      userId: updatedWallet.userId,
+      walletBalance: updatedWallet.balance,
+      cashbackBalance: updatedWallet.cashbackBalance
     });
 
-    res.json({ success: true, message: "Money added successfully", balance: user.walletBalance });
+    eventBus.emit("wallet_updated", { userId: userId.toString() });
+
+    res.json({ success: true, message: "Money added successfully", balance: updatedWallet.balance });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

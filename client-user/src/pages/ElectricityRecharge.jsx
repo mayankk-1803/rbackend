@@ -4,33 +4,87 @@ import api from '../api';
 import { API_ROUTES } from '../api/routes';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
+import PaymentModal from '../components/PaymentModal';
+import RechargePaymentModal from '../components/RechargePaymentModal';
 
 export default function ElectricityRecharge() {
   const [number, setNumber] = useState('');
   const [amount, setAmount] = useState('');
   const [operator, setOperator] = useState('BSES');
   const [loading, setLoading] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
+  const [showRechargeModal, setShowRechargeModal] = useState(false);
   const navigate = useNavigate();
 
-  const handleRecharge = async (e) => {
-    e.preventDefault();
-    if(!number || !amount) return;
-
+  const handleRechargeDirectly = async () => {
+    setShowRechargeModal(false);
+    if(!number || !amount || Number(amount) <= 0) {
+      return toast.error("Please enter a valid consumer number and amount");
+    }
     const loadingToast = toast.loading('Processing Electricity bill payment...');
     setLoading(true);
     try {
-      const { data } = await api.post(API_ROUTES.RECHARGE.CREATE, {
+      console.log("[Electricity] Initiating recharge directly from wallet...");
+      const idempotencyKey = crypto.randomUUID();
+      const { data } = await api.post('/api/recharge', {
         mobile: number,
         amount: Number(amount),
         operator,
         type: 'electricity'
+      }, {
+        headers: { 'x-idempotency-key': idempotencyKey }
       });
+      
+      console.log("[Electricity] Response:", data);
+
       toast.success(data.message || 'Payment initiated', { id: loadingToast });
       navigate('/history');
     } catch(err) {
-      toast.error(err.response?.data?.message || 'Payment failed', { id: loadingToast });
+      console.error("[Electricity Error]:", err);
+      const errorMsg = err.response?.data?.message || 'Payment failed';
+      toast.error(errorMsg, { id: loadingToast });
+      
+      if (errorMsg.includes("Insufficient")) {
+        setShowPayment(true);
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTopUpSuccess = async () => {
+    console.log("[TopUp] Success, retrying electricity payment...");
+    setShowPayment(false);
+    await handleRechargeDirectly();
+  };
+
+
+
+  const handlePaymentFlow = async () => {
+    try {
+      console.log("[Payment] Creating order for electricity...");
+      const res = await api.post('/api/payment/create-order', {
+        amount: Number(amount),
+        upiId: 'demo@upi',
+        intent: 'WALLET_TOPUP'
+      });
+      
+      const paymentId = res.data.data._id;
+      console.log("[Payment] Order created:", paymentId);
+
+      console.log("[Payment] Confirming payment...");
+      const confirmRes = await api.post('/api/payment/confirm', { paymentId });
+      
+      if (confirmRes.data.success) {
+        console.log("[Payment] Success, proceeding to bill payment");
+        await handleTopUpSuccess();
+      } else {
+        throw new Error("Payment confirmation failed");
+      }
+    } catch (err) {
+      console.error("[Payment Error]:", err);
+      toast.error(err.response?.data?.message || "Payment failed");
+      setShowPayment(false);
     }
   };
 
@@ -46,7 +100,7 @@ export default function ElectricityRecharge() {
           <p className="text-sm text-[#64748B] mt-1">Pay your electricity bill instantly</p>
         </div>
 
-        <form onSubmit={handleRecharge} className="p-6 space-y-6">
+        <form onSubmit={(e) => { e.preventDefault(); setShowRechargeModal(true); }} className="p-6 space-y-6">
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-[#0F172A] mb-1">Consumer Number</label>
@@ -91,7 +145,7 @@ export default function ElectricityRecharge() {
           </div>
 
           <div className="bg-[#F8FAFC] border border-[#E5E7EB] rounded-md p-4 text-sm text-[#64748B]">
-            Ensure the details are correct. The amount will be deducted from your wallet balance instantly.
+            Ensure the details are correct. Payment is required before the bill is processed.
           </div>
 
           <div className="flex justify-end border-t border-[#E5E7EB] pt-6 mt-6">
@@ -101,11 +155,28 @@ export default function ElectricityRecharge() {
               type="submit"
               className="px-6 py-2 bg-[#6D28D9] text-white font-medium rounded-md hover:bg-[#5B21B6] disabled:bg-[#94A3B8] disabled:cursor-not-allowed transition-colors text-sm shadow-sm"
             >
-              {loading ? 'Processing...' : 'Pay Bill'}
+              {loading ? 'Processing...' : 'Recharge Now'}
             </motion.button>
           </div>
         </form>
       </div>
+
+      <PaymentModal
+        isOpen={showPayment}
+        onClose={() => setShowPayment(false)}
+        amount={amount}
+        onPaymentSuccess={handlePaymentFlow}
+        title="Electricity Bill Payment"
+      />
+
+      <RechargePaymentModal
+        isOpen={showRechargeModal}
+        onClose={() => setShowRechargeModal(false)}
+        onConfirm={handleRechargeDirectly}
+        amount={amount}
+        mobile={number}
+        operator={operator}
+      />
     </motion.div>
   );
 }
