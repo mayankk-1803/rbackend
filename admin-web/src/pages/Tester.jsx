@@ -50,8 +50,8 @@ export const Tester = () => {
   const updateHistory = (tx) => {
     if (!tx) return;
     setHistory(prev => {
-      const map = new Map(prev.map(t => [t._id || t.transactionId, t]));
-      map.set(tx._id || tx.transactionId, tx);
+      const map = new Map(prev.map(t => [t.id || t.transactionId, t]));
+      map.set(tx.id || tx.transactionId, tx);
       return Array.from(map.values())
         .sort((a, b) => new Date(b.createdAt || Date.now()) - new Date(a.createdAt || Date.now()))
         .reverse()
@@ -72,15 +72,14 @@ export const Tester = () => {
       setResult(null);
       const { data } = await api.post('/recharge', {
         mobile: mobileNumber,
-        amount: amt,
-        operator: 'Jio',
-        ...(selectedProvider ? { providerCode: String(selectedProvider) } : {})
+        amount: Number(amount),
+        operator: 'Jio'
       });
       
       setResult({ 
         status: 'pending', 
         message: data.message, 
-        transactionId: data.data?.transactionId || data.data?._id, 
+        transactionId: data.data?.transactionId || data.data?.id, 
         details: data.data 
       });
       if(data.data) updateHistory(data.data);
@@ -396,7 +395,7 @@ export const Tester = () => {
                 <table className="w-full text-left">
                   <tbody className="divide-y divide-[#E2E8F0]">
                     {history.map((tx, idx) => (
-                      <tr key={`${tx._id || tx.transactionId || idx}-${idx}`} className="hover:bg-[#F1F5F9] transition duration-75">
+                      <tr key={`${tx.id || tx.transactionId || idx}-${idx}`} className="hover:bg-[#F1F5F9] transition duration-75">
                         <td className="px-4 py-3">
                           <div className="text-xs font-bold text-[#0F172A]">{tx.mobile}</div>
                           <div className="text-[10px] text-[#94A3B8] font-bold uppercase tracking-tight">{tx.provider || 'Smart Route'}</div>

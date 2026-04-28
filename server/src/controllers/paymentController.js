@@ -1,33 +1,46 @@
 import { createPaymentOrder } from "../services/paymentService.js";
-import Payment from "../models/Payment.js";
-import User from "../models/User.js";
-import Wallet from "../models/Wallet.js";
-import Transaction from "../models/Transaction.js";
+import prisma from "../config/prisma.js";
 import eventBus from "../config/eventBus.js";
 import crypto from "crypto";
-import mongoose from "mongoose";
+import { Prisma } from "@prisma/client";
 
 export const createOrder = async (req, res) => {
   try {
-    const { amount, upiId, intent } = req.body;
+    console.log("CREATE ORDER INPUT:", req.body);
+    console.log("USER:", req.user);
+
+    let { amount, upiId, intent } = req.body;
+    
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ success: false, message: "USER_NOT_AUTHENTICATED" });
+    }
+    
     const userId = req.user.id;
 
-    if (!amount || amount <= 0) {
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
       return res.status(400).json({ success: false, message: "Invalid amount" });
     }
 
-    const idempotencyKey = req.headers["x-idempotency-key"] || crypto.randomUUID();
+    // Normalize intent
+    intent = intent === "RECHARGE" ? "RECHARGE" : "TOPUP";
 
-    const payment = await createPaymentOrder(userId, amount, idempotencyKey, upiId, intent);
+    const idempotencyKey = req.headers["x-idempotency-key"];
+    if (!idempotencyKey) {
+      return res.status(400).json({ success: false, message: "x-idempotency-key header is required" });
+    }
 
-    res.json({
+    const payment = await createPaymentOrder(userId, Number(amount), idempotencyKey, upiId, intent);
+
+    return res.json({
       success: true,
-      message: "Order created successfully",
       data: payment
     });
   } catch (error) {
-    console.error("[CreateOrder Error]:", error);
-    res.status(500).json({ success: false, message: "Internal server error" });
+    console.error("🔥 PAYMENT ERROR FULL:", error);
+    return res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
   }
 };
 
@@ -36,8 +49,11 @@ export const verifyPayment = async (req, res) => {
     const { paymentId } = req.body;
     const userId = req.user.id;
 
-    const payment = await Payment.findOne({ _id: paymentId, userId });
-    if (!payment) {
+    const payment = await prisma.payment.findUnique({
+      where: { id: parseInt(paymentId) }
+    });
+
+    if (!payment || payment.userId !== userId) {
       return res.status(404).json({ success: false, message: "Payment not found" });
     }
 
@@ -54,8 +70,11 @@ export const confirmPayment = async (req, res) => {
 
     console.log(`[Payment] Confirming payment order: ${paymentId} for user: ${userId}`);
 
-    const payment = await Payment.findOne({ _id: paymentId, userId });
-    if (!payment) {
+    const payment = await prisma.payment.findUnique({
+      where: { id: parseInt(paymentId) }
+    });
+
+    if (!payment || payment.userId !== userId) {
       console.error(`[Payment] Order not found: ${paymentId}`);
       return res.status(404).json({ success: false, message: "Payment not found" });
     }
@@ -64,7 +83,7 @@ export const confirmPayment = async (req, res) => {
     const webhookReq = {
       headers: { "x-webhook-secret": process.env.WEBHOOK_SECRET || "internal_secret" },
       body: {
-        paymentId: payment._id,
+        paymentId: payment.id,
         status: "SUCCESS",
         gatewayTxnId: `MOCK_TXN_${Date.now()}`,
         errorMessage: ""
@@ -93,7 +112,6 @@ export const confirmPayment = async (req, res) => {
 
 export const paymentWebhook = async (req, res) => {
   try {
-    // Basic internal webhook auth
     const secret = req.headers["x-webhook-secret"];
     if (secret !== (process.env.WEBHOOK_SECRET || "internal_secret")) {
       return res.status(401).json({ success: false, message: "Unauthorized webhook caller" });
@@ -101,92 +119,62 @@ export const paymentWebhook = async (req, res) => {
 
     const { paymentId, status, gatewayTxnId, errorMessage } = req.body;
 
-    const payment = await Payment.findById(paymentId);
-    if (!payment) {
-      return res.status(404).json({ success: false, message: "Payment not found" });
-    }
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Lock payment record
+      const payment = await tx.payment.findUnique({
+        where: { id: parseInt(paymentId) }
+      });
 
-    // Prevent double processing
-    if (payment.webhookReceived) {
-      return res.json({ success: true, message: "Webhook already processed" });
-    }
+      if (!payment) throw new Error("Payment not found");
+      if (payment.status !== "PENDING") return { alreadyProcessed: true, payment };
 
-    const session = await mongoose.startSession();
-    session.startTransaction();
+      // 2. Lock wallet record
+      await tx.$executeRaw`SELECT * FROM Wallet WHERE userId = ${payment.userId} FOR UPDATE`;
 
-    try {
-      payment.status = status;
-      payment.gatewayTxnId = gatewayTxnId;
-      payment.errorMessage = errorMessage;
-      payment.webhookReceived = true;
-      await payment.save({ session });
+      // 3. Update payment status
+      const updatedPayment = await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: status === "SUCCESS" ? "SUCCESS" : "FAILED",
+          gatewayTxnId,
+          errorMessage,
+          webhookReceived: true
+        }
+      });
 
       if (status === "SUCCESS") {
-        let updatedWallet = null;
-
-        if (payment.intent === "WALLET_TOPUP") {
-          console.log(`[Payment Webhook] WALLET_TOPUP detected. Updating wallet for userId: ${payment.userId}, amount: +${payment.amount}`);
-          // Update user wallet atomically using Wallet model
-          updatedWallet = await Wallet.findOneAndUpdate(
-            { userId: payment.userId },
-            { $inc: { balance: payment.amount } },
-            { new: true, upsert: true, session }
-          );
-
-          // Create Transaction record for WALLET_TOPUP
-          await Transaction.create([{
-            userId: payment.userId,
-            amount: payment.amount,
-            type: "wallet",
-            status: "success",
-            gatewayTxnId: gatewayTxnId,
-            paymentGateway: "simulated_upi",
-            idempotencyKey: payment.idempotencyKey,
-            intent: "WALLET_TOPUP"
-          }], { session });
-
-          console.log(`[Payment Webhook] Wallet credited. New Balance: ${updatedWallet.balance}`);
-        } else {
-          console.log(`[Payment Webhook] RECHARGE intent detected. Skipping wallet credit.`);
-        }
-
-        // Notify via eventBus
-        if (payment.intent === "WALLET_TOPUP" && updatedWallet) {
-          eventBus.emit("wallet_updated", {
-            userId: payment.userId.toString(),
-            amount: payment.amount,
-            type: "CREDIT"
-          });
-          
-          eventBus.emit("wallet_update", {
-            userId: payment.userId,
-            walletBalance: updatedWallet.balance
-          });
-        }
-        
-        eventBus.emit("payment_status", {
-          paymentId: payment._id,
-          status: "SUCCESS"
+        // 4. Credit Wallet
+        const wallet = await tx.wallet.update({
+          where: { userId: payment.userId },
+          data: { balance: { increment: payment.amount } }
         });
-      } else {
-        console.log(`[Payment Webhook] Payment failed for ${payment.userId}`);
-        // Notify via eventBus for failure
-        eventBus.emit("payment_status", {
-          paymentId: payment._id,
-          status: "FAILED"
+
+        // 5. Create Transaction Record
+        await tx.transaction.create({
+          data: {
+            userId: payment.userId,
+            amount: payment.amount,
+            type: "TOPUP",
+            status: "SUCCESS",
+            direction: "CREDIT",
+            gatewayTxnId,
+            balanceAfter: wallet.balance
+          }
         });
       }
 
-      await session.commitTransaction();
-      res.json({ success: true, message: "Webhook processed" });
-    } catch (err) {
-      await session.abortTransaction();
-      throw err;
-    } finally {
-      session.endSession();
+      return { alreadyProcessed: false, payment: updatedPayment };
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+    });
+
+    if (!result.alreadyProcessed && status === "SUCCESS") {
+      eventBus.emit("wallet_updated", { userId: result.payment.userId, amount: result.payment.amount });
     }
+
+    return res.json({ success: true, message: "Webhook processed" });
   } catch (error) {
     console.error("[Webhook Error]:", error);
-    res.status(500).json({ success: false, message: "Internal server error" });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };

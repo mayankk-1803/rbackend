@@ -1,8 +1,18 @@
 import express from "express";
 import { auth } from "../middlewares/auth.js";
-import User from "../models/User.js";
-import Wallet from "../models/Wallet.js";
-import Transaction from "../models/Transaction.js";
+import prisma from "../config/prisma.js";
+import multer from "multer";
+import { v2 as cloudinary } from "cloudinary";
+import fs from "fs";
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+const upload = multer({ dest: 'uploads/' });
 
 const router = express.Router();
 
@@ -12,7 +22,9 @@ router.use(auth);
 // GET /user/wallet
 router.get("/wallet", async (req, res) => {
   try {
-    const wallet = await Wallet.findOne({ userId: req.user.id });
+    const wallet = await prisma.wallet.findUnique({
+      where: { userId: req.user.id }
+    });
 
     if (!wallet) {
       // If no wallet exists yet, just return 0 balance
@@ -47,18 +59,30 @@ router.get("/transactions", async (req, res) => {
   try {
     const { status, type, page = 1, limit = 10 } = req.query;
 
-    const query = { userId: req.user.id };
+    const where = { userId: req.user.id };
 
-    if (status) query.status = status;
-    if (type) query.type = type;
+    if (status) where.status = status;
+    if (type) where.type = type;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const transactions = await Transaction.find(query)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit))
-      .select("-isLocked -__v");
+    const transactions = await prisma.transaction.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip: skip,
+      take: parseInt(limit),
+      select: {
+        id: true,
+        amount: true,
+        status: true,
+        type: true,
+        direction: true,
+        mobile: true,
+        operator: true,
+        createdAt: true,
+        balanceAfter: true
+      }
+    });
 
     res.json({
       success: true,
@@ -76,14 +100,21 @@ router.get("/transactions", async (req, res) => {
 // GET /user/dashboard
 router.get("/dashboard", async (req, res) => {
   try {
-    const wallet = await Wallet.findOne({ userId: req.user.id });
+    const wallet = await prisma.wallet.findUnique({
+      where: { userId: req.user.id }
+    });
 
-    const transactions = await Transaction.find({
-      userId: req.user.id
-    })
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .select("amount status type createdAt");
+    const transactions = await prisma.transaction.findMany({
+      where: { userId: req.user.id },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      select: {
+        amount: true,
+        status: true,
+        type: true,
+        createdAt: true
+      }
+    });
 
     res.json({
       success: true,
@@ -95,6 +126,52 @@ router.get("/dashboard", async (req, res) => {
       }
     });
   } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+});
+
+// PUT /user/update-profile
+router.put("/update-profile", upload.single('profileImage'), async (req, res) => {
+  try {
+    const { name } = req.body;
+    let profileImageUrl = req.body.profileImage;
+
+    if (req.file) {
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        folder: 'profile_images'
+      });
+      profileImageUrl = result.secure_url;
+      fs.unlinkSync(req.file.path);
+    }
+    
+    const updatedUser = await prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        ...(name && { name }),
+        ...(profileImageUrl && { profileImage: profileImageUrl })
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        profileImage: true
+      }
+    });
+
+    res.json({
+      success: true,
+      message: "Profile updated successfully",
+      data: updatedUser
+    });
+  } catch (err) {
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
     res.status(500).json({
       success: false,
       message: err.message

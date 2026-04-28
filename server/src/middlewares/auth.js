@@ -6,9 +6,13 @@ export const auth = (req, res, next) => {
   if (!token) return res.status(401).json({ msg: "No token" });
 
   try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback_secret");
+    if (!decoded || !decoded.id) {
+      return res.status(401).json({ success: false, message: "Invalid token structure: missing user id" });
+    }
+    req.user = decoded;
     next();
-  } catch {
-    return res.status(401).json({ msg: "Invalid token" });
+  } catch (error) {
+    return res.status(401).json({ success: false, message: "Invalid token" });
   }
 };

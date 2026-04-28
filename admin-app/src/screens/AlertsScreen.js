@@ -77,7 +77,7 @@ const AlertsScreen = () => {
       </View>
       <FlatList
         data={alerts}
-        keyExtractor={(item) => item._id.toString()}
+        keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
         contentContainerStyle={styles.list}
         refreshControl={

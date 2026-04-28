@@ -13,7 +13,8 @@ import {
   getCharts,
   compareRecharge,
   topUpWallet,
-  getAdminWallet
+  getAdminWallet,
+  getUsers
 } from "../controllers/adminController.js";
 
 const router = express.Router();
@@ -21,6 +22,7 @@ const router = express.Router();
 router.use(auth, isAdmin); 
 
 router.get("/dashboard", getDashboard);
+router.get("/users", getUsers);
 router.get("/top-users", getTopUsers);
 router.post("/retry/:id", retryTxn);
 router.get("/retry-stats", getRetryStats);

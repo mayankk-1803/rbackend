@@ -24,3 +24,23 @@ export const validateRechargeInput = (req, res, next) => {
   req.body = value; // Use validated/normalized values
   next();
 };
+
+export const validatePaymentInput = (req, res, next) => {
+  const schema = Joi.object({
+    amount: Joi.number().positive().required(),
+    upiId: Joi.string().optional(),
+    intent: Joi.string().valid("TOPUP", "RECHARGE").default("TOPUP"),
+    idempotencyKey: Joi.string().optional()
+  });
+
+  const { error, value } = schema.validate(req.body, { abortEarly: false, stripUnknown: true });
+  if (error) {
+    return res.status(400).json({ 
+      success: false, 
+      message: error.details[0].message 
+    });
+  }
+  
+  req.body = value;
+  next();
+};

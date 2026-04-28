@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:5000",
+  baseURL: "http://localhost:5000/api",
 });
 
 api.interceptors.request.use((config) => {
@@ -9,6 +9,7 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  console.log("API CALL:", config.baseURL + config.url);
   return config;
 });
 

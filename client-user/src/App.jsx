@@ -1,13 +1,12 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
-import { Zap, LogOut } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import Navbar from './components/Navbar';
 import Home from './pages/Home';
-import Recharge from './pages/Recharge';
-import Status from './pages/Status';
-import History from './pages/History';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import History from './pages/History';
+import Recharge from './pages/Recharge';
 import MobileRecharge from './pages/MobileRecharge';
 import DTHRecharge from './pages/DTHRecharge';
 import ElectricityRecharge from './pages/ElectricityRecharge';
@@ -15,130 +14,76 @@ import WaterRecharge from './pages/WaterRecharge';
 import GasRecharge from './pages/GasRecharge';
 import BroadbandRecharge from './pages/BroadbandRecharge';
 import LoanRecharge from './pages/LoanRecharge';
+import Dashboard from './pages/Dashboard';
+import ErrorBoundary from './components/ErrorBoundary';
+import Status from './pages/Status';
+import Profile from './pages/Profile';
 
-const RequireAuth = ({ children }) => {
-  const token = localStorage.getItem('token');
-  const userStr = localStorage.getItem('user');
-  if (!token || !userStr) return <Navigate to="/login" replace />;
-  const user = JSON.parse(userStr);
-  if (user.role !== 'user') return <Navigate to="/login" replace />;
-  return children;
+const PrivateRoute = ({ isAuth, children }) => {
+  return isAuth ? children : <Navigate to="/login" />;
 };
 
-const Topbar = () => {
+const Layout = ({ children }) => {
   const location = useLocation();
-  const navigate = useNavigate();
-  const navItems = [
-    { path: '/', label: 'Dashboard' },
-    { path: '/recharge', label: 'Recharge' },
-    { path: '/history', label: 'History' },
-    { path: '/status', label: 'Check Status' },
-  ];
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = '/';
-  };
+  const hideNavbarRoutes = ['/login', '/register'];
+  const showNavbar = !hideNavbarRoutes.includes(location.pathname);
 
   return (
-    <nav className="bg-white border-b border-[#E5E7EB] sticky top-0 z-50">
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          <div className="flex">
-            <div className="flex-shrink-0 flex items-center gap-2 mr-8">
-              <div className="w-8 h-8 bg-[#6D28D9] rounded flex items-center justify-center">
-                <Zap className="w-5 h-5 text-white" />
-              </div>
-              <span className="font-semibold text-lg text-[#0F172A]">Dizipay</span>
-            </div>
-            <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-              {navItems.map((item) => {
-                const isActive = location.pathname === item.path;
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'border-[#6D28D9] text-[#0F172A]'
-                        : 'border-transparent text-[#64748B] hover:border-[#E5E7EB] hover:text-[#0F172A]'
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-          <div className="flex items-center hidden sm:flex">
-            <button
-              onClick={handleLogout}
-              className="text-[#64748B] hover:text-[#DC2626] flex items-center gap-2 text-sm font-medium transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              Logout
-            </button>
-          </div>
-        </div>
-      </div>
-    </nav>
+    <>
+      {showNavbar && <Navbar />}
+      <main className="max-w-7xl mx-auto px-4 py-6">
+        {children}
+      </main>
+    </>
   );
 };
 
-const AppLayout = ({ children }) => (
-  <div className="min-h-screen bg-[#F8FAFC] font-sans text-[#0F172A]">
-    <Topbar />
-    <main className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {children}
-    </main>
-  </div>
-);
+function App() {
+  const [isAuth, setIsAuth] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-export default function App() {
-  const token = localStorage.getItem('token');
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    setIsAuth(!!token);
+    setLoading(false);
+  }, []);
 
+  if (loading) return null;
   return (
-    <BrowserRouter>
-      <Toaster
-        position="bottom-right"
-        toastOptions={{
-          style: {
-            background: "#0F172A",
-            color: "#FFFFFF",
-            fontSize: "13px",
-            fontWeight: "500",
-            borderRadius: "6px"
-          }
-        }}
-      />
-      <Routes>
-        {!token ? (
-          <>
-            <Route path="/" element={<Register />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/login" element={<Login />} />
-            {/* Redirect all other paths to register if not logged in */}
-            <Route path="*" element={<Navigate to="/register" replace />} />
-          </>
-        ) : (
-          <>
-            <Route path="/" element={<RequireAuth><AppLayout><Home /></AppLayout></RequireAuth>} />
-            <Route path="/recharge" element={<RequireAuth><AppLayout><Recharge /></AppLayout></RequireAuth>} />
-            <Route path="/recharge/mobile" element={<RequireAuth><AppLayout><MobileRecharge /></AppLayout></RequireAuth>} />
-            <Route path="/recharge/dth" element={<RequireAuth><AppLayout><DTHRecharge /></AppLayout></RequireAuth>} />
-            <Route path="/recharge/electricity" element={<RequireAuth><AppLayout><ElectricityRecharge /></AppLayout></RequireAuth>} />
-            <Route path="/recharge/water" element={<RequireAuth><AppLayout><WaterRecharge /></AppLayout></RequireAuth>} />
-            <Route path="/recharge/gas" element={<RequireAuth><AppLayout><GasRecharge /></AppLayout></RequireAuth>} />
-            <Route path="/recharge/broadband" element={<RequireAuth><AppLayout><BroadbandRecharge /></AppLayout></RequireAuth>} />
-            <Route path="/recharge/loan" element={<RequireAuth><AppLayout><LoanRecharge /></AppLayout></RequireAuth>} />
-            <Route path="/status" element={<RequireAuth><AppLayout><Status /></AppLayout></RequireAuth>} />
-            <Route path="/history" element={<RequireAuth><AppLayout><History /></AppLayout></RequireAuth>} />
-            {/* Redirect to dashboard for any unknown path when logged in */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </>
-        )}
-      </Routes>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <Router>
+        <div className="min-h-screen bg-[#F1F5F9]">
+          <Toaster position="top-right" />
+
+          <Layout>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+
+              <Route path="/" element={<PrivateRoute isAuth={isAuth}><Home /></PrivateRoute>} />
+              <Route path="/dashboard" element={<PrivateRoute isAuth={isAuth}><Dashboard /></PrivateRoute>} />
+              <Route path="/history" element={<PrivateRoute isAuth={isAuth}><History /></PrivateRoute>} />
+              <Route path="/recharge" element={<PrivateRoute isAuth={isAuth}><Recharge /></PrivateRoute>} />
+
+              <Route path="/recharge/mobile" element={<PrivateRoute isAuth={isAuth}><MobileRecharge /></PrivateRoute>} />
+              <Route path="/recharge/dth" element={<PrivateRoute isAuth={isAuth}><DTHRecharge /></PrivateRoute>} />
+              <Route path="/recharge/electricity" element={<PrivateRoute isAuth={isAuth}><ElectricityRecharge /></PrivateRoute>} />
+              <Route path="/recharge/water" element={<PrivateRoute isAuth={isAuth}><WaterRecharge /></PrivateRoute>} />
+              <Route path="/recharge/gas" element={<PrivateRoute isAuth={isAuth}><GasRecharge /></PrivateRoute>} />
+              <Route path="/recharge/broadband" element={<PrivateRoute isAuth={isAuth}><BroadbandRecharge /></PrivateRoute>} />
+              <Route path="/recharge/loan" element={<PrivateRoute isAuth={isAuth}><LoanRecharge /></PrivateRoute>} />
+
+              <Route path="/status" element={<PrivateRoute isAuth={isAuth}><Status /></PrivateRoute>} />
+              <Route path="/profile" element={<PrivateRoute isAuth={isAuth}><Profile /></PrivateRoute>} />
+
+              <Route path="*" element={<Navigate to="/" />} />
+            </Routes>
+          </Layout>
+        </div>
+      </Router>
+    </ErrorBoundary>
   );
 }
+
+export default App;

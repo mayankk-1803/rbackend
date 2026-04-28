@@ -1,0 +1,246 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model auditlog {
+  id        Int      @id @default(autoincrement())
+  action    String
+  adminId   Int?
+  userId    Int?
+  details   Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      user?    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model commissionrule {
+  id                Int      @id @default(autoincrement())
+  operator          String
+  userTier          String   @default("Standard")
+  commissionPercent Float
+  cashbackPercent   Float
+  priority          Int      @default(0)
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([operator, userTier, isActive])
+}
+
+model fraudlog {
+  id          Int                  @id @default(autoincrement())
+  userId      Int?
+  mobile      String?
+  riskScore   Float
+  actionTaken fraudlog_actionTaken
+  reasons     String?
+  txnData     Json?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  user        user?                @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model operator {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  codes     String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model payment {
+  id              Int            @id @default(autoincrement())
+  userId          Int
+  amount          Decimal        @db.Decimal(10, 2)
+  status          payment_status @default(PENDING)
+  idempotencyKey  String         @unique
+  upiId           String?
+  intent          payment_intent
+  gatewayTxnId    String?
+  errorMessage    String?
+  webhookReceived Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  user            user           @relation(fields: [userId], references: [id])
+
+  @@index([status])
+  @@index([userId])
+}
+
+model provider {
+  id              Int                   @id @default(autoincrement())
+  name            String
+  code            String                @unique
+  baseUrl         String
+  apiKey          String
+  isActive        Boolean               @default(false)
+  isBlacklisted   Boolean               @default(false)
+  priority        Int                   @default(0)
+  avgResponseTime Float                 @default(0)
+  successRate     Float                 @default(100)
+  costPerTxn      Decimal               @default(0) @db.Decimal(10, 2)
+  healthStatus    provider_healthStatus @default(HEALTHY)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@index([code])
+}
+
+model recharge {
+  id            Int         @id @default(autoincrement())
+  transactionId Int         @unique
+  mobile        String
+  operator      String
+  providerCode  String?
+  failureReason String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  transaction   transaction @relation(fields: [transactionId], references: [id])
+
+  @@index([transactionId])
+}
+
+model transaction {
+  id             Int                    @id @default(autoincrement())
+  userId         Int
+  amount         Decimal                @db.Decimal(10, 2)
+  type           transaction_type
+  status         transaction_status     @default(PENDING)
+  direction      transaction_direction?
+  balanceAfter   Decimal?               @db.Decimal(10, 2)
+  mobile         String?
+  operator       String?
+  cashback       Decimal                @default(0) @db.Decimal(10, 2)
+  commission     Decimal                @default(0) @db.Decimal(10, 2)
+  profit         Decimal                @default(0) @db.Decimal(10, 2)
+  provider       String?
+  providerTxnId  String?
+  amountDeducted Boolean                @default(false)
+  refundStatus   String                 @default("none")
+  refundedAt     DateTime?
+  idempotencyKey String?                @unique
+  gatewayTxnId   String?
+  paymentGateway String?
+  retryCount     Int                    @default(0)
+  lastRetryAt    DateTime?
+  isLocked       Boolean                @default(false)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  recharge       recharge?
+  user           user                   @relation(fields: [userId], references: [id])
+
+  @@index([status])
+  @@index([type])
+  @@index([userId])
+}
+
+model user {
+  id               Int       @id @default(autoincrement())
+  name             String?
+  email            String    @unique
+  password         String
+  phone            String?   @unique
+  isPhoneVerified  Boolean   @default(false)
+  role             user_role @default(user)
+  referralCode     String?   @unique
+  referredBy       Int?
+  referralEarnings Decimal   @default(0) @db.Decimal(10, 2)
+  tier             String    @default("Standard")
+  profileImage     String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  auditlog    auditlog[]
+  fraudlog    fraudlog[]
+  payment     payment[]
+  transaction transaction[]
+  wallet      wallet?
+
+  user        user?  @relation("userToUser", fields: [referredBy], references: [id])
+  other_user  user[] @relation("userToUser")
+
+  @@index([email])
+  @@index([phone])
+  @@index([referredBy])
+}
+
+model OTP {
+  id        Int      @id @default(autoincrement())
+  phone     String
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+}
+
+model wallet {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @unique
+  balance         Decimal  @default(0) @db.Decimal(10, 2)
+  cashbackBalance Decimal  @default(0) @db.Decimal(10, 2)
+  currency        String   @default("INR")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            user     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+enum payment_status {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum transaction_type {
+  RECHARGE
+  TOPUP
+  REFUND
+  CASHBACK
+  REFERRAL
+  WALLET
+}
+
+enum fraudlog_actionTaken {
+  FLAGGED
+  BLOCKED
+}
+
+enum transaction_status {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum user_role {
+  user
+  admin
+}
+
+enum transaction_direction {
+  CREDIT
+  DEBIT
+}
+
+enum payment_intent {
+  TOPUP
+  RECHARGE
+}
+
+enum provider_healthStatus {
+  HEALTHY
+  DEGRADED
+  DOWN
+}

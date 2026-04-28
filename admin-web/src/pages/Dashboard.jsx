@@ -45,11 +45,11 @@ export const Dashboard = () => {
     try {
       setChartsLoading(true);
       const { data } = await api.get('/admin/charts');
-      if (data) {
+      if (data && data.success) {
         setChartData({
-          success: data.success || 0,
-          pending: data.pending || 0,
-          failed: data.failed || 0,
+          success: data.successCount || 0,
+          pending: data.pendingCount || 0,
+          failed: data.failedCount || 0,
           dailyRevenue: data.dailyRevenue || []
         });
       }
@@ -97,7 +97,7 @@ export const Dashboard = () => {
           {chartsLoading ? (
             <div className="h-64 bg-[#F8FAFC] animate-pulse rounded-md" />
           ) : (
-            <div className="h-64 flex items-center justify-center">
+            <div className="h-64 w-full">
               <TransactionsPieChart {...chartData} />
             </div>
           )}
@@ -108,7 +108,7 @@ export const Dashboard = () => {
           {chartsLoading ? (
             <div className="h-64 bg-[#F8FAFC] animate-pulse rounded-md" />
           ) : (
-            <div className="h-64 flex items-center justify-center">
+            <div className="h-64 w-full">
               <RevenueBarChart dailyRevenue={chartData.dailyRevenue} />
             </div>
           )}

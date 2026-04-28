@@ -1,19 +1,20 @@
-import mongoose from "mongoose";
-import Provider from "../models/Provider.js";
+import prisma from "../config/prisma.js";
 import { seedProviders } from "./seedProviders.js";
 
-const MONGO_URI = "mongodb://localhost:27017/dizipay";
-
 const run = async () => {
-  await mongoose.connect(MONGO_URI);
-  console.log("Dropping providers...");
-  await Provider.deleteMany({});
-  
-  await seedProviders();
-  
-  const p = await Provider.countDocuments();
-  console.log("Providers length:", p);
-  process.exit(0);
+  try {
+    console.log("Resetting providers...");
+    await prisma.provider.deleteMany({});
+    
+    await seedProviders();
+    
+    const count = await prisma.provider.count();
+    console.log("Providers length:", count);
+    process.exit(0);
+  } catch (error) {
+    console.error("Reseed failed:", error);
+    process.exit(1);
+  }
 };
 
 run();

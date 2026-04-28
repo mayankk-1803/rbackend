@@ -9,7 +9,7 @@ export const API_ROUTES = {
   },
   RECHARGE: {
     CREATE: "/recharge",
-    STATUS: (id) => `/api/status/${id}`,
+    STATUS: (id) => `/status/${id}`,
   },
   ADMIN: {
     DASHBOARD: "/admin/dashboard",

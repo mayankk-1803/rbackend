@@ -7,10 +7,11 @@ import { Wallet, Smartphone, Tv, Zap, Droplets, Flame, Wifi, CreditCard, MoreHor
 import { io } from 'socket.io-client';
 import { toast } from 'react-hot-toast';
 import PaymentModal from '../components/PaymentModal';
+import { formatAmount, safeArray, safeValue } from '../utils/helpers';
 
 export default function Home() {
   const [history, setHistory] = useState([]);
-  const [wallet, setWallet] = useState({ balance: 0, cashback: 0 });
+  const [wallet, setWallet] = useState(null); // ✅ Standardized state
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [amount, setAmount] = useState("");
@@ -20,7 +21,7 @@ export default function Home() {
   const fetchTransactions = useCallback(async () => {
     try {
       const res = await api.get(API_ROUTES.USER.TRANSACTIONS);
-      setHistory((res.data.data || []).slice(0, 5));
+      setHistory(safeArray(res.data.data).slice(0, 5));
     } catch (err) {
       console.error(err);
     }
@@ -28,11 +29,10 @@ export default function Home() {
 
   const fetchWallet = useCallback(async () => {
     try {
-      const res = await api.get('/api/wallet');
-      setWallet({
-        balance: res.data.balance || 0,
-        cashback: res.data.cashbackBalance || 0
-      });
+      const res = await api.get('/wallet');
+      if (res.data && res.data.wallet) {
+        setWallet(res.data.wallet); // ✅ Set full wallet object
+      }
     } catch (err) {
       console.error(err);
     }
@@ -50,24 +50,31 @@ export default function Home() {
     setLoading(true);
     try {
       console.log("[Wallet] Creating order for add money...");
-      const res = await api.post('/api/payment/create-order', { 
+      const res = await api.post('/payment/create-order', { 
         amount: Number(amount),
         upiId: 'demo@upi',
-        intent: 'WALLET_TOPUP'
+        intent: 'TOPUP'
+      }, {
+        headers: {
+          "x-idempotency-key": crypto.randomUUID()
+        }
       });
       
-      const paymentId = res.data.data._id;
-      console.log("[Wallet] Order created:", paymentId);
+      if (res.data && res.data.data) {
+        const paymentId = res.data.data.id;
+        console.log("[Wallet] Order created:", paymentId);
 
-      console.log("[Wallet] Confirming payment...");
-      const confirmRes = await api.post('/api/payment/confirm', { paymentId });
-      
-      if (confirmRes.data.success) {
-        console.log("[Wallet] Payment success, wallet updated");
-        toast.success("Money added successfully!");
-        fetchWallet();
-      } else {
-        throw new Error("Payment confirmation failed");
+        console.log("[Wallet] Confirming payment...");
+        const confirmRes = await api.post('/payment/confirm', { paymentId });
+        
+        if (confirmRes.data.success) {
+          console.log("[Wallet] Payment success, wallet updated");
+          toast.success("Money added successfully!");
+          await fetchWallet(); // ✅ Refresh wallet instantly
+          await fetchTransactions();
+        } else {
+          throw new Error("Payment confirmation failed");
+        }
       }
     } catch (err) {
       console.error("[Wallet Error]:", err);
@@ -80,16 +87,16 @@ export default function Home() {
 
   useEffect(() => {
     fetchTransactions();
-    fetchWallet();
+    fetchWallet(); // ✅ Fetch ONCE on mount
 
     const socket = io(import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000');
 
     const handleRechargeUpdate = (data) => {
       console.log('📡 Live update:', data);
       setHistory((prev) => 
-        prev.map((txn) => 
-          txn._id === data.txnId 
-            ? { ...txn, status: data.status.toLowerCase(), ...data.transaction } 
+        safeArray(prev).map((txn) => 
+          txn.id === data.txnId 
+            ? { ...txn, status: (data.status || "").toLowerCase(), ...data.transaction } 
             : txn
         )
       );
@@ -107,25 +114,21 @@ export default function Home() {
     socket.on('wallet_updated', () => {
       console.log('💰 Wallet updated event received. Refetching...');
       fetchWallet();
+      fetchTransactions();
     });
 
     socket.on('payment_status', (data) => {
       console.log('💳 Payment status:', data);
       if (data.status === "SUCCESS") {
         fetchWallet();
+        fetchTransactions();
       }
     });
 
-    const interval = setInterval(() => {
-      fetchTransactions();
-      fetchWallet();
-    }, 5000);
-
     return () => {
       socket.disconnect();
-      clearInterval(interval);
     };
-  }, [fetchTransactions, fetchWallet]);
+  }, [fetchTransactions, fetchWallet]); // ✅ Removed interval polling, socket handles updates
 
   const services = [
     { icon: Smartphone, label: 'Mobile Prepaid', path: '/recharge' },
@@ -147,7 +150,7 @@ export default function Home() {
       {/* Welcome Header */}
       <div className="bg-[#F8FAFC] rounded-lg p-8 border border-[#E5E7EB] flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-semibold text-[#0F172A]">Welcome back, {user.email?.split('@')[0] || 'User'}</h1>
+          <h1 className="text-2xl font-semibold text-[#0F172A]">Welcome back, {safeValue(user.email?.split('@')[0], 'User')}</h1>
           <p className="text-[#64748B] mt-1 text-sm">Here's what's happening with your account today.</p>
         </div>
         <div className="hidden sm:block">
@@ -161,10 +164,10 @@ export default function Home() {
               </div>
               <div>
                 <p className="text-xs text-[#64748B] uppercase font-bold tracking-wider">Wallet Balance</p>
-                <p className="text-xl font-bold text-[#0F172A]">₹{wallet.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
-                {wallet.cashback > 0 && (
+                <p className="text-xl font-bold text-[#0F172A]">₹{(Number(wallet?.balance) || 0).toFixed(2)}</p>
+                {Number(wallet?.cashbackBalance) > 0 && (
                   <p className="text-[10px] text-green-600 font-bold uppercase mt-0.5">
-                    + ₹{wallet.cashback.toLocaleString('en-IN', { minimumFractionDigits: 2 })} Cashback
+                    + ₹{(Number(wallet?.cashbackBalance) || 0).toFixed(2)} Cashback
                   </p>
                 )}
               </div>
@@ -241,6 +244,9 @@ export default function Home() {
         onClose={() => setShowPayment(false)}
         amount={amount}
         onPaymentSuccess={handlePaymentFlow}
+        onSuccess={() => {
+          fetchWallet(); // ✅ Refresh wallet after payment callback
+        }}
         title="Add Money"
       />
 
@@ -270,33 +276,33 @@ export default function Home() {
           </Link>
         </div>
         <div className="divide-y divide-[#E5E7EB]">
-          {history.length > 0 ? history.map((txn, idx) => (
+          {history.length > 0 ? safeArray(history).map((txn, idx) => (
             <div key={idx} className="px-6 py-4 flex justify-between items-center hover:bg-[#F8FAFC] transition-colors">
               <div className="flex items-center gap-4">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  txn.type === 'recharge' ? 'bg-blue-50' : 'bg-green-50'
+                  txn.type === 'RECHARGE' ? 'bg-blue-50' : 'bg-green-50'
                 }`}>
-                  {txn.type === 'recharge' ? (
-                    <Smartphone className={`w-5 h-5 ${txn.type === 'recharge' ? 'text-blue-600' : 'text-green-600'}`} />
+                  {txn.type === 'RECHARGE' ? (
+                    <Smartphone className={`w-5 h-5 text-blue-600`} />
                   ) : (
                     <Wallet className="w-5 h-5 text-green-600" />
                   )}
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-[#0F172A] capitalize">{txn.type} {txn.operator && `- ${txn.operator}`}</p>
-                  <p className="text-xs text-[#64748B]">{new Date(txn.createdAt).toLocaleDateString()} • {txn.mobile || 'Wallet'}</p>
+                  <p className="text-sm font-bold text-[#0F172A] capitalize">{safeValue(txn.type)} {txn.operator && `- ${txn.operator}`}</p>
+                  <p className="text-xs text-[#64748B]">{new Date(txn?.createdAt || Date.now()).toLocaleDateString()} • {safeValue(txn.mobile, 'Wallet')}</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className={`text-sm font-bold ${txn.type === 'recharge' ? 'text-[#0F172A]' : 'text-green-600'}`}>
-                  {txn.type === 'recharge' ? '-' : '+'}₹{txn.amount.toFixed(2)}
+                <p className={`text-sm font-bold ${txn.direction === 'DEBIT' ? 'text-[#0F172A]' : 'text-green-600'}`}>
+                  {txn.direction === 'DEBIT' ? '-' : '+'}₹{formatAmount(txn.amount)}
                 </p>
                 <p className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full inline-block ${
-                  txn.status === 'success' ? 'bg-green-100 text-green-700' : 
-                  txn.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 
+                  txn.status === 'SUCCESS' ? 'bg-green-100 text-green-700' : 
+                  txn.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' : 
                   'bg-red-100 text-red-700'
                 }`}>
-                  {txn.status}
+                  {safeValue(txn.status)}
                 </p>
               </div>
             </div>

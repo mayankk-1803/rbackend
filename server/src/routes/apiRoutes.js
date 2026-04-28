@@ -3,13 +3,11 @@ import { auth } from "../middlewares/auth.js";
 import { addRechargeJob } from "../services/queueService.js";
 import { idempotencyMiddleware } from "../middlewares/idempotency.js";
 import { fraudDetectionMiddleware } from "../middlewares/fraudDetection.js";
-import { isValidIndianMobile } from "../utils/validators.js";
-import Transaction from "../models/Transaction.js";
-import User from "../models/User.js";
-import Wallet from "../models/Wallet.js";
 import { getOperator } from "../controllers/operatorController.js";
+import { getWallet } from "../controllers/walletController.js";
 import { validateRechargeInput } from "../middlewares/validateInput.js";
 import eventBus from "../config/eventBus.js";
+import prisma from "../config/prisma.js";
 
 const router = express.Router();
 
@@ -29,8 +27,21 @@ const router = express.Router();
  *       200:
  *         description: Operator details
  */
-// Public route for operator detection
 router.get("/operator-detect/:mobile", getOperator);
+
+import { rechargeQueue } from "../services/rechargeService.js";
+
+router.get("/test-job", async (req, res) => {
+  await rechargeQueue.add("rechargeJob", {
+    userId: 1,
+    txnId: 999,
+    mobile: "9999999999",
+    operator: "JIO",
+    amount: 10
+  });
+
+  res.send("Job added");
+});
 
 router.use(auth);
 
@@ -64,68 +75,69 @@ router.use(auth);
  *       200:
  *         description: Recharge initiated
  */
-// POST /api/recharge
 router.post("/recharge", auth, validateRechargeInput, idempotencyMiddleware, fraudDetectionMiddleware, async (req, res) => {
   try {
-    console.log("[API Recharge] Request body:", req.body);
-    console.log("[API Recharge] User:", req.user);
-
     const { mobile, amount, operator } = req.body;
 
     if (!req.user || !req.user.id) {
         return res.status(401).json({ success: false, message: "Unauthorized: User context missing" });
     }
 
-    const providerCode = req.body.providerCode ? String(req.body.providerCode) : null;
+    const providerCode = req.body.providerCode ? String(req.body.providerCode) : "auto";
     const userId = req.user.id;
-
-    console.log(`[Recharge] Checking balance for userId: ${userId}, amount: ${amount}`);
-
-    // 1. ATOMIC WALLET DEDUCTION
-    let updatedWallet = null;
     const isAdmin = req.user?.role === 'admin';
 
-    if (isAdmin) {
-      // Admin bypass: Just deduct without balance check
-      updatedWallet = await Wallet.findOneAndUpdate(
-        { userId },
-        { $inc: { balance: -amount } },
-        { new: true, upsert: true }
-      );
-    } else {
-      updatedWallet = await Wallet.findOneAndUpdate(
-        { userId, balance: { $gte: amount } },
-        { $inc: { balance: -amount } },
-        { new: true }
-      );
-    }
+    // 1. ATOMIC WALLET DEDUCTION
+    const result = await prisma.$transaction(async (tx) => {
+      let wallet = await tx.wallet.findUnique({
+        where: { userId }
+      });
+
+      if (!wallet) {
+        wallet = await tx.wallet.create({
+          data: { userId, balance: 0, cashbackBalance: 0 }
+        });
+      }
+
+      if (!isAdmin && wallet.balance.lessThan(amount)) {
+        return null;
+      }
+
+      const updatedWallet = await tx.wallet.update({
+        where: { userId },
+        data: { balance: { decrement: amount } }
+      });
+
+      const transaction = await tx.transaction.create({
+        data: {
+          userId,
+          amount: new Prisma.Decimal(amount),
+          type: "RECHARGE",
+          status: "PENDING",
+          direction: "DEBIT",
+          mobile,
+          operator: operator || "Unknown",
+          provider: providerCode,
+          idempotencyKey: req.headers["x-idempotency-key"] || Date.now().toString(),
+          balanceAfter: updatedWallet.balance
+        }
+      });
+
+      return { updatedWallet, transaction };
+    });
     
-    if (!updatedWallet && !isAdmin) {
-      console.log(`[Recharge] Insufficient balance for userId: ${userId}`);
+    if (!result) {
       return res.status(400).json({ success: false, message: "Insufficient wallet balance" });
     }
 
-    console.log(`[Recharge] Wallet deducted. New Balance: ${updatedWallet.balance}`);
+    const { updatedWallet, transaction } = result;
 
     // 🔥 Notify via eventBus
     eventBus.emit("wallet_updated", { userId: userId.toString() });
 
-    // 2. Create transaction (PENDING)
-    const transaction = await Transaction.create({
-      userId,
-      amount,
-      type: "recharge",
-      status: "pending",
-      mobile,
-      operator: operator || "Unknown",
-      provider: providerCode || "auto",
-      amountDeducted: true,
-      idempotencyKey: req.headers["x-idempotency-key"] || Date.now().toString()
-    });
-
     // 3. Push to BullMQ queue
     await addRechargeJob({
-      txnId: transaction._id,
+      txnId: transaction.id,
       userId,
       mobile,
       amount,
@@ -136,7 +148,7 @@ router.post("/recharge", auth, validateRechargeInput, idempotencyMiddleware, fra
     res.json({ 
       success: true, 
       message: "Recharge initiated", 
-      data: { transactionId: transaction._id, newBalance: updatedWallet.balance } 
+      data: { transactionId: transaction.id, newBalance: updatedWallet.balance } 
     });
   } catch (err) {
     console.error("[Recharge Init Error]:", err);
@@ -144,11 +156,28 @@ router.post("/recharge", auth, validateRechargeInput, idempotencyMiddleware, fra
   }
 });
 
-// GET /api/status/:id
+/**
+ * @swagger
+ * /api/status/{id}:
+ *   get:
+ *     summary: Get transaction status
+ *     tags: [Recharge]
+ */
 router.get("/status/:id", async (req, res) => {
   try {
-    const txn = await Transaction.findOne({ _id: req.params.id, userId: req.user.id })
-      .select("status amount mobile operator createdAt");
+    const txn = await prisma.transaction.findFirst({
+      where: { 
+        id: parseInt(req.params.id),
+        userId: req.user.id 
+      },
+      select: {
+        status: true,
+        amount: true,
+        mobile: true,
+        operator: true,
+        createdAt: true
+      }
+    });
       
     if (!txn) return res.status(404).json({ success: false, message: "Transaction not found" });
 
@@ -158,36 +187,25 @@ router.get("/status/:id", async (req, res) => {
   }
 });
 
-// GET /api/wallet
-router.get("/wallet", async (req, res) => {
-  try {
-    console.log(`[API] Fetching wallet for userId: ${req.user.id}`);
-    const wallet = await Wallet.findOne({ userId: req.user.id });
-    
-    if (!wallet) {
-      // Upsert if missing (as requested by user)
-      const newWallet = await Wallet.findOneAndUpdate(
-        { userId: req.user.id },
-        { $setOnInsert: { balance: 0, cashbackBalance: 0 } },
-        { upsert: true, new: true }
-      );
-      return res.json(newWallet);
-    }
+router.get("/wallet", getWallet);
 
-    res.json(wallet);
-  } catch (err) {
-    console.error("[API Wallet Error]:", err);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-});
-
-// GET /api/history
 router.get("/history", async (req, res) => {
   try {
-    const transactions = await Transaction.find({ userId: req.user.id })
-      .sort({ createdAt: -1 })
-      .limit(50)
-      .select("status amount mobile operator type provider providerTxnId createdAt");
+    const transactions = await prisma.transaction.findMany({
+      where: { userId: req.user.id },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      select: {
+        status: true,
+        amount: true,
+        mobile: true,
+        operator: true,
+        type: true,
+        provider: true,
+        providerTxnId: true,
+        createdAt: true
+      }
+    });
 
     res.json({ success: true, data: transactions });
   } catch (err) {

@@ -1,16 +1,25 @@
-import User from "../models/User.js";
-import Transaction from "../models/Transaction.js";
+import prisma from "../config/prisma.js";
 
 export const processRefund = async (txn) => {
   if (txn.refundStatus === "processed" || !txn.amountDeducted) return;
 
-  await User.findByIdAndUpdate(txn.userId, {
-    $inc: { walletBalance: txn.amount }
+  await prisma.$transaction(async (tx) => {
+    // Increment wallet balance
+    await tx.wallet.update({
+      where: { userId: txn.userId },
+      data: { balance: { increment: txn.amount } }
+    });
+
+    // Update transaction status
+    await tx.transaction.update({
+      where: { id: txn.id },
+      data: {
+        refundStatus: "processed",
+        refundedAt: new Date(),
+        status: "FAILED" // Usually refund happens on failure
+      }
+    });
   });
 
-  txn.refundStatus = "processed";
-  txn.refundedAt = new Date();
-  await txn.save();
-
-  console.log(`Refund processed safely for transaction: ${txn._id}`);
+  console.log(`Refund processed safely for transaction: ${txn.id}`);
 };

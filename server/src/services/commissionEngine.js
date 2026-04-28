@@ -1,4 +1,4 @@
-import CommissionRule from "../models/CommissionRule.js";
+import prisma from "../config/prisma.js";
 import { redis } from "../config/redis.js";
 
 const CACHE_KEY = "commission_rules";
@@ -10,7 +10,10 @@ export const getCommissionDetails = async (amount, operator, userTier = "Standar
   if (rules) {
     rules = JSON.parse(rules);
   } else {
-    rules = await CommissionRule.find({ isActive: true }).sort({ priority: -1 }).lean();
+    rules = await prisma.commissionRule.findMany({
+      where: { isActive: true },
+      orderBy: { priority: 'desc' }
+    });
     await redis.set(CACHE_KEY, JSON.stringify(rules), "EX", CACHE_TTL);
   }
 

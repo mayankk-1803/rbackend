@@ -23,7 +23,7 @@ export default function GasRecharge() {
     try {
       console.log("[Gas] Initiating recharge directly from wallet...");
       const idempotencyKey = crypto.randomUUID();
-      const { data } = await api.post('/api/recharge', {
+      const { data } = await api.post('/recharge', {
         mobile: number,
         amount: Number(amount),
         operator,
@@ -60,17 +60,17 @@ export default function GasRecharge() {
   const handlePaymentFlow = async () => {
     try {
       console.log("[Payment] Creating order for gas...");
-      const res = await api.post('/api/payment/create-order', {
+      const res = await api.post('/payment/create-order', {
         amount: Number(amount),
         upiId: 'demo@upi',
-        intent: 'WALLET_TOPUP'
+        intent: 'TOPUP'
       });
       
-      const paymentId = res.data.data._id;
+      const paymentId = res.data.data.id;
       console.log("[Payment] Order created:", paymentId);
 
       console.log("[Payment] Confirming payment...");
-      const confirmRes = await api.post('/api/payment/confirm', { paymentId });
+      const confirmRes = await api.post('/payment/confirm', { paymentId });
       
       if (confirmRes.data.success) {
         console.log("[Payment] Success, proceeding to gas payment");

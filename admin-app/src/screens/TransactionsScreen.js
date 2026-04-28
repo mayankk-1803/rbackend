@@ -91,10 +91,10 @@ const TransactionsScreen = () => {
           {status === "failed" && (
             <TouchableOpacity
               style={styles.retryBtn}
-              onPress={() => handleRetry(item._id)}
-              disabled={retryingId === item._id}
+              onPress={() => handleRetry(item.id)}
+              disabled={retryingId === item.id}
             >
-              {retryingId === item._id ? (
+              {retryingId === item.id ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
                 <Text style={styles.retryBtnText}>Retry</Text>
@@ -121,7 +121,7 @@ const TransactionsScreen = () => {
       </View>
       <FlatList
         data={transactions}
-        keyExtractor={(item) => item._id.toString()}
+        keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
         contentContainerStyle={styles.list}
         refreshControl={

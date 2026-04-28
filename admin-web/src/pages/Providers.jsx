@@ -80,7 +80,7 @@ export const Providers = () => {
           <div className="col-span-full py-12 text-center text-[#94A3B8] text-sm">No providers configured</div>
         ) : (
           visibleProviders.map((prov) => (
-            <Card key={prov._id} className="flex flex-col justify-between">
+            <Card key={prov.id} className="flex flex-col justify-between">
               <div className="p-5">
                 <div className="flex justify-between items-start mb-4">
                   <div>

@@ -2,6 +2,7 @@ export const API_ROUTES = {
   AUTH: {
     LOGIN: "/auth/login",
     REGISTER: "/auth/register",
+    FIREBASE_LOGIN: "/auth/firebase-login",
   },
   USER: {
     DASHBOARD: "/user/dashboard",

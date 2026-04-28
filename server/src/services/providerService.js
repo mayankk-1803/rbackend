@@ -1,5 +1,7 @@
-import axios from "axios";
-import Provider from "../models/Provider.js";
+import prisma from "../config/prisma.js";
+import { Prisma } from "@prisma/client";
+import { updateProviderMetrics } from "./routingService.js";
+import { simulateProviderAPI } from "./providerSimulator.js";
 
 /**
  * Generic function to call a recharge provider API
@@ -9,9 +11,6 @@ export const callProviderApi = async (provider, data) => {
   
   console.log(`Calling provider: ${provider.name} (${provider.code})...`);
 
-  // In a real production environment, this would call the actual baseUrl
-  // For this project, we'll simulate the API call with some logic
-  
   // Simulate network latency
   const startTime = Date.now();
   await new Promise(resolve => setTimeout(resolve, Math.random() * 500 + 200));
@@ -39,15 +38,14 @@ export const callProviderApi = async (provider, data) => {
   };
 };
 
-// Keep existing exports if they are used elsewhere, but redirect them to the new generic function
 export const primaryRecharge = async (data) => {
-  const provider = await Provider.findOne({ code: "P1" });
+  const provider = await prisma.provider.findUnique({ where: { code: "P1" } });
   if (!provider) throw new Error("Primary provider not found");
   return callProviderApi(provider, data);
 };
 
 export const backupRecharge = async (data) => {
-  const provider = await Provider.findOne({ code: "P2" });
+  const provider = await prisma.provider.findUnique({ where: { code: "P2" } });
   if (!provider) throw new Error("Backup provider not found");
   return callProviderApi(provider, data);
 };

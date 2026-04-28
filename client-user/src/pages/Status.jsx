@@ -19,7 +19,7 @@ export default function Status() {
       console.log('📡 Status Update Received:', data);
       
       setTxn((prev) => {
-        if (prev && prev._id === data.txnId) {
+        if (prev && prev.id === data.txnId) {
           const updated = { ...prev, status: data.status?.toLowerCase(), ...data.transaction };
           
           if (data.status === "success") {
@@ -104,7 +104,7 @@ export default function Status() {
                 <div className="grid grid-cols-2 divide-x divide-[#E5E7EB] border-b border-[#E5E7EB]">
                   <div className="p-4">
                     <span className="block text-xs text-[#64748B] uppercase font-bold tracking-wider mb-1">Transaction ID</span>
-                    <span className="font-mono text-[#0F172A] break-all">{txn._id}</span>
+                    <span className="font-mono text-[#0F172A] break-all">{txn.id}</span>
                   </div>
                   <div className="p-4">
                     <span className="block text-xs text-[#64748B] uppercase font-bold tracking-wider mb-1">Status</span>

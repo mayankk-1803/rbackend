@@ -1,44 +1,47 @@
-import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
-import User from './src/models/User.js';
-import Wallet from './src/models/Wallet.js';
+import prisma from './src/config/prisma.js';
 
 dotenv.config();
 
 const seedAdmin = async () => {
     try {
-        await mongoose.connect(process.env.MONGO_URI);
-        console.log("Connected to MongoDB");
+        console.log("Connecting to MySQL via Prisma...");
 
         const adminEmail = process.env.ADMIN_EMAIL || 'admin@dizipay.com';
         const adminPass = process.env.ADMIN_PASSWORD || '123456';
 
         // Check if admin already exists
-        const existingAdmin = await User.findOne({ email: adminEmail });
+        const existingAdmin = await prisma.user.findUnique({
+            where: { email: adminEmail }
+        });
+
         if (existingAdmin) {
             console.log("Admin user already exists. Updating role...");
-            existingAdmin.role = 'admin';
-            await existingAdmin.save();
+            await prisma.user.update({
+                where: { email: adminEmail },
+                data: { role: 'admin' }
+            });
             console.log("Admin role updated.");
         } else {
             const hash = await bcrypt.hash(adminPass, 10);
-            const admin = await User.create({
-                name: "System Admin",
-                email: adminEmail,
-                password: hash,
-                role: 'admin',
-                referralCode: 'ADMIN'
+            const admin = await prisma.user.create({
+                data: {
+                    name: "System Admin",
+                    email: adminEmail,
+                    password: hash,
+                    role: 'admin',
+                    referralCode: 'ADMIN',
+                    wallet: {
+                        create: {
+                            balance: 10000,
+                            cashbackBalance: 0
+                        }
+                    }
+                }
             });
 
-            console.log("Admin user created:", admin._id);
-
-            // Create wallet for admin
-            await Wallet.findOneAndUpdate(
-                { userId: admin._id },
-                { $setOnInsert: { balance: 10000, cashbackBalance: 0 } },
-                { upsert: true, new: true }
-            );
+            console.log("Admin user created with ID:", admin.id);
             console.log("Admin wallet initialized with ₹10,000");
         }
 

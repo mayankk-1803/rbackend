@@ -35,7 +35,7 @@ export const Transactions = () => {
   const filteredData = transactions.filter(t => 
     (t.mobile?.toString() || '').includes(searchTerm) || 
     (t.mobileNumber?.toString() || '').includes(searchTerm) ||
-    t._id?.includes(searchTerm)
+    t.id?.toString().includes(searchTerm)
   );
 
   return (
@@ -83,8 +83,8 @@ export const Transactions = () => {
                 <tr><td colSpan="6" className="p-12 text-center text-[#94A3B8]">No transactions found</td></tr>
               ) : (
                 filteredData.map(tx => (
-                  <tr key={tx._id} className="hover:bg-[#F1F5F9] transition-colors">
-                    <td className="px-6 py-4 font-mono text-[10px] text-[#94A3B8]">{tx._id.slice(-8)}</td>
+                  <tr key={tx.id} className="hover:bg-[#F1F5F9] transition-colors">
+                    <td className="px-6 py-4 font-mono text-[10px] text-[#94A3B8]">{String(tx.id).slice(-8)}</td>
                     <td className="px-6 py-4 font-medium text-[#0F172A]">
                       {tx.mobile || tx.mobileNumber ? `+91 ${tx.mobile || tx.mobileNumber}` : 'N/A'}
                     </td>

@@ -2,6 +2,7 @@ import express from "express";
 import { auth } from "../middlewares/auth.js";
 import { createOrder, verifyPayment, confirmPayment, paymentWebhook } from "../controllers/paymentController.js";
 import { idempotencyMiddleware } from "../middlewares/idempotency.js";
+import { validatePaymentInput } from "../middlewares/validateInput.js";
 
 const router = express.Router();
 
@@ -50,6 +51,7 @@ router.use(auth);
  *     parameters:
  *       - in: header
  *         name: x-idempotency-key
+ *         required: false
  *         schema:
  *           type: string
  *     requestBody:
@@ -63,11 +65,13 @@ router.use(auth);
  *                 type: number
  *               upiId:
  *                 type: string
+ *               intent:
+ *                 type: string
  *     responses:
  *       200:
- *         description: Order created successfully
+ *         description: Order created
  */
-router.post("/create-order", idempotencyMiddleware, createOrder);
+router.post("/create-order", validatePaymentInput, idempotencyMiddleware, createOrder);
 
 /**
  * @swagger

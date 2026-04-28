@@ -1,27 +1,30 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
-import { API_ROUTES } from '../api/routes';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import PaymentModal from '../components/PaymentModal';
+import RechargePaymentModal from '../components/RechargePaymentModal';
 
 export default function LoanRecharge() {
   const [number, setNumber] = useState('');
   const [amount, setAmount] = useState('');
-  const [operator, setOperator] = useState('HDFC Bank');
+  const [operator, setOperator] = useState('Bajaj Finance');
   const [loading, setLoading] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
+  const [showRechargeModal, setShowRechargeModal] = useState(false);
   const navigate = useNavigate();
 
   const handleRechargeDirectly = async () => {
-    if(!number || !amount) return;
-
+    setShowRechargeModal(false);
+    if(!number || !amount || Number(amount) <= 0) {
+      return toast.error("Please enter a valid loan number and amount");
+    }
     const loadingToast = toast.loading('Processing Loan EMI payment...');
     setLoading(true);
     try {
       const idempotencyKey = crypto.randomUUID();
-      const { data } = await api.post('/api/recharge', {
+      const { data } = await api.post('/recharge', {
         mobile: number,
         amount: Number(amount),
         operator,
@@ -29,6 +32,7 @@ export default function LoanRecharge() {
       }, {
         headers: { 'x-idempotency-key': idempotencyKey }
       });
+      
       toast.success(data.message || 'Payment initiated', { id: loadingToast });
       navigate('/history');
     } catch(err) {
@@ -45,28 +49,22 @@ export default function LoanRecharge() {
   };
 
   const handleTopUpSuccess = async () => {
-    console.log("[TopUp] Success, retrying loan payment...");
     setShowPayment(false);
     await handleRechargeDirectly();
   };
 
   const handlePaymentFlow = async () => {
     try {
-      console.log("[Payment] Creating order for loan EMI...");
-      const res = await api.post('/api/payment/create-order', {
+      const res = await api.post('/payment/create-order', {
         amount: Number(amount),
         upiId: 'demo@upi',
-        intent: 'WALLET_TOPUP'
+        intent: 'TOPUP'
       });
       
-      const paymentId = res.data.data._id;
-      console.log("[Payment] Order created:", paymentId);
-
-      console.log("[Payment] Confirming payment...");
-      const confirmRes = await api.post('/api/payment/confirm', { paymentId });
+      const paymentId = res.data.data.id;
+      const confirmRes = await api.post('/payment/confirm', { paymentId });
       
       if (confirmRes.data.success) {
-        console.log("[Payment] Success, proceeding to loan EMI payment");
         await handleTopUpSuccess();
       } else {
         throw new Error("Payment confirmation failed");
@@ -87,10 +85,10 @@ export default function LoanRecharge() {
       <div className="bg-white border border-[#E5E7EB] rounded-lg shadow-sm overflow-hidden">
         <div className="px-6 py-5 border-b border-[#E5E7EB] bg-[#F8FAFC]">
           <h2 className="text-lg font-semibold text-[#0F172A]">Loan EMI Payment</h2>
-          <p className="text-sm text-[#64748B] mt-1">Pay your loan EMI instantly</p>
+          <p className="text-sm text-[#64748B] mt-1">Pay your loan EMIs instantly</p>
         </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); handleRechargeDirectly(); }} className="p-6 space-y-6">
+        <form onSubmit={(e) => { e.preventDefault(); setShowRechargeModal(true); }} className="p-6 space-y-6">
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-[#0F172A] mb-1">Loan Account Number</label>
@@ -106,18 +104,17 @@ export default function LoanRecharge() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-[#0F172A] mb-1">Bank / Lender</label>
+                <label className="block text-sm font-medium text-[#0F172A] mb-1">Lender / NBFC</label>
                 <select
                   value={operator}
                   onChange={e => setOperator(e.target.value)}
                   className="w-full px-3 py-2 border border-[#E5E7EB] bg-white rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-[#6D28D9] focus:border-[#6D28D9] sm:text-sm text-[#0F172A]"
                 >
+                  <option value="Bajaj Finance">Bajaj Finance</option>
                   <option value="HDFC Bank">HDFC Bank</option>
-                  <option value="ICICI Bank">ICICI Bank</option>
-                  <option value="SBI">State Bank of India</option>
-                  <option value="Axis Bank">Axis Bank</option>
-                  <option value="Kotak Bank">Kotak Bank</option>
-                  <option value="Bajaj Finserv">Bajaj Finserv</option>
+                  <option value="Muthoot Finance">Muthoot Finance</option>
+                  <option value="IDFC First Bank">IDFC First Bank</option>
+                  <option value="L&T Finance">L&T Finance</option>
                 </select>
               </div>
               <div>
@@ -135,10 +132,6 @@ export default function LoanRecharge() {
             </div>
           </div>
 
-          <div className="bg-[#F8FAFC] border border-[#E5E7EB] rounded-md p-4 text-sm text-[#64748B]">
-            Ensure the details are correct. The amount will be deducted from your wallet balance instantly.
-          </div>
-
           <div className="flex justify-end border-t border-[#E5E7EB] pt-6 mt-6">
             <motion.button
               whileHover={{ scale: 1.02 }}
@@ -146,7 +139,7 @@ export default function LoanRecharge() {
               type="submit"
               className="px-6 py-2 bg-[#6D28D9] text-white font-medium rounded-md hover:bg-[#5B21B6] disabled:bg-[#94A3B8] disabled:cursor-not-allowed transition-colors text-sm shadow-sm"
             >
-              {loading ? 'Processing...' : 'Recharge Now'}
+              {loading ? 'Processing...' : 'Pay EMI Now'}
             </motion.button>
           </div>
         </form>
@@ -158,6 +151,15 @@ export default function LoanRecharge() {
         amount={amount}
         onPaymentSuccess={handlePaymentFlow}
         title="Loan EMI Payment"
+      />
+
+      <RechargePaymentModal
+        isOpen={showRechargeModal}
+        onClose={() => setShowRechargeModal(false)}
+        onConfirm={handleRechargeDirectly}
+        amount={amount}
+        mobile={number}
+        operator={operator}
       />
     </motion.div>
   );

@@ -40,7 +40,7 @@ export const ApiDocs = () => {
       payload: null,
       response: {
         success: true,
-        data: { _id: "txn_123", status: "success", amount: 50 }
+        data: { id: "txn_123", status: "success", amount: 50 }
       },
       curl: `curl -X GET http://localhost:5000/api/status/txn_123456 \\
 -H "Authorization: Bearer <your_token>"`

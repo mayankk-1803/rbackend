@@ -14,14 +14,14 @@ export const getOperator = async (req, res) => {
     res.json({
       success: true,
       data: {
-        operator: operatorInfo.operator,
-        circle: operatorInfo.circle,
-        logo: operatorInfo.logo,
-        source: operatorInfo.source,
+        operator: operatorInfo?.operator || "Unknown",
+        circle: operatorInfo?.circle || "Unknown",
+        logo: operatorInfo?.logo || "",
+        source: operatorInfo?.source || "fallback",
       }
     });
   } catch (error) {
     console.error("[Operator Error]:", error);
-    res.status(500).json({ success: false, message: "Internal server error" });
+    res.json({ success: true, data: { operator: "Unknown", circle: "Unknown", logo: "", source: "error_fallback" } });
   }
 };

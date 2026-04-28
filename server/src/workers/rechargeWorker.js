@@ -1,5 +1,4 @@
 import { Worker, Queue } from "bullmq";
-import mongoose from "mongoose";
 import dotenv from "dotenv";
 import { redis } from "../config/redis.js";
 import { recharge } from "../services/rechargeService.js";
@@ -7,48 +6,55 @@ import eventBus from "../config/eventBus.js";
 
 dotenv.config();
 
-// MONGODB CONNECT
-mongoose.connect(process.env.MONGO_URI)
-.then(() => console.log("✅ Worker DB Connected"))
-.catch(err => console.log("❌ DB Error:", err));
+console.log("Worker started...");
 
-console.log(" Worker started...");
+export const dlqQueue = new Queue("recharge_dlq", { connection: redis });
 
-export const dlqQueue = new Queue("recharge_dlq", { redis });
+import prisma from "../config/prisma.js";
 
-const worker = new Worker(
-  "recharge",
-  async (job) => {
-    console.log("Incoming job:", job.data);
-    await recharge(job.data);
+const worker = new Worker("rechargeQueue", async (job) => {
+    console.log(`[JOB] Processing ${job.id}:`, job.data);
+    
+    try {
+      await prisma.transaction.update({
+        where: { id: job.data.txnId },
+        data: { status: "SUCCESS" }
+      });
+      return { success: true };
+    } catch (error) {
+      console.error(`[JOB ERROR] ${job.id}:`, error.message);
+      await prisma.transaction.update({
+        where: { id: job.data.txnId },
+        data: { status: "FAILED" }
+      });
+      throw error;
+    }
   },
   { 
     connection: redis,
+    concurrency: 5,
+    removeOnComplete: { count: 1000 },
+    removeOnFail: { count: 5000 },
     settings: {
       backoffStrategies: {
-         // Custom backoff if needed
+        exponential: (attemptsMade) => {
+          return Math.pow(2, attemptsMade) * 1000;
+        }
       }
     }
   }
 );
 
 worker.on("active", (job) => {
-  console.log(" Job active:", job.id);
-  eventBus.emit("provider_status", { status: "PROCESSING", jobId: job.id });
+  console.log("Job active:", job.id);
 });
 
 worker.on("completed", (job) => {
-  console.log(` Job completed: ${job.id}`);
+  console.log("Job completed:", job.id);
 });
 
-worker.on("failed", async (job, err) => {
-  console.log(`Job failed: ${job.id}, attemptsMade: ${job.attemptsMade}, error: ${err.message}`);
-  
-  if (job.attemptsMade >= job.opts.attempts || err.message.includes("Max retries reached")) {
-      console.log(`[DLQ] Sending job ${job.id} to Dead Letter Queue`);
-      await dlqQueue.add("failed_recharge", job.data);
-      eventBus.emit("recharge_failed", { jobId: job.id, data: job.data, reason: err.message, status: 'DLQ' });
-  } else {
-      eventBus.emit("provider_status", { status: "RETRYING", jobId: job.id, message: err.message });
-  }
+worker.on("failed", (job, err) => {
+  console.error("Job failed:", job.id, err.message);
 });
+
+export default worker;

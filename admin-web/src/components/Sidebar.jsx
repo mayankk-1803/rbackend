@@ -61,8 +61,8 @@ export const Sidebar = () => {
         <div className="px-4 mt-auto pt-6 border-t border-[#E2E8F0]">
           <button 
             onClick={() => {
-              localStorage.removeItem('adminToken');
-              localStorage.removeItem('adminUser');
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
               window.location.href = '/login';
             }}
             className="w-full flex items-center px-4 py-3 text-[#64748B] hover:bg-[#FEF2F2] hover:text-[#DC2626] rounded-md transition-all group"

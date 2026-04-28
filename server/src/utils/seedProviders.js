@@ -1,10 +1,9 @@
-import mongoose from "mongoose";
-import Provider from "../models/Provider.js";
+import prisma from "../config/prisma.js";
 
 const dummyProviders = [
-  { name: "Primary API", code: "PRIMARY", baseUrl: "https://api.p1.com", apiKey: "key_p1", priority: 10, isActive: true, successRate: 98, avgResponseTime: 200, costPerTxn: 1 },
-  { name: "Speedy API", code: "SPEEDY", baseUrl: "https://api.p2.com", apiKey: "key_p2", priority: 9, isActive: true, successRate: 95, avgResponseTime: 120, costPerTxn: 1.5 },
-  { name: "Backup API", code: "BACKUP", baseUrl: "https://api.p3.com", apiKey: "key_p3", priority: 8, isActive: true, successRate: 90, avgResponseTime: 300, costPerTxn: 0.8 },
+  { name: "Primary API", code: "P1", baseUrl: "https://api.p1.com", apiKey: "key_p1", priority: 10, isActive: true, successRate: 98, avgResponseTime: 200, costPerTxn: 1 },
+  { name: "Backup API", code: "P2", baseUrl: "https://api.p2.com", apiKey: "key_p2", priority: 8, isActive: true, successRate: 90, avgResponseTime: 300, costPerTxn: 0.8 },
+  { name: "Speedy API", code: "SPEEDY", baseUrl: "https://api.p3.com", apiKey: "key_p3", priority: 9, isActive: true, successRate: 95, avgResponseTime: 120, costPerTxn: 1.5 },
   { name: "Economy API", code: "ECONOMY", baseUrl: "https://api.p4.com", apiKey: "key_p4", priority: 7, isActive: true, successRate: 85, avgResponseTime: 400, costPerTxn: 0.5 },
   { name: "Global Recharge", code: "GLOBAL", baseUrl: "https://api.p5.com", apiKey: "key_p5", priority: 6, isActive: true, successRate: 92, avgResponseTime: 250, costPerTxn: 1.2 },
   { name: "FastPay API", code: "FASTPAY", baseUrl: "https://api.p6.com", apiKey: "key_p6", priority: 5, isActive: true, successRate: 88, avgResponseTime: 180, costPerTxn: 1.1 },
@@ -17,9 +16,11 @@ const dummyProviders = [
 export const seedProviders = async () => {
   try {
     console.log("Resetting providers...");
-    await Provider.deleteMany({}); // 🔥 FORCE RESET
+    await prisma.provider.deleteMany({});
     
-    await Provider.insertMany(dummyProviders);
+    await prisma.provider.createMany({
+      data: dummyProviders
+    });
     console.log("✅ 10 Providers seeded successfully");
   } catch (error) {
     console.error("Error seeding providers:", error);

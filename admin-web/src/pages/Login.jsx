@@ -16,21 +16,18 @@ export const Login = () => {
     
     setLoading(true);
     try {
-      // Assuming same endpoint since roles are checked afterwards
-      const { data } = await api.post('/auth/login', { email, password });
+      const res = await api.post('/auth/login', { email, password }, {
+        headers: { 'x-admin-request': 'true' }
+      });
+      const { token, user } = res.data;
       
-      const { token, user } = data.data;
-      
-      if (user.role !== 'admin') {
-        toast.error('Unauthorized. Elevated privileges required.');
-        return;
-      }
+      console.log("LOGIN SUCCESS:", res.data);
       
       localStorage.setItem('adminToken', token);
-      localStorage.setItem('adminUser', JSON.stringify(user));
+      localStorage.setItem('user', JSON.stringify(user));
       
       toast.success('Admin authenticated');
-      navigate('/');
+      window.location.href = "/";
     } catch(err) {
       toast.error(err.response?.data?.message || 'Authentication failed');
     } finally {

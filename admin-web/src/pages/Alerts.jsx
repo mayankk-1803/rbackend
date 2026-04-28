@@ -49,7 +49,7 @@ export const Alerts = () => {
         ) : (
           alerts.map((alert, idx) => (
             <div
-              key={alert._id || alert.id || idx}
+              key={alert.id || idx}
               className={`flex items-start p-5 rounded-2xl border ${
                 alert.severity === 'high'
                   ? 'bg-red-50 border-red-100'

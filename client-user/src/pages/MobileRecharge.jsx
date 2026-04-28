@@ -24,7 +24,7 @@ export default function MobileRecharge() {
         setDetecting(true);
         console.log(`[Detection] Fetching operator for: ${number}`);
         try {
-          const { data } = await api.get(`/api/operator-detect/${number}`);
+          const { data } = await api.get(`/operator-detect/${number}`);
           if (data.success && data.data.operator) {
             setOperator(data.data.operator);
             setOperatorLogo(data.data.logo);
@@ -56,11 +56,12 @@ export default function MobileRecharge() {
     try {
       console.log("[Recharge] Initiating recharge directly from wallet...");
       const idempotencyKey = crypto.randomUUID();
-      const { data } = await api.post('/api/recharge', {
+      const safeOperator = operator || 'Unknown';
+      const { data } = await api.post('/recharge', {
         mobile: number,
         amount: Number(amount),
-        providerCode: operator.toLowerCase(),
-        operator: operator,
+        providerCode: safeOperator.toLowerCase(),
+        operator: safeOperator,
         type: 'mobile'
       }, {
         headers: { 'x-idempotency-key': idempotencyKey }
@@ -93,17 +94,21 @@ export default function MobileRecharge() {
   const handlePaymentFlow = async () => {
     try {
       console.log("[Payment] Creating TOPUP order for recharge...");
-      const res = await api.post('/api/payment/create-order', {
+      const res = await api.post('/payment/create-order', {
         amount: Number(amount),
         upiId: 'demo@upi',
-        intent: 'WALLET_TOPUP' // Explicitly set intent as WALLET_TOPUP to credit wallet
+        intent: 'RECHARGE'
+      }, {
+        headers: {
+          "x-idempotency-key": crypto.randomUUID()
+        }
       });
       
-      const paymentId = res.data.data._id;
+      const paymentId = res.data.data.id;
       console.log("[Payment] Order created:", paymentId);
 
       console.log("[Payment] Confirming payment...");
-      const confirmRes = await api.post('/api/payment/confirm', { paymentId });
+      const confirmRes = await api.post('/payment/confirm', { paymentId });
       
       if (confirmRes.data.success) {
         console.log("[Payment] TOPUP Success, proceeding to recharge");

@@ -15,6 +15,7 @@ export const addRechargeJob = async (data) => {
   }
   
   return rechargeQueue.add("recharge", data, {
+    jobId: data.txnId ? `recharge_${data.txnId}` : `recharge_${data.idempotencyKey}`,
     delay: delayMs,
     attempts: 3, // Set to 3 as per requirement
     backoff: {
