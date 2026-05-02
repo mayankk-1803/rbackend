@@ -74,20 +74,20 @@ export default function BroadbandRecharge() {
       animate={{ opacity: 1, y: 0 }}
       className="max-w-4xl mx-auto space-y-8"
     >
-      <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] shadow-2xl overflow-hidden relative">
+      <div className="bg-white/70 backdrop-blur-2xl border border-slate-200 rounded-[2.5rem] shadow-xl overflow-hidden relative">
         <div className="absolute top-0 right-0 w-64 h-full bg-gradient-to-l from-indigo-500/5 to-transparent pointer-events-none"></div>
         
-        <div className="px-10 py-8 border-b border-white/10 bg-white/[0.02] flex justify-between items-center">
+        <div className="px-10 py-8 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
           <div>
-            <h2 className="text-3xl font-black text-white tracking-tighter uppercase italic flex items-center gap-3">
-              <Wifi className="w-8 h-8 text-indigo-400" />
-              Broadband <span className="text-indigo-400">Link</span>
+            <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic flex items-center gap-3">
+              <Wifi className="w-8 h-8 text-indigo-600" />
+              Broadband <span className="text-indigo-600">Link</span>
             </h2>
-            <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em] mt-1">High-speed data settlement protocol</p>
+            <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mt-1">High-speed data settlement protocol</p>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full">
-            <ShieldCheck className="w-3 h-3 text-indigo-400" />
-            <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest">Secure Band</span>
+          <div className="flex items-center gap-2 px-3 py-1 bg-indigo-50 border border-indigo-100 rounded-full">
+            <ShieldCheck className="w-3 h-3 text-indigo-600" />
+            <span className="text-[8px] font-black text-indigo-600 uppercase tracking-widest">Secure Band</span>
           </div>
         </div>
 
@@ -102,7 +102,7 @@ export default function BroadbandRecharge() {
                     required
                     value={number}
                     onChange={e => setNumber(e.target.value)}
-                    className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-white font-black tracking-widest outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all placeholder:text-slate-800"
+                    className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-black tracking-widest outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all placeholder:text-slate-300"
                     placeholder="ENTER ID"
                   />
                 </div>
@@ -114,7 +114,7 @@ export default function BroadbandRecharge() {
                   <select
                     value={operator}
                     onChange={e => setOperator(e.target.value)}
-                    className="w-full px-6 py-4 bg-[#0B0F19] border border-white/10 rounded-2xl text-white font-black tracking-widest outline-none focus:border-indigo-400 transition-all appearance-none"
+                    className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-black tracking-widest outline-none focus:border-indigo-600 transition-all appearance-none"
                   >
                     <option value="Airtel">AIRTEL BROADBAND</option>
                     <option value="JioFiber">JIO FIBER</option>
@@ -134,7 +134,7 @@ export default function BroadbandRecharge() {
                       min="1"
                       value={amount}
                       onChange={e => setAmount(e.target.value)}
-                      className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-white text-2xl font-black tracking-tighter outline-none focus:border-emerald-400 transition-all placeholder:text-slate-800"
+                      className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 text-2xl font-black tracking-tighter outline-none focus:border-emerald-500 transition-all placeholder:text-slate-300"
                       placeholder="0.00"
                     />
                   </div>
@@ -143,33 +143,33 @@ export default function BroadbandRecharge() {
             </div>
 
             <div className="space-y-8">
-               <div className="p-8 bg-black/40 rounded-[2rem] border border-white/5 relative overflow-hidden group">
+               <div className="p-8 bg-slate-50 border border-slate-100 rounded-[2rem] relative overflow-hidden group">
                   <div className="relative z-10 space-y-4">
-                     <div className="w-12 h-12 bg-indigo-500/10 rounded-xl flex items-center justify-center border border-indigo-500/20">
-                        <Activity className="w-6 h-6 text-indigo-400" />
+                     <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center border border-indigo-200">
+                        <Activity className="w-6 h-6 text-indigo-600" />
                      </div>
-                     <h4 className="text-white font-black uppercase italic tracking-tight">Latency Sync</h4>
-                     <p className="text-[10px] text-slate-500 font-medium leading-relaxed">Direct ISP backbone integration ensures 0ms delay in plan activation and bill clearance.</p>
+                     <h4 className="text-slate-900 font-black uppercase italic tracking-tight">Latency Sync</h4>
+                     <p className="text-[10px] text-slate-400 font-medium leading-relaxed">Direct ISP backbone integration ensures 0ms delay in plan activation and bill clearance.</p>
                   </div>
                   <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl group-hover:bg-indigo-500/10 transition-all duration-700"></div>
                </div>
 
-               <div className="p-6 bg-white/[0.02] border border-white/5 rounded-2xl flex items-center gap-4">
-                  <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center">
-                     <Wallet className="w-5 h-5 text-slate-600" />
+               <div className="p-6 bg-slate-50 border border-slate-100 rounded-2xl flex items-center gap-4">
+                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                     <Wallet className="w-5 h-5 text-slate-400" />
                   </div>
-                  <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest leading-relaxed">Wallet liquidity check initiated before authorization.</p>
+                  <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest leading-relaxed">Wallet liquidity check initiated before authorization.</p>
                </div>
             </div>
           </div>
 
-          <div className="flex justify-end pt-10 border-t border-white/5">
+          <div className="flex justify-end pt-10 border-t border-slate-100">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               disabled={loading || !number || !amount}
               type="submit"
-              className="px-12 py-5 bg-indigo-500 text-white font-black rounded-2xl shadow-[0_0_30px_rgba(79,70,229,0.3)] hover:shadow-[0_0_50px_rgba(79,70,229,0.5)] transition-all text-[11px] uppercase tracking-[0.2em] flex items-center gap-3 disabled:opacity-30"
+              className="px-12 py-5 bg-indigo-600 text-white font-black rounded-2xl shadow-lg shadow-indigo-600/20 hover:shadow-indigo-600/30 transition-all text-[11px] uppercase tracking-[0.2em] flex items-center gap-3 disabled:opacity-30"
             >
               {loading ? (
                 <>

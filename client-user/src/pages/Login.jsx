@@ -91,12 +91,12 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-[#030014] flex flex-col justify-center items-center p-4 relative overflow-hidden font-['Inter']">
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center p-4 relative overflow-hidden font-['Inter']">
       {/* Background Orbs */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
-        <div className="absolute -top-40 -left-40 w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[140px]"></div>
-        <div className="absolute top-1/2 -right-40 w-[500px] h-[500px] bg-cyan-600/10 rounded-full blur-[120px]"></div>
-        <div className="absolute -bottom-40 left-1/4 w-[700px] h-[700px] bg-indigo-600/10 rounded-full blur-[150px]"></div>
+        <div className="absolute -top-40 -left-40 w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-[140px]"></div>
+        <div className="absolute top-1/2 -right-40 w-[500px] h-[500px] bg-cyan-500/5 rounded-full blur-[120px]"></div>
+        <div className="absolute -bottom-40 left-1/4 w-[700px] h-[700px] bg-indigo-500/5 rounded-full blur-[150px]"></div>
       </div>
 
       <motion.div 
@@ -104,15 +104,15 @@ export default function Login() {
         animate={{ opacity: 1, scale: 1 }}
         className="max-w-md w-full relative z-10"
       >
-        <div className="bg-white/[0.03] backdrop-blur-2xl p-8 border border-white/10 rounded-[2.5rem] shadow-[0_0_50px_rgba(0,0,0,0.3)]">
+        <div className="bg-white/70 backdrop-blur-2xl p-8 border border-slate-200 rounded-[2.5rem] shadow-xl">
           <div className="text-center mb-8">
-            <div className="inline-flex p-3 rounded-2xl bg-gradient-to-br from-[#6D28D9]/20 to-[#8B5CF6]/20 border border-[#6D28D9]/30 mb-4">
-              {isPhoneLogin ? <Smartphone className="w-6 h-6 text-[#A78BFA]" /> : <Mail className="w-6 h-6 text-[#A78BFA]" />}
+            <div className="inline-flex p-3 rounded-2xl bg-purple-50 border border-purple-100 mb-4">
+              {isPhoneLogin ? <Smartphone className="w-6 h-6 text-purple-600" /> : <Mail className="w-6 h-6 text-purple-600" />}
             </div>
-            <h2 className="text-3xl font-black text-white tracking-tight italic">
+            <h2 className="text-3xl font-black text-slate-900 tracking-tight italic">
               {isPhoneLogin ? 'OTP LOGIN' : 'WELCOME'}
             </h2>
-            <p className="text-slate-400 text-sm mt-2">Access your Dizipay account securely</p>
+            <p className="text-slate-500 text-sm mt-2">Access your Dizipay account securely</p>
           </div>
 
           <AnimatePresence mode="wait">
@@ -127,9 +127,9 @@ export default function Login() {
                 {!confirmationResult ? (
                   <div className="space-y-6">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Phone Number</label>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Phone Number</label>
                       <div className="flex gap-2">
-                        <div className="flex-none w-16 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-sm font-bold text-slate-400">
+                        <div className="flex-none w-16 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-center text-sm font-bold text-slate-400">
                           +91
                         </div>
                         <div className="flex-1 relative">
@@ -137,7 +137,7 @@ export default function Login() {
                             type="tel"
                             value={phone}
                             onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                            className="w-full px-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-white font-medium outline-none focus:ring-2 focus:ring-[#6D28D9]/20 focus:border-[#6D28D9] transition-all placeholder:text-slate-700"
+                            className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-medium outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 transition-all placeholder:text-slate-300"
                             placeholder="9876543210"
                           />
                         </div>
@@ -146,7 +146,7 @@ export default function Login() {
                     <button
                       onClick={handleSendOTP}
                       disabled={loading || phone.length < 10}
-                      className="w-full py-4 bg-gradient-to-r from-[#6D28D9] to-[#8B5CF6] text-white rounded-2xl text-sm font-black tracking-widest shadow-lg shadow-[#6D28D9]/20 hover:shadow-[#6D28D9]/40 transition-all disabled:opacity-50 flex items-center justify-center gap-2 group"
+                      className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-2xl text-sm font-black tracking-widest shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 transition-all disabled:opacity-50 flex items-center justify-center gap-2 group"
                     >
                       {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                         <>
@@ -160,16 +160,16 @@ export default function Login() {
                   <form onSubmit={handleVerifyAndLogin} className="space-y-6">
                     <div className="space-y-2">
                       <div className="flex justify-between items-center px-1">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Verification</label>
-                        <button type="button" onClick={() => setConfirmationResult(null)} className="text-[10px] font-bold text-[#A78BFA] hover:text-white transition-colors">CHANGE</button>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Verification</label>
+                        <button type="button" onClick={() => setConfirmationResult(null)} className="text-[10px] font-bold text-purple-600 hover:text-purple-700 transition-colors">CHANGE</button>
                       </div>
                       <div className="relative">
-                        <MessageSquare className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                        <MessageSquare className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                         <input
                           type="text"
                           value={otpCode}
                           onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                          className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-white text-2xl font-black tracking-[0.5em] outline-none focus:ring-2 focus:ring-[#6D28D9]/20 focus:border-[#6D28D9] transition-all placeholder:text-slate-800"
+                          className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 text-2xl font-black tracking-[0.5em] outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 transition-all placeholder:text-slate-200"
                           placeholder="0000"
                           autoFocus
                         />
@@ -178,17 +178,17 @@ export default function Login() {
                     <button
                       type="submit"
                       disabled={loading || otpCode.length < 4}
-                      className="w-full py-4 bg-gradient-to-r from-[#6D28D9] to-[#8B5CF6] text-white rounded-2xl text-sm font-black tracking-widest shadow-lg shadow-[#6D28D9]/20 hover:shadow-[#6D28D9]/40 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                      className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-2xl text-sm font-black tracking-widest shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                       {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'VERIFY & LOGIN'}
                     </button>
                     <div className="text-center">
                       {timer > 0 ? (
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                          Resend in <span className="text-white">{timer}s</span>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                          Resend in <span className="text-slate-900">{timer}s</span>
                         </p>
                       ) : (
-                        <button type="button" onClick={handleSendOTP} className="text-[10px] font-black text-[#A78BFA] hover:text-white transition-colors uppercase tracking-widest">RESEND OTP</button>
+                        <button type="button" onClick={handleSendOTP} className="text-[10px] font-black text-purple-600 hover:text-purple-700 transition-colors uppercase tracking-widest">RESEND OTP</button>
                       )}
                     </div>
                   </form>
@@ -204,29 +204,29 @@ export default function Login() {
                 onSubmit={handleEmailLogin}
               >
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Email Address</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Email Address</label>
                   <div className="relative group">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-purple-600 transition-colors" />
                     <input
                       type="email"
                       required
                       value={email}
                       onChange={e => setEmail(e.target.value)}
-                      className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20 focus:border-[#6D28D9] transition-all"
+                      className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 transition-all"
                       placeholder="name@example.com"
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Password</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Password</label>
                   <div className="relative group">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-purple-400 transition-colors" />
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-purple-600 transition-colors" />
                     <input
                       type="password"
                       required
                       value={password}
                       onChange={e => setPassword(e.target.value)}
-                      className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20 focus:border-[#6D28D9] transition-all"
+                      className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 transition-all"
                       placeholder="••••••••"
                     />
                   </div>
@@ -234,7 +234,7 @@ export default function Login() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-4 bg-gradient-to-r from-[#6D28D9] to-[#8B5CF6] text-white rounded-2xl text-sm font-black tracking-widest shadow-lg shadow-[#6D28D9]/20 hover:shadow-[#6D28D9]/40 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-2xl text-sm font-black tracking-widest shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'SIGN IN'}
                 </button>
@@ -245,21 +245,21 @@ export default function Login() {
           <div className="mt-8 flex flex-col items-center gap-6">
             <button 
               onClick={() => { setIsPhoneLogin(!isPhoneLogin); setConfirmationResult(null); }}
-              className="text-[10px] font-black text-slate-500 hover:text-white transition-colors uppercase tracking-[0.2em] border-b border-white/10 pb-1"
+              className="text-[10px] font-black text-slate-400 hover:text-slate-900 transition-colors uppercase tracking-[0.2em] border-b border-slate-200 pb-1"
             >
               {isPhoneLogin ? 'Login with Email instead' : 'Login with Phone OTP instead'}
             </button>
             
             <div className="text-sm font-medium">
               <span className="text-slate-500">Don't have an account? </span>
-              <Link to="/register" className="text-[#A78BFA] hover:text-white transition-colors underline underline-offset-4">Sign Up</Link>
+              <Link to="/register" className="text-purple-600 hover:text-purple-700 transition-colors underline underline-offset-4">Sign Up</Link>
             </div>
           </div>
         </div>
         
         {/* Footer info */}
         <div className="mt-8 text-center">
-          <p className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.3em]">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]">
             Powered by Dizipay Secure
           </p>
         </div>

@@ -89,19 +89,19 @@ export const Providers = () => {
       animate={{ opacity: 1 }}
       className="space-y-10"
     >
-      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-white/5 backdrop-blur-2xl p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-white/10 shadow-2xl relative overflow-hidden">
+      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-white/70 backdrop-blur-2xl p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-slate-200 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-full bg-gradient-to-l from-purple-500/5 to-transparent"></div>
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-2">
-            <Settings className="w-4 h-4 md:w-5 md:h-5 text-purple-400" />
-            <h1 className="text-xl md:text-3xl font-black text-white tracking-tighter uppercase italic">API Routing <span className="text-purple-400 text-shadow-glow">Engine</span></h1>
+            <Settings className="w-4 h-4 md:w-5 md:h-5 text-purple-600" />
+            <h1 className="text-xl md:text-3xl font-black text-slate-900 tracking-tighter uppercase italic">API Routing <span className="text-purple-600 text-shadow-glow">Engine</span></h1>
           </div>
           <p className="text-[8px] md:text-[10px] text-slate-500 font-black uppercase tracking-[0.2em]">Configuring active failover and primary execution sequence</p>
         </div>
         <button 
           onClick={handleSaveSelection}
           disabled={saving || loading || selectedProviders.length === 0}
-          className="relative z-10 w-full lg:w-auto bg-purple-500 hover:bg-purple-600 text-white shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:shadow-[0_0_30px_rgba(168,85,247,0.5)] transition-all px-8 py-4 rounded-xl md:rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest disabled:opacity-30"
+          className="relative z-10 w-full lg:w-auto bg-purple-600 hover:bg-purple-700 text-white shadow-sm hover:shadow-md transition-all px-8 py-4 rounded-xl md:rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest disabled:opacity-30"
         >
           {saving ? 'Syncing...' : 'Save Configuration'}
         </button>
@@ -124,24 +124,24 @@ export const Providers = () => {
                 onClick={() => handleToggleSelect(prov.code)}
                 className={`relative cursor-pointer rounded-[2.5rem] border backdrop-blur-3xl transition-all duration-500 overflow-hidden flex flex-col justify-between group ${
                   isSelected 
-                    ? 'bg-white/10 border-purple-500/30 shadow-[0_0_40px_rgba(139,92,246,0.1)]' 
-                    : 'bg-white/[0.02] border-white/5 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 hover:bg-white/5'
+                    ? 'bg-white border-purple-200 shadow-md' 
+                    : 'bg-slate-50 border-slate-200 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 hover:bg-white'
                 }`}
               >
                 <div className="p-8">
                   <div className="flex justify-between items-start mb-8">
                     <div className="flex items-center gap-4">
                       <div className={`w-6 h-6 rounded-lg flex items-center justify-center border transition-all ${
-                        isSelected ? 'bg-purple-500 border-purple-400 shadow-[0_0_10px_rgba(168,85,247,0.5)]' : 'bg-transparent border-slate-700'
+                        isSelected ? 'bg-purple-600 border-purple-500 shadow-sm' : 'bg-transparent border-slate-300'
                       }`}>
                         {isSelected && <CheckCircle2 className="w-4 h-4 text-white" />}
                       </div>
                       <div>
-                        <h3 className="text-lg font-black text-white tracking-tight flex items-center gap-2 group-hover:text-purple-400 transition-colors">
+                        <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2 group-hover:text-purple-600 transition-colors">
                           {prov.name}
                           {getStatusIcon(prov.healthStatus)}
                         </h3>
-                        <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-1">{prov.code}</p>
+                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">{prov.code}</p>
                       </div>
                     </div>
                     {isSelected && !isPrimary && (
@@ -150,17 +150,17 @@ export const Providers = () => {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4 mb-8">
-                    <div className="bg-black/40 rounded-2xl p-4 border border-white/5 group-hover:border-white/10 transition-colors">
-                      <div className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 group-hover:border-slate-200 transition-colors">
+                      <div className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-2 flex items-center gap-2">
                         Success
                       </div>
-                      <div className="text-xl font-black text-white">{Number(prov.successRate || 0).toFixed(1)}%</div>
+                      <div className="text-xl font-black text-slate-900">{Number(prov.successRate || 0).toFixed(1)}%</div>
                     </div>
-                    <div className="bg-black/40 rounded-2xl p-4 border border-white/5 group-hover:border-white/10 transition-colors">
-                      <div className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 group-hover:border-slate-200 transition-colors">
+                      <div className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-2 flex items-center gap-2">
                         Latency
                       </div>
-                      <div className="text-xl font-black text-white">{prov.avgResponseTime || '120'}ms</div>
+                      <div className="text-xl font-black text-slate-900">{prov.avgResponseTime || '120'}ms</div>
                     </div>
                   </div>
 
@@ -171,7 +171,7 @@ export const Providers = () => {
                 </div>
 
                 <div className={`px-8 py-6 border-t flex justify-between items-center transition-all ${
-                  isSelected ? 'bg-white/5 border-purple-500/20' : 'bg-black/20 border-white/5'
+                  isSelected ? 'bg-purple-50 border-purple-100' : 'bg-slate-50 border-slate-200'
                 }`}>
                   {isSelected ? (
                     isPrimary ? (
@@ -185,7 +185,7 @@ export const Providers = () => {
                     ) : (
                       <button 
                         onClick={(e) => handleSetPrimary(e, prov.code)}
-                        className="w-full text-center py-3 bg-white/5 border border-white/10 text-white text-[9px] font-black tracking-[0.2em] uppercase rounded-xl hover:bg-white/10 hover:border-purple-500/40 transition-all flex items-center justify-center gap-2"
+                        className="w-full text-center py-3 bg-white border border-slate-200 text-slate-900 text-[9px] font-black tracking-[0.2em] uppercase rounded-xl hover:bg-slate-50 hover:border-purple-300 transition-all flex items-center justify-center gap-2"
                       >
                         Promote to Primary <ChevronRight className="w-3 h-3" />
                       </button>

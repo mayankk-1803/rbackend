@@ -55,12 +55,12 @@ function App() {
   return (
     <ErrorBoundary>
       <Router>
-        <div className="min-h-screen bg-[#030014] text-slate-200 relative">
+        <div className="min-h-screen bg-slate-50 text-slate-900 relative">
           {/* Subtle background glow elements for glassmorphism pop */}
           <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
-            <div className="absolute -top-40 -left-40 w-96 h-96 bg-cyan-500/20 rounded-full blur-[120px]"></div>
-            <div className="absolute top-1/3 -right-20 w-80 h-80 bg-purple-500/20 rounded-full blur-[100px]"></div>
-            <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-blue-600/20 rounded-full blur-[120px]"></div>
+            <div className="absolute -top-40 -left-40 w-96 h-96 bg-cyan-500/5 rounded-full blur-[120px]"></div>
+            <div className="absolute top-1/3 -right-20 w-80 h-80 bg-purple-500/5 rounded-full blur-[100px]"></div>
+            <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-blue-600/5 rounded-full blur-[120px]"></div>
           </div>
           <div className="relative z-10">
           <Toaster position="top-right" />

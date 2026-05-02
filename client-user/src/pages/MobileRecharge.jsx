@@ -199,9 +199,9 @@ export default function MobileRecharge() {
       animate={{ opacity: 1, y: 0 }}
       className="max-w-4xl mx-auto space-y-4 md:space-y-8"
     >
-      <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl md:rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.3)] overflow-hidden">
-        <div className="px-6 md:px-8 py-5 md:py-6 border-b border-white/10 bg-white/[0.02]">
-          <h2 className="text-xl md:text-2xl font-black text-white tracking-tight drop-shadow-md">Mobile Recharge</h2>
+      <div className="bg-white/70 backdrop-blur-2xl border border-slate-200 rounded-2xl md:rounded-3xl shadow-xl overflow-hidden">
+        <div className="px-6 md:px-8 py-5 md:py-6 border-b border-slate-100 bg-slate-50/50">
+          <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">Mobile Recharge</h2>
           <p className="text-[10px] md:text-sm text-slate-400 mt-1 font-medium tracking-wide">Instant power-up for your connection</p>
         </div>
 
@@ -218,7 +218,7 @@ export default function MobileRecharge() {
                     maxLength="10"
                     value={number}
                     onChange={e => setNumber(e.target.value.replace(/\D/g, ''))}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 focus:border-cyan-400 transition-all text-lg font-bold tracking-wider group-hover:border-white/20"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/10 focus:border-cyan-500 transition-all text-lg font-bold tracking-wider group-hover:border-slate-300"
                     placeholder="Enter 10-digit number"
                   />
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
@@ -229,12 +229,12 @@ export default function MobileRecharge() {
                       <motion.div 
                         initial={{ opacity: 0, x: 10 }}
                         animate={{ opacity: 1, x: 0 }}
-                        className="flex items-center gap-2 bg-cyan-400/10 border border-cyan-400/30 px-3 py-1 rounded-full shadow-[0_0_15px_rgba(34,211,238,0.2)]"
+                        className="flex items-center gap-2 bg-cyan-50 border border-cyan-100 px-3 py-1 rounded-full shadow-sm"
                       >
                         {operatorLogo && (
                           <img src={operatorLogo} alt={operator} className="w-4 h-4 object-contain" />
                         )}
-                        <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">{operator}</span>
+                        <span className="text-[10px] font-black text-cyan-600 uppercase tracking-widest">{operator}</span>
                       </motion.div>
                     )}
                   </div>
@@ -250,7 +250,7 @@ export default function MobileRecharge() {
                     min="1"
                     value={amount}
                     onChange={e => setAmount(e.target.value)}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-purple-400 transition-all text-lg font-bold group-hover:border-white/20"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 transition-all text-lg font-bold group-hover:border-slate-300"
                     placeholder="0.00"
                   />
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">
@@ -261,13 +261,13 @@ export default function MobileRecharge() {
             </div>
 
             {/* Right: Quick Info/Feedback */}
-            <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 md:p-6 flex md:flex-col justify-between md:justify-center items-center text-left md:text-center gap-4">
-              <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-cyan-500/20 to-purple-500/20 rounded-xl md:rounded-2xl flex items-center justify-center border border-white/10 shadow-inner flex-shrink-0">
+            <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-4 md:p-6 flex md:flex-col justify-between md:justify-center items-center text-left md:text-center gap-4">
+              <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-cyan-50 to-purple-50 rounded-xl md:rounded-2xl flex items-center justify-center border border-slate-100 shadow-sm flex-shrink-0">
                 <span className="text-xl md:text-3xl">⚡</span>
               </div>
               <div className="flex-1">
-                <h4 className="text-white text-xs md:text-sm font-bold tracking-tight">Cyber-Fast Processing</h4>
-                <p className="text-[10px] text-slate-500 mt-0.5 md:mt-1 max-w-[200px]">Your recharge is processed through our high-speed primary gateway.</p>
+                <h4 className="text-slate-900 text-xs md:text-sm font-bold tracking-tight">Cyber-Fast Processing</h4>
+                <p className="text-[10px] text-slate-400 mt-0.5 md:mt-1 max-w-[200px]">Your recharge is processed through our high-speed primary gateway.</p>
               </div>
             </div>
           </div>
@@ -276,7 +276,7 @@ export default function MobileRecharge() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest">Recommended Plans</h3>
-              <div className="h-[1px] flex-1 mx-4 bg-white/10"></div>
+              <div className="h-[1px] flex-1 mx-4 bg-slate-100"></div>
             </div>
             
             <div className="flex gap-4 overflow-x-auto pb-4 snap-x no-scrollbar">
@@ -286,31 +286,31 @@ export default function MobileRecharge() {
                 { id: 3, price: 719, data: '2GB/Day', validity: '84 Days', desc: 'Truly Unlimited + Prime Video' },
                 { id: 4, price: 155, data: '1GB Total', validity: '24 Days', desc: 'Budget Plan for secondary use' }
               ].map((plan) => (
-                <motion.div
-                  key={plan.id}
-                  whileHover={{ scale: 1.02, y: -5 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => setAmount(plan.price.toString())}
-                  className={`flex-shrink-0 w-64 p-5 rounded-2xl border transition-all cursor-pointer snap-start ${
-                    amount === plan.price.toString() 
-                    ? 'bg-cyan-500/10 border-cyan-400 shadow-[0_0_30px_rgba(34,211,238,0.2)]' 
-                    : 'bg-white/5 border-white/10 hover:border-white/20'
-                  }`}
-                >
+                  <motion.div
+                    key={plan.id}
+                    whileHover={{ scale: 1.02, y: -5 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setAmount(plan.price.toString())}
+                    className={`flex-shrink-0 w-64 p-5 rounded-2xl border transition-all cursor-pointer snap-start ${
+                      amount === plan.price.toString() 
+                      ? 'bg-cyan-50 border-cyan-200 shadow-md' 
+                      : 'bg-slate-50 border-slate-100 hover:border-slate-200'
+                    }`}
+                  >
                   <div className="flex justify-between items-start mb-4">
-                    <span className="text-2xl font-black text-white">₹{plan.price}</span>
+                    <span className="text-2xl font-black text-slate-900">₹{plan.price}</span>
                     {amount === plan.price.toString() && (
-                      <span className="bg-cyan-400 text-slate-900 text-[8px] font-black uppercase px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(34,211,238,0.5)]">Selected</span>
+                      <span className="bg-cyan-600 text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-full shadow-sm">Selected</span>
                     )}
                   </div>
                   <div className="space-y-2">
-                    <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
                       <span>Data</span>
-                      <span className="text-white">{plan.data}</span>
+                      <span className="text-slate-900">{plan.data}</span>
                     </div>
-                    <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
                       <span>Validity</span>
-                      <span className="text-white">{plan.validity}</span>
+                      <span className="text-slate-900">{plan.validity}</span>
                     </div>
                   </div>
                   <p className="mt-4 text-[10px] text-slate-400 font-medium leading-relaxed">{plan.desc}</p>
@@ -325,7 +325,7 @@ export default function MobileRecharge() {
               whileTap={{ scale: 0.98 }}
               disabled={loading || !number || !amount || rechargeStatus === 'PROCESSING'}
               onClick={() => setShowRechargeModal(true)}
-              className="w-full md:w-auto px-10 py-4 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-black rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all text-xs md:text-sm uppercase tracking-widest shadow-[0_0_30px_rgba(6,182,212,0.3)] hover:shadow-[0_0_40px_rgba(139,92,246,0.4)] flex items-center justify-center gap-3"
+              className="w-full md:w-auto px-10 py-4 bg-gradient-to-r from-cyan-600 to-purple-600 text-white font-black rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all text-xs md:text-sm uppercase tracking-widest shadow-lg shadow-cyan-600/10 hover:shadow-cyan-600/20 flex items-center justify-center gap-3"
             >
               {loading ? (
                 <>

@@ -126,45 +126,45 @@ export default function Home() {
     >
       {/* Welcome & Balance Header */}
       <div className="flex flex-col lg:flex-row gap-4 md:gap-6">
-        <div className="flex-1 bg-white/5 backdrop-blur-2xl rounded-3xl md:rounded-[2.5rem] p-6 md:p-10 border border-white/10 shadow-2xl relative overflow-hidden group">
-          <div className="absolute -top-24 -right-24 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none group-hover:bg-cyan-500/20 transition-all duration-700" />
+        <div className="flex-1 bg-white/70 backdrop-blur-2xl rounded-3xl md:rounded-[2.5rem] p-6 md:p-10 border border-slate-200 shadow-xl relative overflow-hidden group">
+          <div className="absolute -top-24 -right-24 w-64 h-64 bg-cyan-500/5 rounded-full blur-[80px] pointer-events-none group-hover:bg-cyan-500/10 transition-all duration-700" />
           
           <div className="relative z-10 space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded-full">
-              <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.8)]"></div>
-              <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">Live Session Active</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-100 border border-slate-200 rounded-full">
+              <div className="w-1.5 h-1.5 bg-cyan-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.4)]"></div>
+              <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em]">Live Session Active</span>
             </div>
-            <h1 className="text-3xl md:text-5xl font-black text-white tracking-tighter uppercase italic">
-              Digital <span className="text-cyan-400 text-shadow-glow">Vault</span>
+            <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tighter uppercase italic">
+              Digital <span className="text-cyan-600 text-shadow-glow">Vault</span>
             </h1>
-            <p className="text-slate-500 text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em]">Authorized: {user.name || 'Spectral Entity'}</p>
+            <p className="text-slate-400 text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em]">Authorized: {user.name || 'Spectral Entity'}</p>
           </div>
         </div>
 
         <motion.div 
           whileHover={{ y: -5 }}
-          className="lg:w-[400px] bg-gradient-to-br from-slate-900 via-[#0B0F19] to-[#1a0b2e] rounded-3xl md:rounded-[2.5rem] p-6 md:p-8 shadow-2xl border border-purple-500/20 relative overflow-hidden flex flex-col justify-between"
+          className="lg:w-[400px] bg-gradient-to-br from-cyan-50 to-blue-50 rounded-3xl md:rounded-[2.5rem] p-6 md:p-8 shadow-xl border border-slate-200 relative overflow-hidden flex flex-col justify-between"
         >
-          <div className="absolute top-0 left-0 right-0 h-1/2 bg-white/5 rounded-t-[2.5rem] pointer-events-none" />
+          <div className="absolute top-0 left-0 right-0 h-1/2 bg-white/40 rounded-t-[2.5rem] pointer-events-none" />
           
           <div className="relative z-10 flex justify-between items-start">
-            <div className="w-14 h-14 bg-purple-500/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-purple-500/30 shadow-[0_0_15px_rgba(139,92,246,0.2)]">
-              <Wallet className="w-8 h-8 text-cyan-400" />
+            <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center border border-cyan-100 shadow-sm">
+              <Wallet className="w-8 h-8 text-cyan-600" />
             </div>
             <button 
               onClick={() => setShowAddMoney(true)}
-              className="w-10 h-10 bg-cyan-400 text-slate-900 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(34,211,238,0.4)] hover:scale-110 transition-all active:scale-95"
+              className="w-10 h-10 bg-cyan-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-cyan-600/20 hover:scale-110 transition-all active:scale-95"
             >
               <Plus className="w-6 h-6 stroke-[3]" />
             </button>
           </div>
 
           <div className="relative z-10 mt-8">
-            <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest mb-1">Available Liquidity</p>
-            <h2 className="text-4xl font-black tracking-tighter text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">₹{formatAmount(wallet?.balance)}</h2>
+            <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Available Liquidity</p>
+            <h2 className="text-4xl font-black tracking-tighter text-slate-900">₹{formatAmount(wallet?.balance)}</h2>
             {Number(wallet?.cashbackBalance) > 0 && (
               <div className="mt-4 flex items-center gap-2">
-                <span className="text-[9px] bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-lg font-black uppercase border border-emerald-500/20">
+                <span className="text-[9px] bg-emerald-50 text-emerald-600 px-3 py-1 rounded-lg font-black uppercase border border-emerald-100">
                   + ₹{formatAmount(wallet?.cashbackBalance)} Yield
                 </span>
               </div>
@@ -180,13 +180,13 @@ export default function Home() {
           {services.map((service, idx) => (
             <Link key={idx} to={service.path}>
               <motion.div 
-                whileHover={{ y: -5, backgroundColor: 'rgba(255,255,255,0.05)' }}
-                className="bg-white/5 backdrop-blur-xl p-4 md:p-8 rounded-2xl md:rounded-[2rem] border border-white/5 flex flex-col items-center gap-3 md:gap-4 transition-all shadow-xl group hover:border-cyan-500/30"
+                whileHover={{ y: -5, backgroundColor: 'rgba(255,255,255,1)' }}
+                className="bg-white/70 backdrop-blur-xl p-4 md:p-8 rounded-2xl md:rounded-[2rem] border border-slate-200 flex flex-col items-center gap-3 md:gap-4 transition-all shadow-sm group hover:border-cyan-500/30 hover:shadow-md"
               >
-                <div className="w-12 h-12 md:w-16 md:h-16 bg-slate-900/80 rounded-xl md:rounded-2xl flex items-center justify-center border border-white/5 group-hover:border-cyan-500/40 group-hover:shadow-[0_0_20px_rgba(6,182,212,0.2)] transition-all">
-                  <service.icon className="w-5 h-5 md:w-7 md:h-7 text-slate-500 group-hover:text-cyan-400 transition-all" />
+                <div className="w-12 h-12 md:w-16 md:h-16 bg-slate-50 rounded-xl md:rounded-2xl flex items-center justify-center border border-slate-100 group-hover:border-cyan-500/20 group-hover:shadow-[0_0_20px_rgba(6,182,212,0.1)] transition-all">
+                  <service.icon className="w-5 h-5 md:w-7 md:h-7 text-slate-400 group-hover:text-cyan-600 transition-all" />
                 </div>
-                <span className="text-[8px] md:text-[10px] font-black text-slate-400 group-hover:text-white uppercase tracking-widest text-center">{service.label}</span>
+                <span className="text-[8px] md:text-[10px] font-black text-slate-500 group-hover:text-slate-900 uppercase tracking-widest text-center">{service.label}</span>
               </motion.div>
             </Link>
           ))}
@@ -194,13 +194,13 @@ export default function Home() {
       </div>
 
       {/* Recent Transactions */}
-      <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl md:rounded-[2.5rem] overflow-hidden shadow-2xl">
-        <div className="px-6 md:px-8 py-5 md:py-6 border-b border-white/10 flex justify-between items-center bg-white/[0.02]">
-          <h2 className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-3">
-            <HistoryIcon className="w-4 h-4 text-cyan-400" />
+      <div className="bg-white/70 backdrop-blur-2xl border border-slate-200 rounded-3xl md:rounded-[2.5rem] overflow-hidden shadow-xl">
+        <div className="px-6 md:px-8 py-5 md:py-6 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
+          <h2 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-3">
+            <HistoryIcon className="w-4 h-4 text-cyan-600" />
             Signal History
           </h2>
-          <Link to="/history" className="text-[9px] font-black text-cyan-400 uppercase tracking-widest flex items-center gap-2 hover:text-cyan-300">
+          <Link to="/history" className="text-[9px] font-black text-cyan-600 uppercase tracking-widest flex items-center gap-2 hover:text-cyan-500">
             View <span className="hidden md:inline">Archive</span> <ArrowUpRight className="w-4 h-4" />
           </Link>
         </div>
@@ -211,35 +211,35 @@ export default function Home() {
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: idx * 0.05 }}
-              className="px-6 py-4 flex justify-between items-center bg-white/[0.02] border border-white/5 rounded-2xl hover:border-white/10 transition-all group"
+              className="px-6 py-4 flex justify-between items-center bg-slate-50/50 border border-slate-100 rounded-2xl hover:border-slate-200 transition-all group"
             >
               <div className="flex items-center gap-5">
-                <div className={`p-3 rounded-xl ${txn.type === 'RECHARGE' ? 'bg-cyan-500/10 text-cyan-400' : 'bg-emerald-500/10 text-emerald-400'}`}>
+                <div className={`p-3 rounded-xl ${txn.type === 'RECHARGE' ? 'bg-cyan-100 text-cyan-600' : 'bg-emerald-100 text-emerald-600'}`}>
                   {txn.type === 'RECHARGE' ? <Smartphone className="w-5 h-5" /> : <Wallet className="w-5 h-5" />}
                 </div>
                 <div>
-                  <p className="text-sm font-black text-white uppercase tracking-tight group-hover:text-cyan-400 transition-colors">
-                    {safeValue(txn.type)} <span className="text-slate-600 mx-2">|</span> {txn.operator || 'Wallet'}
+                  <p className="text-sm font-black text-slate-900 uppercase tracking-tight group-hover:text-cyan-600 transition-colors">
+                    {safeValue(txn.type)} <span className="text-slate-300 mx-2">|</span> {txn.operator || 'Wallet'}
                   </p>
-                  <p className="text-[8px] text-slate-500 font-bold uppercase tracking-tighter mt-1">{new Date(txn?.createdAt || Date.now()).toLocaleDateString()} • {safeValue(txn.mobile, 'Wallet')}</p>
+                  <p className="text-[8px] text-slate-400 font-bold uppercase tracking-tighter mt-1">{new Date(txn?.createdAt || Date.now()).toLocaleDateString()} • {safeValue(txn.mobile, 'Wallet')}</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className={`text-lg font-black tracking-tighter ${txn.direction === 'DEBIT' ? 'text-white' : 'text-emerald-400'}`}>
+                <p className={`text-lg font-black tracking-tighter ${txn.direction === 'DEBIT' ? 'text-slate-900' : 'text-emerald-600'}`}>
                   {txn.direction === 'DEBIT' ? '-' : '+'}₹{formatAmount(txn.amount)}
                 </p>
                 <span className={`text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-lg mt-1 inline-block ${
-                  txn.status === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-400' : 
-                  txn.status === 'PENDING' ? 'bg-amber-500/10 text-amber-400' : 
-                  'bg-rose-500/10 text-rose-400'
+                  txn.status === 'SUCCESS' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 
+                  txn.status === 'PENDING' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 
+                  'bg-rose-50 text-rose-600 border border-rose-100'
                 }`}>
                   {safeValue(txn.status)}
                 </span>
               </div>
             </motion.div>
           )) : (
-            <div className="py-20 text-center bg-black/20 rounded-3xl border border-white/5 border-dashed">
-              <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">No spectral traces found</p>
+            <div className="py-20 text-center bg-slate-50 rounded-3xl border border-slate-200 border-dashed">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No spectral traces found</p>
             </div>
           )}
         </div>
@@ -248,23 +248,23 @@ export default function Home() {
       {/* Add Money Modal */}
       <AnimatePresence>
         {showAddMoney && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-xl flex items-center justify-center z-50 p-6">
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center z-50 p-6">
             <motion.div 
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-[#0B0F19] border border-white/10 rounded-[2.5rem] p-10 w-full max-w-lg shadow-[0_0_100px_rgba(0,0,0,0.5)] relative overflow-hidden"
+              className="bg-white border border-slate-200 rounded-[2.5rem] p-10 w-full max-w-lg shadow-2xl relative overflow-hidden"
             >
               <div className="absolute top-0 right-0 p-8">
-                <button onClick={() => setShowAddMoney(false)} className="text-slate-500 hover:text-white transition-colors">
+                <button onClick={() => setShowAddMoney(false)} className="text-slate-400 hover:text-slate-900 transition-colors">
                   <X className="w-6 h-6" />
                 </button>
               </div>
 
               <div className="space-y-8">
                 <div className="space-y-2">
-                  <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">Inject <span className="text-cyan-400">Liquidity</span></h2>
-                  <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Authorize wallet expansion sequence</p>
+                  <h2 className="text-3xl font-black text-slate-900 uppercase italic tracking-tighter">Inject <span className="text-cyan-600">Liquidity</span></h2>
+                  <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Authorize wallet expansion sequence</p>
                 </div>
 
                 <div className="space-y-6">
@@ -275,7 +275,7 @@ export default function Home() {
                       placeholder="0.00" 
                       value={amount} 
                       onChange={(e) => setAmount(e.target.value)} 
-                      className="w-full bg-white/5 border border-white/10 p-6 rounded-2xl text-white text-3xl font-black tracking-tighter outline-none focus:border-cyan-400 focus:ring-4 focus:ring-cyan-400/10 transition-all placeholder:text-slate-800"
+                      className="w-full bg-slate-50 border border-slate-200 p-6 rounded-2xl text-slate-900 text-3xl font-black tracking-tighter outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all placeholder:text-slate-300"
                     />
                   </div>
 
@@ -284,7 +284,7 @@ export default function Home() {
                       <button
                         key={val}
                         onClick={() => setAmount(val.toString())}
-                        className="py-4 bg-white/5 border border-white/5 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest hover:border-cyan-400/50 hover:text-white transition-all active:scale-95"
+                        className="py-4 bg-slate-50 border border-slate-200 rounded-2xl text-[10px] font-black text-slate-500 uppercase tracking-widest hover:border-cyan-500/50 hover:text-slate-900 transition-all active:scale-95"
                       >
                         +₹{val}
                       </button>

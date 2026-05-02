@@ -89,19 +89,19 @@ export const ApiDocs = () => {
     >
       <header className="mb-6 md:mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-black text-white tracking-tighter uppercase italic">Developer <span className="text-purple-400 text-shadow-glow">Portal</span></h1>
-          <p className="text-[8px] md:text-[10px] text-slate-500 font-black uppercase tracking-[0.2em] mt-2">Core API integration telemetry and endpoint schemas</p>
+          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter uppercase italic">Developer <span className="text-purple-600 text-shadow-glow">Portal</span></h1>
+          <p className="text-[8px] md:text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mt-2">Core API integration telemetry and endpoint schemas</p>
         </div>
-        <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/5 border border-emerald-500/20 rounded-xl md:rounded-2xl">
-          <ShieldCheck className="w-3.5 h-3.5 md:w-4 md:h-4 text-emerald-400" />
-          <span className="text-[8px] md:text-[9px] font-black text-emerald-400 uppercase tracking-widest">TLS 1.3 Active</span>
+        <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-100 rounded-xl md:rounded-2xl">
+          <ShieldCheck className="w-3.5 h-3.5 md:w-4 md:h-4 text-emerald-600" />
+          <span className="text-[8px] md:text-[9px] font-black text-emerald-600 uppercase tracking-widest">TLS 1.3 Active</span>
         </div>
       </header>
 
-      <div className="flex flex-col xl:flex-row flex-1 overflow-hidden bg-white/[0.02] border border-white/5 rounded-2xl md:rounded-[2.5rem] shadow-2xl backdrop-blur-2xl">
+      <div className="flex flex-col xl:flex-row flex-1 overflow-hidden bg-white/70 border border-slate-200 rounded-2xl md:rounded-[2.5rem] shadow-xl backdrop-blur-2xl">
         {/* Sidebar Menu */}
-        <div className="w-full xl:w-80 border-b xl:border-b-0 xl:border-r border-white/5 bg-black/20 flex flex-col pt-4 md:pt-8">
-          <div className="px-6 md:px-8 mb-4 md:mb-6 text-[8px] md:text-[10px] font-black text-slate-600 uppercase tracking-[0.3em]">Signature Cluster</div>
+        <div className="w-full xl:w-80 border-b xl:border-b-0 xl:border-r border-slate-200 bg-slate-50/50 flex flex-col pt-4 md:pt-8">
+          <div className="px-6 md:px-8 mb-4 md:mb-6 text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Signature Cluster</div>
           <nav className="flex xl:flex-col overflow-x-auto xl:overflow-y-auto custom-scrollbar pb-4 xl:pb-0 px-4 space-x-2 xl:space-x-0 xl:space-y-2">
             {Object.keys(endpoints).map((key) => {
               const ep = endpoints[key];
@@ -111,11 +111,11 @@ export const ApiDocs = () => {
                   key={key}
                   onClick={() => setActiveTab(key)}
                   className={`flex-none xl:w-full text-left px-4 md:px-6 py-3 md:py-4 flex items-center gap-3 md:gap-4 text-[10px] md:text-xs font-black transition-all rounded-xl md:rounded-2xl relative group ${
-                    isActive ? "bg-white/5 text-white" : "text-slate-500 hover:text-slate-300 hover:bg-white/[0.02]"
+                    isActive ? "bg-white text-purple-600 shadow-sm" : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
                   }`}
                 >
                   <span className={`text-[7px] md:text-[8px] px-2 py-0.5 md:py-1 rounded-lg font-black tracking-widest ${
-                    ep.method === 'POST' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                    ep.method === 'POST' ? 'bg-purple-100 text-purple-600 border border-purple-200' : 'bg-emerald-100 text-emerald-600 border border-emerald-200'
                   }`}>
                     {ep.method}
                   </span>
@@ -138,46 +138,46 @@ export const ApiDocs = () => {
           <div className="p-6 md:p-12 max-w-5xl mx-auto space-y-8 md:space-y-12">
             <div className="space-y-4 md:space-y-6">
               <div className="flex flex-wrap items-center gap-3 md:gap-4">
-                <span className={`px-3 md:px-4 py-1 md:py-1.5 rounded-lg md:rounded-xl text-[8px] md:text-[10px] font-black text-white shadow-lg ${
-                  currentEP.method === 'POST' ? 'bg-purple-600 shadow-purple-900/20' : 'bg-emerald-600 shadow-emerald-900/20'
+                <span className={`px-3 md:px-4 py-1 md:py-1.5 rounded-lg md:rounded-xl text-[8px] md:text-[10px] font-black text-white shadow-md ${
+                  currentEP.method === 'POST' ? 'bg-purple-600' : 'bg-emerald-600'
                 }`}>
                   {currentEP.method}
                 </span>
-                <div className="flex items-center gap-2 bg-black/40 px-4 md:px-5 py-2 md:py-2.5 rounded-xl md:rounded-2xl border border-white/5 shadow-inner">
-                  <Terminal className="w-3 md:w-4 h-3 md:h-4 text-slate-500" />
-                  <span className="font-mono text-purple-400 font-bold text-xs md:text-sm tracking-tight break-all">
+                <div className="flex items-center gap-2 bg-slate-50 px-4 md:px-5 py-2 md:py-2.5 rounded-xl md:rounded-2xl border border-slate-200 shadow-inner">
+                  <Terminal className="w-3 md:w-4 h-3 md:h-4 text-slate-400" />
+                  <span className="font-mono text-purple-600 font-bold text-xs md:text-sm tracking-tight break-all">
                     {currentEP.url}
                   </span>
                 </div>
               </div>
-              <h2 className="text-2xl md:text-4xl font-black text-white tracking-tighter uppercase italic">{currentEP.title}</h2>
-              <p className="text-slate-400 text-xs md:text-sm leading-relaxed max-w-2xl font-medium">{currentEP.desc}</p>
+              <h2 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tighter uppercase italic">{currentEP.title}</h2>
+              <p className="text-slate-500 text-xs md:text-sm leading-relaxed max-w-2xl font-medium">{currentEP.desc}</p>
             </div>
 
             <div className="grid grid-cols-1 gap-8 md:gap-12">
               {/* Request Table Schema if Payload Exists */}
               {currentEP.payload && (
                 <div className="space-y-4 md:space-y-6">
-                  <h3 className="text-[8px] md:text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] flex items-center gap-3">
+                  <h3 className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-3">
                     <div className="w-1.5 h-1.5 bg-purple-500 rounded-full"></div>
                     Payload Schema
                   </h3>
-                  <div className="bg-black/20 border border-white/5 rounded-xl md:rounded-[2rem] overflow-x-auto">
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl md:rounded-[2rem] overflow-x-auto">
                     <table className="w-full text-left min-w-[500px]">
-                      <thead className="bg-white/[0.02] border-b border-white/5">
+                      <thead className="bg-white/50 border-b border-slate-200">
                         <tr>
                           <th className="px-6 md:px-8 py-4 md:py-5 text-[8px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">Field</th>
                           <th className="px-6 md:px-8 py-4 md:py-5 text-[8px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest">Type</th>
                           <th className="px-6 md:px-8 py-4 md:py-5 text-[8px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Requirement</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-white/5 text-xs">
+                      <tbody className="divide-y divide-slate-100 text-xs">
                         {Object.keys(currentEP.payload).map((field, i) => (
-                          <tr key={i} className="hover:bg-white/[0.01] transition-colors">
-                            <td className="px-6 md:px-8 py-4 md:py-5 font-mono text-white font-black text-xs md:text-sm">{field}</td>
+                          <tr key={i} className="hover:bg-white transition-colors">
+                            <td className="px-6 md:px-8 py-4 md:py-5 font-mono text-slate-900 font-black text-xs md:text-sm">{field}</td>
                             <td className="px-6 md:px-8 py-4 md:py-5 text-slate-500 text-[10px] md:text-xs font-bold uppercase">{typeof currentEP.payload[field]}</td>
                             <td className="px-6 md:px-8 py-4 md:py-5 text-right">
-                              <span className="px-2 md:px-3 py-1 rounded-lg text-[7px] md:text-[8px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-500 border border-rose-500/20">Required</span>
+                              <span className="px-2 md:px-3 py-1 rounded-lg text-[7px] md:text-[8px] font-black uppercase tracking-widest bg-rose-50 text-rose-600 border border-rose-100">Required</span>
                             </td>
                           </tr>
                         ))}
@@ -190,17 +190,17 @@ export const ApiDocs = () => {
               {/* cURL Example */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between px-2">
-                  <h3 className="text-[8px] md:text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] flex items-center gap-3">
+                  <h3 className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-3">
                     <Terminal className="w-3 md:w-4 h-3 md:h-4" /> cURL Protocol
                   </h3>
                   <button 
                     onClick={() => handleCopy(currentEP.curl, 'curl')}
-                    className="flex items-center gap-2 text-slate-500 hover:text-white transition-all text-[8px] md:text-[9px] font-black uppercase tracking-widest"
+                    className="flex items-center gap-2 text-slate-400 hover:text-slate-900 transition-all text-[8px] md:text-[9px] font-black uppercase tracking-widest"
                   >
-                    {copiedKey === 'curl' ? <><CheckCircle2 className="w-3 h-3 text-emerald-400" /> Copied</> : <><Copy className="w-3 h-3" /> Copy Snippet</>}
+                    {copiedKey === 'curl' ? <><CheckCircle2 className="w-3 h-3 text-emerald-600" /> Copied</> : <><Copy className="w-3 h-3" /> Copy Snippet</>}
                   </button>
                 </div>
-                <div className="bg-black/60 rounded-xl md:rounded-[2rem] p-6 md:p-8 border border-white/5 shadow-2xl relative group">
+                <div className="bg-slate-900 rounded-xl md:rounded-[2rem] p-6 md:p-8 border border-slate-800 shadow-xl relative group">
                   <pre className="text-[10px] md:text-xs text-purple-400 font-mono leading-relaxed whitespace-pre-wrap">{currentEP.curl}</pre>
                 </div>
               </div>
@@ -213,13 +213,13 @@ export const ApiDocs = () => {
                       <h3 className="text-[8px] md:text-[10px] font-black text-slate-600 uppercase tracking-[0.3em]">Request Model</h3>
                       <button 
                         onClick={() => handleCopy(JSON.stringify(currentEP.payload, null, 2), 'payload')}
-                        className="text-slate-500 hover:text-white transition-colors"
+                        className="text-slate-500 hover:text-slate-900 transition-colors"
                       >
-                        {copiedKey === 'payload' ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                        {copiedKey === 'payload' ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
                       </button>
                     </div>
-                    <div className="bg-black/40 rounded-xl md:rounded-[2rem] p-6 md:p-8 border border-white/5">
-                      <pre className="text-[10px] md:text-xs text-slate-300 font-mono leading-relaxed">{JSON.stringify(currentEP.payload, null, 2)}</pre>
+                    <div className="bg-slate-50 rounded-xl md:rounded-[2rem] p-6 md:p-8 border border-slate-200">
+                      <pre className="text-[10px] md:text-xs text-slate-600 font-mono leading-relaxed">{JSON.stringify(currentEP.payload, null, 2)}</pre>
                     </div>
                   </div>
                 )}
@@ -227,16 +227,16 @@ export const ApiDocs = () => {
                 {/* Right Column Response */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between px-2">
-                    <h3 className="text-[8px] md:text-[10px] font-black text-slate-600 uppercase tracking-[0.3em]">Expected Response</h3>
+                    <h3 className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Expected Response</h3>
                     <button 
                       onClick={() => handleCopy(JSON.stringify(currentEP.response, null, 2), 'response')}
-                      className="text-slate-500 hover:text-white transition-colors"
+                      className="text-slate-400 hover:text-slate-900 transition-colors"
                     >
-                      {copiedKey === 'response' ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                      {copiedKey === 'response' ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
                     </button>
                   </div>
-                  <div className="bg-black/40 rounded-xl md:rounded-[2rem] p-6 md:p-8 border border-white/5">
-                    <pre className="text-[10px] md:text-xs text-emerald-400 font-mono leading-relaxed">{JSON.stringify(currentEP.response, null, 2)}</pre>
+                  <div className="bg-slate-50 rounded-xl md:rounded-[2rem] p-6 md:p-8 border border-slate-200">
+                    <pre className="text-[10px] md:text-xs text-emerald-600 font-mono leading-relaxed">{JSON.stringify(currentEP.response, null, 2)}</pre>
                   </div>
                 </div>
               </div>

@@ -61,16 +61,16 @@ export default function Status() {
   const status = txn?.status?.toLowerCase();
 
   return (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-xl flex items-center justify-center z-50 p-4 md:p-6">
+    <div className="py-12 md:py-20 flex items-center justify-center p-4 md:p-6">
       <motion.div 
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         className="max-w-2xl mx-auto space-y-6 w-full"
       >
-        <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden">
-          <div className="px-6 md:px-8 py-5 md:py-6 border-b border-white/10 bg-white/[0.02]">
-            <h2 className="text-lg md:text-xl font-black text-white tracking-tight uppercase italic">Track <span className="text-cyan-400">Status</span></h2>
-            <p className="text-[10px] md:text-sm text-slate-500 mt-1 font-bold uppercase tracking-widest">Enter tracking ID for real-time telemetry</p>
+        <div className="bg-white/70 backdrop-blur-2xl border border-slate-200 rounded-2xl md:rounded-3xl shadow-xl overflow-hidden">
+          <div className="px-6 md:px-8 py-5 md:py-6 border-b border-slate-100 bg-slate-50/50">
+            <h2 className="text-lg md:text-xl font-black text-slate-900 tracking-tight uppercase italic">Track <span className="text-cyan-600">Status</span></h2>
+            <p className="text-[10px] md:text-sm text-slate-400 mt-1 font-bold uppercase tracking-widest">Enter tracking ID for real-time telemetry</p>
           </div>
           
           <form onSubmit={checkStatus} className="p-6 md:p-8">
@@ -80,12 +80,12 @@ export default function Status() {
                 value={txnId}
                 onChange={e => setTxnId(e.target.value)}
                 placeholder="e.g. 64c9f1e..."
-                className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-400 transition-all placeholder:text-slate-700 font-mono"
+                className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/10 focus:border-cyan-500 transition-all placeholder:text-slate-300 font-mono"
               />
               <button 
                 type="submit"
                 disabled={loading || !txnId}
-                className="px-8 py-3 bg-cyan-400 text-slate-900 font-black rounded-xl hover:bg-cyan-300 disabled:opacity-30 transition-all text-[10px] uppercase tracking-widest shadow-[0_0_20px_rgba(34,211,238,0.2)]"
+                className="px-8 py-3 bg-cyan-600 text-white font-black rounded-xl hover:bg-cyan-700 disabled:opacity-30 transition-all text-[10px] uppercase tracking-widest shadow-lg shadow-cyan-600/10"
               >
                 {loading ? 'Searching...' : 'Check Status'}
               </button>
@@ -93,48 +93,48 @@ export default function Status() {
           </form>
 
           {(txn || error) && (
-            <div className="border-t border-white/10 bg-white/[0.01] p-6 md:p-8">
+            <div className="border-t border-slate-100 bg-slate-50/30 p-6 md:p-8">
               {error && (
-                <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-xl text-xs font-black uppercase tracking-widest text-center">
+                <div className="p-4 bg-rose-50 border border-rose-100 text-rose-600 rounded-xl text-xs font-black uppercase tracking-widest text-center">
                   {error}
                 </div>
               )}
               
               {txn && (
-                <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-white/10 border-b border-white/10">
+                <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 border-b border-slate-100">
                     <div className="p-4 md:p-5">
-                      <span className="block text-[8px] md:text-[10px] text-slate-500 uppercase font-black tracking-widest mb-1.5">Transaction ID</span>
-                      <span className="font-mono text-white text-xs md:text-sm break-all">{txn.id}</span>
+                      <span className="block text-[8px] md:text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1.5">Transaction ID</span>
+                      <span className="font-mono text-slate-900 text-xs md:text-sm break-all">{txn.id}</span>
                     </div>
                     <div className="p-4 md:p-5">
-                      <span className="block text-[8px] md:text-[10px] text-slate-500 uppercase font-black tracking-widest mb-1.5">Current State</span>
+                      <span className="block text-[8px] md:text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1.5">Current State</span>
                       {status === "pending" ? (
-                        <span className="flex items-center gap-2 text-cyan-400 font-black text-[10px] md:text-xs tracking-widest uppercase">
-                          <span className="animate-spin h-3 w-3 border-2 border-cyan-400 border-t-transparent rounded-full"></span>
+                        <span className="flex items-center gap-2 text-cyan-600 font-black text-[10px] md:text-xs tracking-widest uppercase">
+                          <span className="animate-spin h-3 w-3 border-2 border-cyan-600 border-t-transparent rounded-full"></span>
                           PROCESSING...
                         </span>
                       ) : (
                         <span className={`px-3 py-1 rounded-lg text-[10px] md:text-xs font-black tracking-widest uppercase shadow-sm ${
                           status === "success" 
-                            ? "text-emerald-400 bg-emerald-500/10 border border-emerald-500/20" 
-                            : "text-rose-500 bg-rose-500/10 border border-rose-500/20"
+                            ? "text-emerald-600 bg-emerald-50 border border-emerald-100" 
+                            : "text-rose-600 bg-rose-50 border border-rose-100"
                         }`}>
                           {status?.toUpperCase() || 'UNKNOWN'}
                         </span>
                       )}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 divide-x divide-white/10">
+                  <div className="grid grid-cols-2 divide-x divide-slate-100">
                     <div className="p-4 md:p-5">
-                      <span className="block text-[8px] md:text-[10px] text-slate-500 uppercase font-black tracking-widest mb-1.5">Settlement</span>
-                      <span className="font-black text-white text-lg md:text-xl tracking-tighter">₹{txn.amount}</span>
+                      <span className="block text-[8px] md:text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1.5">Settlement</span>
+                      <span className="font-black text-slate-900 text-lg md:text-xl tracking-tighter">₹{txn.amount}</span>
                     </div>
                     <div className="p-4 md:p-5">
-                      <span className="block text-[8px] md:text-[10px] text-slate-500 uppercase font-black tracking-widest mb-1.5">Destination</span>
+                      <span className="block text-[8px] md:text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1.5">Destination</span>
                       <div className="space-y-0.5">
-                        <p className="text-white text-xs md:text-sm font-black tracking-tight">{txn.mobile}</p>
-                        <p className="text-[9px] text-slate-600 font-black uppercase">{txn.operator}</p>
+                        <p className="text-slate-900 text-xs md:text-sm font-black tracking-tight">{txn.mobile}</p>
+                        <p className="text-[9px] text-slate-400 font-black uppercase">{txn.operator}</p>
                       </div>
                     </div>
                   </div>

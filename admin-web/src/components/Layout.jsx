@@ -14,12 +14,12 @@ export const Layout = () => {
   }, [location.pathname]);
 
   return (
-    <div className="flex h-screen bg-[#030014] relative overflow-hidden">
+    <div className="flex h-screen bg-[#f8fafc] relative overflow-hidden">
       {/* Background Orbs */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
-        <div className="absolute -top-40 -left-40 w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[140px]"></div>
-        <div className="absolute top-1/2 -right-40 w-[500px] h-[500px] bg-cyan-600/10 rounded-full blur-[120px]"></div>
-        <div className="absolute -bottom-40 left-1/4 w-[700px] h-[700px] bg-indigo-600/10 rounded-full blur-[150px]"></div>
+        <div className="absolute -top-40 -left-40 w-[600px] h-[600px] bg-purple-600/5 rounded-full blur-[140px]"></div>
+        <div className="absolute top-1/2 -right-40 w-[500px] h-[500px] bg-cyan-600/5 rounded-full blur-[120px]"></div>
+        <div className="absolute -bottom-40 left-1/4 w-[700px] h-[700px] bg-indigo-600/5 rounded-full blur-[150px]"></div>
       </div>
 
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
