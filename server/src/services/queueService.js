@@ -1,12 +1,12 @@
 import { rechargeQueue } from "../config/rechargeQueue.js";
-import { redis } from "../config/redis.js";
+import { redis, redisClient } from "../config/redis.js";
 
 export const addRechargeJob = async (data) => {
   let delayMs = 0; // Default instant processing
 
   // Check Redis for recent success of the same mobile within 120s
   if (data.mobile) {
-    const recentSuccess = await redis.get(`recent_success:${data.mobile}`);
+    const recentSuccess = await redisClient.get(`recent_success:${data.mobile}`);
     if (recentSuccess) {
       // Delay only this job (60-120 sec random)
       delayMs = Math.floor(Math.random() * (120000 - 60000 + 1)) + 60000;

@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import api from '../api';
 import { API_ROUTES } from '../api/routes';
 import toast from 'react-hot-toast';
+import { Phone, User, Mail, Tag, MessageSquare, Loader2, ArrowRight, ShieldCheck } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Register() {
   const [phone, setPhone] = useState('');
@@ -23,7 +25,7 @@ export default function Register() {
   }, [timer]);
 
   const sendOTP = async () => {
-    if (phone.length < 10) return toast.error("Enter valid phone number");
+    if (phone.length < 10) return toast.error("Enter valid phone number", { className: 'hot-toast-cyber' });
     
     setLoading(true);
     try {
@@ -31,10 +33,10 @@ export default function Register() {
       await api.post('/auth/send-otp', { phone: formatPhone });
       setConfirmationResult(true);
       setTimer(60);
-      toast.success("OTP sent successfully");
+      toast.success("OTP sent successfully", { className: 'hot-toast-cyber hot-toast-success' });
     } catch (err) {
       console.error(err);
-      toast.error(err.response?.data?.message || "Failed to send OTP");
+      toast.error(err.response?.data?.message || "Failed to send OTP", { className: 'hot-toast-cyber hot-toast-error' });
     } finally {
       setLoading(false);
     }
@@ -42,7 +44,7 @@ export default function Register() {
 
   const handleVerifyAndLogin = async (e) => {
     e.preventDefault();
-    if (!otpCode || otpCode.length !== 4) return toast.error("Enter 4-digit OTP");
+    if (!otpCode || otpCode.length !== 4) return toast.error("Enter 4-digit OTP", { className: 'hot-toast-cyber' });
     
     setLoading(true);
     try {
@@ -58,135 +60,182 @@ export default function Register() {
       if (res.data.success) {
         localStorage.setItem('token', res.data.token);
         localStorage.setItem('user', JSON.stringify(res.data.user));
-        toast.success(res.data.isNewUser ? 'Account created successfully' : 'Welcome back!');
+        toast.success(res.data.isNewUser ? 'Account created successfully' : 'Welcome back!', { className: 'hot-toast-cyber hot-toast-success' });
         window.location.href = '/';
       }
     } catch (err) {
       console.error(err);
-      toast.error(err.response?.data?.message || "Invalid OTP or Verification failed");
+      toast.error(err.response?.data?.message || "Invalid OTP or Verification failed", { className: 'hot-toast-cyber hot-toast-error' });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-center items-center p-4">
-      <div className="max-w-md w-full bg-white p-8 border border-[#E5E7EB] rounded-2xl shadow-sm">
-        <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-[#0F172A]">Get Started</h2>
-          <p className="text-sm text-[#64748B] mt-1">Experience lightning fast recharges</p>
-        </div>
-        
-        <div className="space-y-5">
-          {!confirmationResult ? (
-            <>
-              <div>
-                <label className="block text-xs font-bold text-[#64748B] uppercase tracking-wider mb-2">Phone Number</label>
-                <div className="flex gap-2">
-                  <div className="flex-none w-16 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-center text-sm font-medium text-slate-500">
-                    +91
-                  </div>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                    className="flex-1 px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-sm outline-none focus:ring-2 focus:ring-[#6D28D9]/10 focus:border-[#6D28D9] transition-all"
-                    placeholder="9876543210"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-[#64748B] uppercase tracking-wider mb-2">Name (Optional)</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-sm outline-none focus:ring-2 focus:ring-[#6D28D9]/10 focus:border-[#6D28D9] transition-all"
-                  placeholder="John Doe"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-[#64748B] uppercase tracking-wider mb-2">Email (Optional)</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-sm outline-none focus:ring-2 focus:ring-[#6D28D9]/10 focus:border-[#6D28D9] transition-all"
-                  placeholder="john@example.com"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-[#64748B] uppercase tracking-wider mb-2">Referral Code (Optional)</label>
-                <input
-                  type="text"
-                  value={referralCode}
-                  onChange={e => setReferralCode(e.target.value.toUpperCase())}
-                  className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-sm outline-none focus:ring-2 focus:ring-[#6D28D9]/10 focus:border-[#6D28D9] transition-all"
-                  placeholder="REF123"
-                />
-              </div>
-
-              <button
-                onClick={sendOTP}
-                disabled={loading || phone.length < 10}
-                className="w-full py-3 bg-[#6D28D9] text-white rounded-lg text-sm font-bold shadow-lg shadow-[#6D28D9]/20 hover:bg-[#5B21B6] transition-all disabled:opacity-50"
-              >
-                {loading ? 'Sending...' : 'Send OTP'}
-              </button>
-            </>
-          ) : (
-            <form onSubmit={handleVerifyAndLogin} className="space-y-5">
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label className="block text-xs font-bold text-[#64748B] uppercase tracking-wider">Verification Code</label>
-                  <button 
-                    type="button"
-                    onClick={() => setConfirmationResult(null)}
-                    className="text-[10px] font-bold text-[#6D28D9] hover:underline"
-                  >
-                    Change Number
-                  </button>
-                </div>
-                <input
-                  type="text"
-                  value={otpCode}
-                  onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                  className="w-full px-4 py-3 bg-slate-50 border border-[#E2E8F0] rounded-xl text-center text-2xl font-bold tracking-[0.5em] outline-none focus:ring-2 focus:ring-[#6D28D9]/20 focus:border-[#6D28D9] transition-all"
-                  placeholder="0000"
-                  autoFocus
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading || otpCode.length < 4}
-                className="w-full py-3 bg-[#6D28D9] text-white rounded-lg text-sm font-bold shadow-lg shadow-[#6D28D9]/20 hover:bg-[#5B21B6] transition-all disabled:opacity-50"
-              >
-                {loading ? 'Verifying...' : 'Verify & Continue'}
-              </button>
-
-              <div className="text-center">
-                {timer > 0 ? (
-                  <p className="text-xs text-[#64748B]">Resend code in <span className="font-bold text-[#0F172A]">{timer}s</span></p>
-                ) : (
-                  <button type="button" onClick={sendOTP} className="text-xs font-bold text-[#6D28D9] hover:underline">
-                    Resend OTP
-                  </button>
-                )}
-              </div>
-            </form>
-          )}
-        </div>
-
-        <div className="mt-8 pt-6 border-t border-[#F1F5F9] text-center text-xs">
-          <p className="text-[#64748B]">
-            By continuing, you agree to our <span className="text-[#0F172A] font-medium underline">Terms</span> and <span className="text-[#0F172A] font-medium underline">Privacy Policy</span>
-          </p>
-        </div>
+    <div className="min-h-screen bg-[#030014] flex flex-col justify-center items-center p-4 relative overflow-hidden font-['Inter']">
+      {/* Background Orbs */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+        <div className="absolute -top-40 -left-40 w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[140px]"></div>
+        <div className="absolute top-1/2 -right-40 w-[500px] h-[500px] bg-cyan-600/10 rounded-full blur-[120px]"></div>
+        <div className="absolute -bottom-40 left-1/4 w-[700px] h-[700px] bg-indigo-600/10 rounded-full blur-[150px]"></div>
       </div>
+
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="max-w-md w-full relative z-10"
+      >
+        <div className="bg-white/[0.03] backdrop-blur-2xl p-8 border border-white/10 rounded-[2.5rem] shadow-[0_0_50px_rgba(0,0,0,0.3)]">
+          <div className="text-center mb-8">
+            <div className="inline-flex p-3 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 mb-4">
+              <ShieldCheck className="w-6 h-6 text-cyan-400" />
+            </div>
+            <h2 className="text-3xl font-black text-white tracking-tight italic">GET STARTED</h2>
+            <p className="text-slate-400 text-sm mt-2">Experience lightning fast fintech solutions</p>
+          </div>
+          
+          <AnimatePresence mode="wait">
+            {!confirmationResult ? (
+              <motion.div
+                key="details"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-5"
+              >
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Phone Number</label>
+                  <div className="flex gap-2">
+                    <div className="flex-none w-16 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-sm font-bold text-slate-400">
+                      +91
+                    </div>
+                    <div className="flex-1 relative">
+                      <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                      <input
+                        type="tel"
+                        value={phone}
+                        onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                        className="w-full pl-10 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-2xl text-white font-medium outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all placeholder:text-slate-700 text-sm"
+                        placeholder="9876543210"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Full Name</label>
+                  <div className="relative group">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={e => setName(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all placeholder:text-slate-700 text-sm"
+                      placeholder="John Doe"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Email (Optional)</label>
+                  <div className="relative group">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all placeholder:text-slate-700 text-sm"
+                      placeholder="john@example.com"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Referral Code</label>
+                  <div className="relative group">
+                    <Tag className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
+                    <input
+                      type="text"
+                      value={referralCode}
+                      onChange={e => setReferralCode(e.target.value.toUpperCase())}
+                      className="w-full pl-10 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all placeholder:text-slate-700 text-sm"
+                      placeholder="REF123"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  onClick={sendOTP}
+                  disabled={loading || phone.length < 10}
+                  className="w-full py-4 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-2xl text-sm font-black tracking-widest shadow-lg shadow-cyan-900/20 hover:shadow-cyan-500/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2 group"
+                >
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                    <>
+                      SEND OTP
+                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
+                </button>
+              </motion.div>
+            ) : (
+              <motion.form
+                key="otp"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                onSubmit={handleVerifyAndLogin}
+                className="space-y-6"
+              >
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center px-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Verification</label>
+                    <button type="button" onClick={() => setConfirmationResult(null)} className="text-[10px] font-bold text-cyan-400 hover:text-white transition-colors">CHANGE</button>
+                  </div>
+                  <div className="relative">
+                    <MessageSquare className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                    <input
+                      type="text"
+                      value={otpCode}
+                      onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                      className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-white text-2xl font-black tracking-[0.5em] outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all placeholder:text-slate-800"
+                      placeholder="0000"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading || otpCode.length < 4}
+                  className="w-full py-4 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-2xl text-sm font-black tracking-widest shadow-lg shadow-cyan-900/20 hover:shadow-cyan-500/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'VERIFY & CONTINUE'}
+                </button>
+
+                <div className="text-center">
+                  {timer > 0 ? (
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                      Resend in <span className="text-white">{timer}s</span>
+                    </p>
+                  ) : (
+                    <button type="button" onClick={sendOTP} className="text-[10px] font-black text-cyan-400 hover:text-white transition-colors uppercase tracking-widest">RESEND OTP</button>
+                  )}
+                </div>
+              </motion.form>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <div className="mt-8 pt-6 border-t border-white/5 text-center text-[10px] uppercase tracking-widest text-slate-500">
+          <p>
+            By continuing, you agree to our <span className="text-white font-bold underline cursor-pointer">Terms</span> and <span className="text-white font-bold underline cursor-pointer">Privacy</span>
+          </p>
+          <div className="mt-4">
+            Already have an account? <Link to="/login" className="text-cyan-400 font-black hover:text-white transition-colors">LOGIN</Link>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 }
+

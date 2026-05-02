@@ -1,5 +1,5 @@
 import prisma from "../config/prisma.js";
-import { redis } from "../config/redis.js";
+import { redisClient } from "../config/redis.js";
 import { sendAlert } from "../services/alertService.js";
 import { Prisma } from "@prisma/client";
 
@@ -16,7 +16,7 @@ export const fraudDetectionMiddleware = async (req, res, next) => {
   const reasons = [];
   
   try {
-    const pipeline = redis.pipeline();
+    const pipeline = redisClient.pipeline();
     
     // 1. Transaction count per minute for SAME MOBILE
     const mobileKey = `fraud:mobile:${mobile}:count_min`;

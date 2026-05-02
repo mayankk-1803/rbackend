@@ -1,4 +1,4 @@
-import { redis } from "../config/redis.js";
+import { redisClient } from "../config/redis.js";
 
 const CACHE_TTL = 3600; // 1 hour as requested
 
@@ -27,7 +27,7 @@ export const detectOperator = async (mobile) => {
 
   // 2. Check Redis cache
   const cacheKey = `operator:${mobile}`;
-  const cachedData = await redis.get(cacheKey);
+  const cachedData = await redisClient.get(cacheKey);
 
   if (cachedData) {
     console.log(`[Operator] Cache hit for: ${mobile}`);
@@ -85,7 +85,7 @@ export const detectOperator = async (mobile) => {
 
   // 5. Cache result (TTL: 1 hour)
   if (result.operator !== "UNKNOWN") {
-    await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(result));
+    await redisClient.setex(cacheKey, CACHE_TTL, JSON.stringify(result));
   }
 
   return result;

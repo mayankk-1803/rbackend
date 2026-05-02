@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
-import { API_ROUTES } from '../api/routes';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
+import { Flame, ShieldCheck, ChevronRight, Activity, Wallet } from 'lucide-react';
 import PaymentModal from '../components/PaymentModal';
+import RechargePaymentModal from '../components/RechargePaymentModal';
 
 export default function GasRecharge() {
   const [number, setNumber] = useState('');
@@ -12,16 +13,17 @@ export default function GasRecharge() {
   const [operator, setOperator] = useState('Indane');
   const [loading, setLoading] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
+  const [showRechargeModal, setShowRechargeModal] = useState(false);
   const navigate = useNavigate();
 
   const handleRechargeDirectly = async () => {
+    setShowRechargeModal(false);
     if(!number || !amount || Number(amount) <= 0) {
-      return toast.error("Please enter a valid customer ID and amount");
+      return toast.error("Please enter a valid Consumer ID and amount");
     }
     const loadingToast = toast.loading('Processing Gas bill payment...');
     setLoading(true);
     try {
-      console.log("[Gas] Initiating recharge directly from wallet...");
       const idempotencyKey = crypto.randomUUID();
       const { data } = await api.post('/recharge', {
         mobile: number,
@@ -32,34 +34,19 @@ export default function GasRecharge() {
         headers: { 'x-idempotency-key': idempotencyKey }
       });
       
-      console.log("[Gas] Response:", data);
-
       toast.success(data.message || 'Payment initiated', { id: loadingToast });
       navigate('/history');
     } catch(err) {
-      console.error("[Gas Error]:", err);
       const errorMsg = err.response?.data?.message || 'Payment failed';
       toast.error(errorMsg, { id: loadingToast });
-      
-      if (errorMsg.includes("Insufficient")) {
-        setShowPayment(true);
-      }
+      if (errorMsg.includes("Insufficient")) setShowPayment(true);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleTopUpSuccess = async () => {
-    console.log("[TopUp] Success, retrying gas payment...");
-    setShowPayment(false);
-    await handleRechargeDirectly();
-  };
-
-
-
   const handlePaymentFlow = async () => {
     try {
-      console.log("[Payment] Creating order for gas...");
       const res = await api.post('/payment/create-order', {
         amount: Number(amount),
         upiId: 'demo@upi',
@@ -67,19 +54,15 @@ export default function GasRecharge() {
       });
       
       const paymentId = res.data.data.id;
-      console.log("[Payment] Order created:", paymentId);
-
-      console.log("[Payment] Confirming payment...");
       const confirmRes = await api.post('/payment/confirm', { paymentId });
       
       if (confirmRes.data.success) {
-        console.log("[Payment] Success, proceeding to gas payment");
-        await handleTopUpSuccess();
+        setShowPayment(false);
+        await handleRechargeDirectly();
       } else {
         throw new Error("Payment confirmation failed");
       }
     } catch (err) {
-      console.error("[Payment Error]:", err);
       toast.error(err.response?.data?.message || "Payment failed");
       setShowPayment(false);
     }
@@ -87,70 +70,117 @@ export default function GasRecharge() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-2xl mx-auto"
+      className="max-w-4xl mx-auto space-y-8"
     >
-      <div className="bg-white border border-[#E5E7EB] rounded-lg shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b border-[#E5E7EB] bg-[#F8FAFC]">
-          <h2 className="text-lg font-semibold text-[#0F172A]">Gas Bill Payment</h2>
-          <p className="text-sm text-[#64748B] mt-1">Pay your gas bill instantly</p>
+      <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] shadow-2xl overflow-hidden relative">
+        <div className="absolute top-0 right-0 w-64 h-full bg-gradient-to-l from-rose-500/5 to-transparent pointer-events-none"></div>
+        
+        <div className="px-10 py-8 border-b border-white/10 bg-white/[0.02] flex justify-between items-center">
+          <div>
+            <h2 className="text-3xl font-black text-white tracking-tighter uppercase italic flex items-center gap-3">
+              <Flame className="w-8 h-8 text-rose-400 fill-rose-400/20" />
+              Gas <span className="text-rose-400">Circuit</span>
+            </h2>
+            <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em] mt-1">Energy resource settlement protocol</p>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1 bg-rose-500/10 border border-rose-500/20 rounded-full">
+            <ShieldCheck className="w-3 h-3 text-rose-400" />
+            <span className="text-[8px] font-black text-rose-400 uppercase tracking-widest">Secure Flow</span>
+          </div>
         </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); handleRechargeDirectly(); }} className="p-6 space-y-6">
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-[#0F172A] mb-1">Customer ID / LPG ID</label>
-              <input
-                type="text"
-                required
-                value={number}
-                onChange={e => setNumber(e.target.value)}
-                className="w-full px-3 py-2 border border-[#E5E7EB] rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-[#6D28D9] focus:border-[#6D28D9] sm:text-sm"
-                placeholder="Enter customer ID or LPG ID"
-              />
+        <form onSubmit={(e) => { e.preventDefault(); setShowRechargeModal(true); }} className="p-10 space-y-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Consumer Number / SV ID</label>
+                <div className="relative group">
+                  <input
+                    type="text"
+                    required
+                    value={number}
+                    onChange={e => setNumber(e.target.value)}
+                    className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-white font-black tracking-widest outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-400 transition-all placeholder:text-slate-800"
+                    placeholder="ENTER ID"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-6">
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Gas Provider</label>
+                  <select
+                    value={operator}
+                    onChange={e => setOperator(e.target.value)}
+                    className="w-full px-6 py-4 bg-[#0B0F19] border border-white/10 rounded-2xl text-white font-black tracking-widest outline-none focus:border-rose-400 transition-all appearance-none"
+                  >
+                    <option value="Indane">INDANE GAS</option>
+                    <option value="HP Gas">HP GAS</option>
+                    <option value="Bharat Gas">BHARAT GAS</option>
+                    <option value="Adani Gas">ADANI TOTAL GAS</option>
+                    <option value="MGL">MAHANAGAR GAS (MGL)</option>
+                    <option value="IGL">INDRAPRASTHA GAS (IGL)</option>
+                  </select>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Settlement Amount (₹)</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      value={amount}
+                      onChange={e => setAmount(e.target.value)}
+                      className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-white text-2xl font-black tracking-tighter outline-none focus:border-emerald-400 transition-all placeholder:text-slate-800"
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-[#0F172A] mb-1">Gas Provider</label>
-                <select
-                  value={operator}
-                  onChange={e => setOperator(e.target.value)}
-                  className="w-full px-3 py-2 border border-[#E5E7EB] bg-white rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-[#6D28D9] focus:border-[#6D28D9] sm:text-sm text-[#0F172A]"
-                >
-                  <option value="Indane">Indane (IOCL)</option>
-                  <option value="HP Gas">HP Gas</option>
-                  <option value="Bharat Gas">Bharat Gas</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[#0F172A] mb-1">Amount (₹)</label>
-                <input
-                  type="number"
-                  required
-                  min="1"
-                  value={amount}
-                  onChange={e => setAmount(e.target.value)}
-                  className="w-full px-3 py-2 border border-[#E5E7EB] rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-[#6D28D9] focus:border-[#6D28D9] sm:text-sm"
-                  placeholder="0.00"
-                />
-              </div>
+            <div className="space-y-8">
+               <div className="p-8 bg-black/40 rounded-[2rem] border border-white/5 relative overflow-hidden group">
+                  <div className="relative z-10 space-y-4">
+                     <div className="w-12 h-12 bg-rose-500/10 rounded-xl flex items-center justify-center border border-rose-500/20">
+                        <Activity className="w-6 h-6 text-rose-400" />
+                     </div>
+                     <h4 className="text-white font-black uppercase italic tracking-tight">Thermal Sync</h4>
+                     <p className="text-[10px] text-slate-500 font-medium leading-relaxed">Direct carrier API integration for LPG booking and PNG bill settlement with instant digital receipt generation.</p>
+                  </div>
+                  <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-rose-500/5 rounded-full blur-3xl group-hover:bg-rose-500/10 transition-all duration-700"></div>
+               </div>
+
+               <div className="p-6 bg-white/[0.02] border border-white/5 rounded-2xl flex items-center gap-4">
+                  <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center">
+                     <Wallet className="w-5 h-5 text-slate-600" />
+                  </div>
+                  <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest leading-relaxed">Authorization requires verified wallet balance.</p>
+               </div>
             </div>
           </div>
 
-          <div className="bg-[#F8FAFC] border border-[#E5E7EB] rounded-md p-4 text-sm text-[#64748B]">
-            Ensure the details are correct. Payment is required before the bill is processed.
-          </div>
-
-          <div className="flex justify-end border-t border-[#E5E7EB] pt-6 mt-6">
+          <div className="flex justify-end pt-10 border-t border-white/5">
             <motion.button
-              whileHover={{ scale: 1.02 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               disabled={loading || !number || !amount}
               type="submit"
-              className="px-6 py-2 bg-[#6D28D9] text-white font-medium rounded-md hover:bg-[#5B21B6] disabled:bg-[#94A3B8] disabled:cursor-not-allowed transition-colors text-sm shadow-sm"
+              className="px-12 py-5 bg-rose-500 text-white font-black rounded-2xl shadow-[0_0_30px_rgba(244,63,94,0.3)] hover:shadow-[0_0_50px_rgba(244,63,94,0.5)] transition-all text-[11px] uppercase tracking-[0.2em] flex items-center gap-3 disabled:opacity-30"
             >
-              {loading ? 'Processing...' : 'Recharge Now'}
+              {loading ? (
+                <>
+                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                  Igniting...
+                </>
+              ) : (
+                <>
+                  Authorize Settlement <ChevronRight className="w-4 h-4" />
+                </>
+              )}
             </motion.button>
           </div>
         </form>
@@ -161,7 +191,16 @@ export default function GasRecharge() {
         onClose={() => setShowPayment(false)}
         amount={amount}
         onPaymentSuccess={handlePaymentFlow}
-        title="Gas Bill Payment"
+        title="Gas Bill Settlement"
+      />
+
+      <RechargePaymentModal
+        isOpen={showRechargeModal}
+        onClose={() => setShowRechargeModal(false)}
+        onConfirm={handleRechargeDirectly}
+        amount={amount}
+        mobile={number}
+        operator={operator}
       />
     </motion.div>
   );

@@ -5,7 +5,7 @@ import { redis } from "../config/redis.js";
 
 export const rechargeQueue = new Queue("rechargeQueue", { connection: redis });
 
-export const recharge = async ({ userId, mobile, operator, amount }) => {
+export const recharge = async ({ userId, mobile, operator, amount, testProviders }) => {
   console.log("USER ID:", userId);
 
   const user = await prisma.user.findUnique({
@@ -14,7 +14,7 @@ export const recharge = async ({ userId, mobile, operator, amount }) => {
 
   if (!user) throw new Error("USER_NOT_FOUND");
 
-  return await prisma.$transaction(async (tx) => {
+  const txn = await prisma.$transaction(async (tx) => {
     const wallet = await tx.wallet.findUnique({
       where: { userId }
     });
@@ -57,7 +57,8 @@ export const recharge = async ({ userId, mobile, operator, amount }) => {
     txnId: txn.id,
     mobile,
     operator,
-    amount
+    amount,
+    testProviders
   });
 
   console.log("JOB ADDED:", txn.id);

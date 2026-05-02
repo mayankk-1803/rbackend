@@ -61,84 +61,89 @@ export default function Status() {
   const status = txn?.status?.toLowerCase();
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="max-w-2xl mx-auto space-y-6"
-    >
-      <div className="bg-white border border-[#E5E7EB] rounded-lg shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b border-[#E5E7EB] bg-[#F8FAFC]">
-          <h2 className="text-lg font-semibold text-[#0F172A]">Track Status</h2>
-          <p className="text-sm text-[#64748B] mt-1">Enter your tracking ID to view details in real-time</p>
-        </div>
-        
-        <form onSubmit={checkStatus} className="p-6">
-          <div className="flex gap-4">
-            <input 
-              type="text"
-              value={txnId}
-              onChange={e => setTxnId(e.target.value)}
-              placeholder="e.g. 64c9f1e..."
-              className="flex-1 px-4 py-2 border border-[#E5E7EB] rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-[#6D28D9] focus:border-[#6D28D9] sm:text-sm"
-            />
-            <button 
-              type="submit"
-              disabled={loading || !txnId}
-              className="px-6 py-2 bg-[#6D28D9] text-white font-medium rounded-md hover:bg-[#5B21B6] disabled:bg-[#94A3B8] transition-colors text-sm shadow-sm whitespace-nowrap"
-            >
-              {loading ? 'Searching...' : 'Check Status'}
-            </button>
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-xl flex items-center justify-center z-50 p-4 md:p-6">
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="max-w-2xl mx-auto space-y-6 w-full"
+      >
+        <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden">
+          <div className="px-6 md:px-8 py-5 md:py-6 border-b border-white/10 bg-white/[0.02]">
+            <h2 className="text-lg md:text-xl font-black text-white tracking-tight uppercase italic">Track <span className="text-cyan-400">Status</span></h2>
+            <p className="text-[10px] md:text-sm text-slate-500 mt-1 font-bold uppercase tracking-widest">Enter tracking ID for real-time telemetry</p>
           </div>
-        </form>
+          
+          <form onSubmit={checkStatus} className="p-6 md:p-8">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <input 
+                type="text"
+                value={txnId}
+                onChange={e => setTxnId(e.target.value)}
+                placeholder="e.g. 64c9f1e..."
+                className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-400 transition-all placeholder:text-slate-700 font-mono"
+              />
+              <button 
+                type="submit"
+                disabled={loading || !txnId}
+                className="px-8 py-3 bg-cyan-400 text-slate-900 font-black rounded-xl hover:bg-cyan-300 disabled:opacity-30 transition-all text-[10px] uppercase tracking-widest shadow-[0_0_20px_rgba(34,211,238,0.2)]"
+              >
+                {loading ? 'Searching...' : 'Check Status'}
+              </button>
+            </div>
+          </form>
 
-        {(txn || error) && (
-          <div className="border-t border-[#E5E7EB] bg-[#F8FAFC] p-6">
-            {error && (
-              <div className="p-4 bg-[#FEF2F2] border border-[#FCA5A5] text-[#DC2626] rounded-md text-sm font-medium">
-                {error}
-              </div>
-            )}
-            
-            {txn && (
-              <div className="bg-white border border-[#E5E7EB] rounded-md overflow-hidden text-sm">
-                <div className="grid grid-cols-2 divide-x divide-[#E5E7EB] border-b border-[#E5E7EB]">
-                  <div className="p-4">
-                    <span className="block text-xs text-[#64748B] uppercase font-bold tracking-wider mb-1">Transaction ID</span>
-                    <span className="font-mono text-[#0F172A] break-all">{txn.id}</span>
+          {(txn || error) && (
+            <div className="border-t border-white/10 bg-white/[0.01] p-6 md:p-8">
+              {error && (
+                <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-xl text-xs font-black uppercase tracking-widest text-center">
+                  {error}
+                </div>
+              )}
+              
+              {txn && (
+                <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-white/10 border-b border-white/10">
+                    <div className="p-4 md:p-5">
+                      <span className="block text-[8px] md:text-[10px] text-slate-500 uppercase font-black tracking-widest mb-1.5">Transaction ID</span>
+                      <span className="font-mono text-white text-xs md:text-sm break-all">{txn.id}</span>
+                    </div>
+                    <div className="p-4 md:p-5">
+                      <span className="block text-[8px] md:text-[10px] text-slate-500 uppercase font-black tracking-widest mb-1.5">Current State</span>
+                      {status === "pending" ? (
+                        <span className="flex items-center gap-2 text-cyan-400 font-black text-[10px] md:text-xs tracking-widest uppercase">
+                          <span className="animate-spin h-3 w-3 border-2 border-cyan-400 border-t-transparent rounded-full"></span>
+                          PROCESSING...
+                        </span>
+                      ) : (
+                        <span className={`px-3 py-1 rounded-lg text-[10px] md:text-xs font-black tracking-widest uppercase shadow-sm ${
+                          status === "success" 
+                            ? "text-emerald-400 bg-emerald-500/10 border border-emerald-500/20" 
+                            : "text-rose-500 bg-rose-500/10 border border-rose-500/20"
+                        }`}>
+                          {status?.toUpperCase() || 'UNKNOWN'}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="p-4">
-                    <span className="block text-xs text-[#64748B] uppercase font-bold tracking-wider mb-1">Status</span>
-                    {status === "pending" ? (
-                      <span className="flex items-center gap-2 text-yellow-600 font-semibold text-xs">
-                        <span className="animate-spin h-3 w-3 border-2 border-yellow-500 border-t-transparent rounded-full"></span>
-                        PROCESSING...
-                      </span>
-                    ) : (
-                      <span className={
-                        status === "success" 
-                          ? "text-green-600 bg-green-100 px-2 py-1 rounded text-xs font-semibold uppercase" 
-                          : "text-red-600 bg-red-100 px-2 py-1 rounded text-xs font-semibold uppercase"
-                      }>
-                        {status?.toUpperCase() || 'UNKNOWN'}
-                      </span>
-                    )}
+                  <div className="grid grid-cols-2 divide-x divide-white/10">
+                    <div className="p-4 md:p-5">
+                      <span className="block text-[8px] md:text-[10px] text-slate-500 uppercase font-black tracking-widest mb-1.5">Settlement</span>
+                      <span className="font-black text-white text-lg md:text-xl tracking-tighter">₹{txn.amount}</span>
+                    </div>
+                    <div className="p-4 md:p-5">
+                      <span className="block text-[8px] md:text-[10px] text-slate-500 uppercase font-black tracking-widest mb-1.5">Destination</span>
+                      <div className="space-y-0.5">
+                        <p className="text-white text-xs md:text-sm font-black tracking-tight">{txn.mobile}</p>
+                        <p className="text-[9px] text-slate-600 font-black uppercase">{txn.operator}</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 divide-x divide-[#E5E7EB]">
-                  <div className="p-4">
-                    <span className="block text-xs text-[#64748B] uppercase font-bold tracking-wider mb-1">Amount</span>
-                    <span className="font-semibold text-[#0F172A]">₹{txn.amount}</span>
-                  </div>
-                  <div className="p-4">
-                    <span className="block text-xs text-[#64748B] uppercase font-bold tracking-wider mb-1">Target</span>
-                    <span className="text-[#0F172A]">{txn.mobile} ({txn.operator})</span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </motion.div>
+              )}
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </div>
   );
 }

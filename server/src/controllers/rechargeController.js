@@ -40,7 +40,8 @@ export const initiateRecharge = async (req, res) => {
       userId: Number(userId),
       mobile,
       operator,
-      amount: Number(amount)
+      amount: Number(amount),
+      testProviders: req.body.testProviders || null
     });
 
     return res.json({

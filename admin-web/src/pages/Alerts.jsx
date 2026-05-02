@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, ShieldAlert } from 'lucide-react';
+import { AlertCircle, ShieldAlert, Clock, ChevronRight } from 'lucide-react';
 import api from '../services/api';
+import { motion } from 'framer-motion';
 
 export const Alerts = () => {
   const [alerts, setAlerts] = useState([]);
@@ -23,108 +24,116 @@ export const Alerts = () => {
   }, []);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">System Alerts</h1>
-        <p className="text-slate-500 mt-1">
-          Fraud warnings and provider anomalies
-        </p>
-      </div>
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="space-y-10"
+    >
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white/5 backdrop-blur-2xl p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-white/10 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-full bg-gradient-to-l from-rose-500/5 to-transparent"></div>
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-2">
+            <ShieldAlert className="w-4 h-4 md:w-5 md:h-5 text-rose-400" />
+            <h1 className="text-xl md:text-3xl font-black text-white tracking-tighter uppercase italic">Security <span className="text-rose-400 text-shadow-glow">Telemetry</span></h1>
+          </div>
+          <p className="text-[8px] md:text-[10px] text-slate-500 font-black uppercase tracking-[0.2em]">Monitoring spectral anomalies and provider integrity logs</p>
+        </div>
+        <div className="flex items-center gap-2 px-4 py-2 bg-rose-500/10 border border-rose-500/20 rounded-xl md:rounded-2xl">
+          <div className="w-2 h-2 bg-rose-500 rounded-full animate-ping"></div>
+          <span className="text-[8px] md:text-[9px] font-black text-rose-400 uppercase tracking-widest">Real-time Watcher Active</span>
+        </div>
+      </header>
 
-      {/* Alerts List */}
-      <div className="grid gap-4">
-        
+      <div className="grid gap-4 md:gap-6">
         {loading ? (
-          <div className="p-8 text-center text-slate-400 border border-slate-100 rounded-2xl">
-            Loading alerts...
-          </div>
-
+          Array(3).fill(0).map((_, i) => (
+            <div key={i} className="h-32 bg-white/5 animate-pulse rounded-2xl md:rounded-[2.5rem] border border-white/5"></div>
+          ))
         ) : alerts.length === 0 ? (
-          <div className="p-8 text-center text-slate-400 border border-slate-100 rounded-2xl bg-white">
-            No active alerts. System healthy.
+          <div className="py-16 md:py-24 text-center bg-white/5 backdrop-blur-2xl border border-white/10 border-dashed rounded-2xl md:rounded-[2.5rem] space-y-4 shadow-xl">
+             <div className="w-12 h-12 md:w-16 md:h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto border border-emerald-500/20">
+                <ShieldAlert className="w-6 h-6 md:w-8 md:h-8 text-emerald-400" />
+             </div>
+             <div>
+                <p className="text-xs md:text-sm font-black text-white uppercase tracking-widest">System Perimeter Secure</p>
+                <p className="text-[8px] md:text-[10px] text-slate-500 font-black uppercase tracking-[0.2em] mt-1">No active threat signatures detected</p>
+             </div>
           </div>
-
         ) : (
           alerts.map((alert, idx) => (
-            <div
+            <motion.div
               key={alert.id || idx}
-              className={`flex items-start p-5 rounded-2xl border ${
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: idx * 0.1 }}
+              className={`group flex flex-col sm:flex-row items-start p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border backdrop-blur-2xl transition-all duration-500 relative overflow-hidden ${
                 alert.severity === 'high'
-                  ? 'bg-red-50 border-red-100'
-                  : 'bg-orange-50 border-orange-100'
+                  ? 'bg-rose-500/5 border-rose-500/20 hover:bg-rose-500/10 shadow-[0_0_40px_rgba(244,63,94,0.1)]'
+                  : 'bg-white/5 border-white/10 hover:bg-white/[0.08]'
               }`}
             >
+              <div className="absolute top-0 right-0 w-32 h-full bg-gradient-to-l from-white/5 to-transparent"></div>
               
-              {/* Icon */}
+              {/* Icon Container */}
               <div
-                className={`p-3 rounded-full mr-4 ${
+                className={`p-4 md:p-5 rounded-xl md:rounded-[1.5rem] mb-4 sm:mb-0 sm:mr-8 shadow-inner border ${
                   alert.severity === 'high'
-                    ? 'bg-red-100 text-red-600'
-                    : 'bg-orange-100 text-orange-600'
+                    ? 'bg-rose-500/10 text-rose-500 border-rose-500/20'
+                    : 'bg-white/5 text-slate-400 border-white/10'
                 }`}
               >
                 {alert.type === 'FRAUD' ? (
-                  <ShieldAlert className="w-6 h-6" />
+                  <ShieldAlert className="w-6 h-6 md:w-8 md:h-8" />
                 ) : (
-                  <AlertCircle className="w-6 h-6" />
+                  <AlertCircle className="w-6 h-6 md:w-8 md:h-8" />
                 )}
               </div>
 
               {/* Content */}
-              <div className="flex-1">
-                <h3
-                  className={`font-semibold text-lg ${
-                    alert.severity === 'high'
-                      ? 'text-red-900'
-                      : 'text-orange-900'
-                  }`}
-                >
-                  {(alert.type || 'ALERT').replace('_', ' ')}
-                </h3>
+              <div className="flex-1 relative z-10 w-full">
+                <div className="flex justify-between items-start mb-2 gap-2">
+                   <h3 className={`text-lg md:text-xl font-black uppercase tracking-tighter italic ${
+                      alert.severity === 'high' ? 'text-white' : 'text-slate-300'
+                   }`}>
+                     {(alert.type || 'Anomaly').replace('_', ' ')}
+                   </h3>
+                   <span className={`text-[7px] md:text-[8px] font-black px-3 py-1 rounded-lg uppercase tracking-[0.2em] whitespace-nowrap ${
+                      alert.severity === 'high' ? 'bg-rose-500 text-white shadow-[0_0_15px_rgba(244,63,94,0.5)]' : 'bg-white/10 text-slate-500'
+                   }`}>
+                      {alert.severity || 'low'}
+                   </span>
+                </div>
 
-                <p
-                  className={`mt-1 font-medium ${
-                    alert.severity === 'high'
-                      ? 'text-red-700'
-                      : 'text-orange-700'
-                  }`}
-                >
-                  {alert.message || 'No message'}
+                <p className="text-slate-400 text-xs md:text-sm font-medium leading-relaxed max-w-3xl">
+                  {alert.message || 'Undefined spectral anomaly detected in system logs.'}
                 </p>
 
-                {/* Meta Info */}
-                <div className="mt-3 flex gap-2 text-xs font-bold uppercase">
-                  
-                  <span
-                    className={`px-2 py-1 rounded-md ${
-                      alert.severity === 'high'
-                        ? 'bg-red-200 text-red-800'
-                        : 'bg-orange-200 text-orange-800'
-                    }`}
-                  >
-                    {alert.val || 'N/A'}
-                  </span>
+                {/* Meta Info Footer */}
+                <div className="mt-6 md:mt-8 flex flex-wrap gap-3 md:gap-4 items-center">
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-black/40 border border-white/5 rounded-xl">
+                     <span className="text-[8px] md:text-[9px] font-black text-slate-600 uppercase">Resource</span>
+                     <span className="text-[9px] md:text-[10px] font-black text-white uppercase tracking-tight">{alert.val || 'N/A'}</span>
+                  </div>
 
-                  <span
-                    className={`px-2 py-1 rounded-md ${
-                      alert.severity === 'high'
-                        ? 'bg-red-100 text-red-600'
-                        : 'bg-orange-100 text-orange-600'
-                    }`}
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-black/40 border border-white/5 rounded-xl">
+                     <Clock className="w-3 h-3 text-slate-600" />
+                     <span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-tighter">
+                        {alert.time ? new Date(alert.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Boot'}
+                     </span>
+                  </div>
+
+                  <motion.button 
+                    whileHover={{ x: 5 }}
+                    className="sm:ml-auto text-[8px] md:text-[9px] font-black text-slate-500 hover:text-white uppercase tracking-[0.2em] flex items-center gap-2 transition-colors"
                   >
-                    {alert.time
-                      ? new Date(alert.time).toLocaleString()
-                      : 'N/A'}
-                  </span>
+                     Investigate <ChevronRight className="w-3.5 h-3.5" />
+                  </motion.button>
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))
         )}
-
       </div>
-    </div>
+    </motion.div>
   );
 };

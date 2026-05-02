@@ -1,4 +1,4 @@
-import { redis } from "../config/redis.js";
+import { redisClient } from "../config/redis.js";
 
 const IDEMPOTENCY_TTL = 86400; // 24 hours
 
@@ -12,7 +12,7 @@ export const idempotencyMiddleware = async (req, res, next) => {
     
     try {
         const redisKey = `idempotency:${idempotencyKey}`;
-        const cachedResponse = await redis.get(redisKey);
+        const cachedResponse = await redisClient.get(redisKey);
         
         if (cachedResponse) {
             console.log(`[IDEMPOTENCY] Returning cached response for key: ${idempotencyKey}`);
@@ -24,7 +24,7 @@ export const idempotencyMiddleware = async (req, res, next) => {
         res.json = function(body) {
             if (res.statusCode >= 200 && res.statusCode < 300) {
                 // Background caching
-                redis.set(redisKey, JSON.stringify(body), "EX", IDEMPOTENCY_TTL)
+                redisClient.set(redisKey, JSON.stringify(body), "EX", IDEMPOTENCY_TTL)
                     .catch(e => console.error("Redis Idempotency Set Error:", e));
             }
             return originalJson.call(this, body);

@@ -8,7 +8,7 @@ export const getDashboard = async (req, res) => {
     const totalTransactions = await prisma.transaction.count();
     const failureCount = await prisma.transaction.count({ where: { status: "FAILED" } });
     const pendingCount = await prisma.transaction.count({ where: { status: "PENDING" } });
-    const fraudAlerts = prisma.fraudLog ? await prisma.fraudLog.count() : 0;
+    const fraudAlerts = prisma.fraudlog ? await prisma.fraudlog.count() : 0;
     
     let successRate = 0;
     if (totalTransactions > 0) {
@@ -152,12 +152,31 @@ export const getProviders = async (req, res) => {
 
 export const setActiveProvider = async (req, res) => {
   try {
-    const { code, isActive } = req.body;
-    await prisma.provider.update({
-      where: { code },
-      data: { isActive }
+    const { selectedProviders, primaryProvider } = req.body;
+    
+    if (!selectedProviders || selectedProviders.length === 0 || !primaryProvider) {
+      return res.status(400).json({ success: false, message: "Invalid selection: at least one provider and a primary must be set." });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Reset all providers
+      await tx.provider.updateMany({
+        data: { isActive: false, priority: 0 }
+      });
+
+      // Activate selected and assign priorities (1 = Primary, 2 = Backup)
+      for (const code of selectedProviders) {
+        await tx.provider.update({
+          where: { code },
+          data: {
+            isActive: true,
+            priority: code === primaryProvider ? 1 : 2
+          }
+        });
+      }
     });
-    res.json({ success: true, message: `Provider ${code} status updated` });
+
+    res.json({ success: true, message: "Provider selection updated successfully" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -187,7 +206,7 @@ export const getRetryStats = async (req, res) => {
 
 export const getAlerts = async (req, res) => {
   try {
-    const alerts = await prisma.fraudLog.findMany({
+    const alerts = await prisma.fraudlog.findMany({
       orderBy: { createdAt: "desc" },
       take: 20,
       include: { user: { select: { email: true } } }

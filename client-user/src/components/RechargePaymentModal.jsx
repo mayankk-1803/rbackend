@@ -40,69 +40,70 @@ export default function RechargePaymentModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 bg-black/80 backdrop-blur-xl">
           <motion.div
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden"
+            className="w-full max-w-md bg-[#0B0F19] rounded-2xl md:rounded-3xl shadow-[0_0_100px_rgba(0,0,0,0.5)] overflow-hidden border border-white/10"
           >
             {/* Header */}
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-              <h3 className="text-lg font-bold text-gray-900">{title}</h3>
+            <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
+              <h3 className="text-lg font-black text-white uppercase italic tracking-tighter">{title}</h3>
               {step === 'confirm' && (
-                <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors p-2 hover:bg-white/5 rounded-full">
                   <X className="w-5 h-5" />
                 </button>
               )}
             </div>
 
-            <div className="p-8">
+            <div className="p-6 md:p-8">
               {step === 'confirm' && (
                 <motion.div 
                   initial={{ opacity: 0 }} 
                   animate={{ opacity: 1 }}
-                  className="space-y-8"
+                  className="space-y-6 md:space-y-8"
                 >
                   {/* Summary Card */}
-                  <div className="bg-gray-50 rounded-xl p-6 border border-gray-100">
-                    <div className="flex items-center gap-4 mb-6">
-                      <div className="w-14 h-14 rounded-full bg-white border border-gray-200 flex items-center justify-center overflow-hidden shadow-sm">
+                  <div className="bg-white/5 rounded-2xl p-5 md:p-6 border border-white/10 relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-cyan-400/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div className="flex items-center gap-4 mb-6 relative z-10">
+                      <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-slate-900 border border-white/10 flex items-center justify-center overflow-hidden shadow-inner">
                         {operatorLogo ? (
-                          <img src={operatorLogo} alt={operator} className="w-10 h-10 object-contain" />
+                          <img src={operatorLogo} alt={operator} className="w-8 h-8 md:w-10 md:h-10 object-contain" />
                         ) : (
-                          <Zap className="w-6 h-6 text-[#6D28D9]" />
+                          <Zap className="w-6 h-6 text-cyan-400" />
                         )}
                       </div>
                       <div>
-                        <p className="text-sm text-gray-500 font-medium uppercase tracking-wider">{operator || 'Mobile'}</p>
-                        <p className="text-xl font-bold text-gray-900">{mobile}</p>
+                        <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{operator || 'Mobile'}</p>
+                        <p className="text-lg md:text-xl font-black text-white tracking-tight">{mobile}</p>
                       </div>
                     </div>
 
-                    <div className="pt-4 border-t border-gray-200 flex justify-between items-end">
-                      <span className="text-gray-600 font-medium">Recharge Amount</span>
-                      <span className="text-3xl font-black text-[#6D28D9]">₹{amount}</span>
+                    <div className="pt-4 border-t border-white/10 flex justify-between items-end relative z-10">
+                      <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Settle Amount</span>
+                      <span className="text-2xl md:text-3xl font-black text-cyan-400 tracking-tighter drop-shadow-[0_0_10px_rgba(34,211,238,0.2)]">₹{amount}</span>
                     </div>
                   </div>
 
                   <div className="space-y-4">
                     <button
                       onClick={handleConfirm}
-                      className="w-full py-4 bg-[#6D28D9] text-white font-bold rounded-xl shadow-lg shadow-purple-200 hover:bg-[#5B21B6] transition-all transform active:scale-95"
+                      className="w-full py-4 bg-cyan-400 text-slate-900 font-black rounded-xl shadow-[0_0_30px_rgba(34,211,238,0.2)] hover:bg-cyan-300 transition-all transform active:scale-95 text-xs uppercase tracking-widest"
                     >
-                      Confirm & Pay
+                      Authorize Transaction
                     </button>
                     <button
                       onClick={onClose}
-                      className="w-full py-4 bg-white text-gray-600 font-semibold rounded-xl border border-gray-200 hover:bg-gray-50 transition-all"
+                      className="w-full py-4 bg-white/5 text-slate-400 font-black rounded-xl border border-white/10 hover:bg-white/10 hover:text-white transition-all text-xs uppercase tracking-widest"
                     >
-                      Cancel
+                      Abort Sequence
                     </button>
                   </div>
                   
-                  <p className="text-center text-xs text-gray-400 italic">
-                    Amount will be deducted from your wallet balance instantly.
+                  <p className="text-center text-[8px] text-slate-600 font-black uppercase tracking-widest italic">
+                    Credits will be deducted from your vault balance.
                   </p>
                 </motion.div>
               )}
@@ -114,12 +115,12 @@ export default function RechargePaymentModal({
                   className="py-12 flex flex-col items-center justify-center text-center space-y-6"
                 >
                   <div className="relative">
-                    <Loader2 className="w-16 h-16 text-[#6D28D9] animate-spin" />
-                    <Zap className="w-6 h-6 text-[#6D28D9] absolute inset-0 m-auto" />
+                    <Loader2 className="w-16 h-16 text-cyan-400 animate-spin" />
+                    <Zap className="w-6 h-6 text-cyan-400 absolute inset-0 m-auto animate-pulse" />
                   </div>
                   <div>
-                    <h4 className="text-xl font-bold text-gray-900">Processing Recharge</h4>
-                    <p className="text-gray-500 mt-2">Communicating with {operator} server...</p>
+                    <h4 className="text-xl font-black text-white uppercase italic tracking-tighter">Processing <span className="text-cyan-400">Signal</span></h4>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-2">Communicating with {operator} gateway...</p>
                   </div>
                 </motion.div>
               )}

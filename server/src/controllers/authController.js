@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import axios from "axios";
 import prisma from "../config/prisma.js";
 import { Prisma } from "@prisma/client";
 
@@ -52,16 +53,16 @@ export const signup = async (req, res) => {
         });
 
         if (referrer) {
-          // Update New User Wallet (Cashback ₹10)
+          // Update New User Wallet (Cashback ₹5)
           await tx.wallet.update({
             where: { userId: user.id },
-            data: { cashbackBalance: { increment: 10 } }
+            data: { cashbackBalance: { increment: 5 } }
           });
 
-          // Update Referrer Wallet (Cashback ₹20)
+          // Update Referrer Wallet (Cashback ₹10)
           await tx.wallet.update({
             where: { userId: referrer.id },
-            data: { cashbackBalance: { increment: 20 } }
+            data: { cashbackBalance: { increment: 10 } }
           });
 
           // Link referral
@@ -145,7 +146,7 @@ export const login = async (req, res) => {
   }
 };
 
-import axios from "axios";
+// Auth Helpers
 
 export const sendOtp = async (req, res) => {
   try {
@@ -153,23 +154,82 @@ export const sendOtp = async (req, res) => {
     if (!phone) return res.status(400).json({ success: false, message: "Phone required" });
 
     const code = Math.floor(1000 + Math.random() * 9000).toString();
-    const expiresAt = new Date(Date.now() + (process.env.OTP_EXPIRY_MINUTES || 10) * 60 * 1000);
+    const expiryMinutes = parseInt(process.env.OTP_EXPIRY_MINUTES) || 10;
+    const expiresAt = new Date(Date.now() + expiryMinutes * 60 * 1000);
 
-    await prisma.oTP.create({ data: { phone, code, expiresAt } });
+    console.log(`[OTP] Generating for ${phone}: ${code}`);
 
-    // Remove '+' for NxtByte API as it does not accept special characters
-    const nxtBytePhone = phone.replace('+', '');
-    const url = `${process.env.NXTBYTE_BASE_URL}?api_key=${process.env.NXTBYTE_API_KEY}&number=${nxtBytePhone}&msg=Your+OTP+is+${code}`;
-    const response = await axios.get(url);
+    // Save to DB first so user can at least use it if SMS is delayed
+    await prisma.oTP.create({ 
+      data: { 
+        phone: phone.toString(), 
+        code: code.toString(), 
+        expiresAt 
+      } 
+    });
 
-    if (typeof response.data === 'string' && response.data.includes('400')) {
-      throw new Error("NxtByte API rejected the request");
+    // Extract digits and ensure country code for WhatsApp (NxtByte)
+    let nxtBytePhone = phone.replace(/\D/g, '');
+    if (nxtBytePhone.length === 10) {
+      nxtBytePhone = '91' + nxtBytePhone;
+    }
+    
+    // Check for API credentials
+    const apiKey = process.env.NXTBYTE_API_KEY;
+    const baseUrl = process.env.NXTBYTE_BASE_URL;
+
+    if (!apiKey || !baseUrl) {
+      console.warn("[OTP] SMS Gateway credentials missing. Using mock mode.");
+      return res.json({ 
+        success: true, 
+        message: "OTP generated (Mock Mode)", 
+        code: process.env.NODE_ENV === 'development' ? code : undefined 
+      });
     }
 
-    res.json({ success: true, message: "OTP sent successfully" });
+    const url = `${baseUrl}?api_key=${apiKey}&number=${nxtBytePhone}&msg=Your+OTP+is+${code}+for+Dizipay.`;
+    
+    console.log(`[OTP] Sending via NxtByte to ${nxtBytePhone}...`);
+    
+    try {
+      const response = await axios.get(url, { timeout: 8000 });
+      console.log("[OTP] Gateway Response:", response.data);
+      
+      // Handle NxtByte specific error patterns
+      if (response.data && typeof response.data === 'string') {
+        if (response.data.includes('400') || response.data.includes('error') || response.data.includes('Invalid')) {
+          throw new Error(`Gateway Error: ${response.data}`);
+        }
+      }
+
+      return res.json({ success: true, message: "OTP sent successfully" });
+    } catch (apiErr) {
+      console.error("[OTP] Gateway Failure:", apiErr.message);
+      
+      // In development, we can still succeed even if SMS fails
+      if (process.env.NODE_ENV !== 'production') {
+        return res.json({ 
+          success: true, 
+          message: "OTP generated (Gateway Error, proceed with mock)", 
+          code: code 
+        });
+      }
+
+      return res.status(500).json({ 
+        success: false, 
+        message: "SMS Gateway Error", 
+        error: apiErr.message 
+      });
+    }
+
   } catch (error) {
-    console.error("Send OTP Error:", error);
-    res.status(500).json({ success: false, message: "Failed to send OTP", error: error.message });
+    console.error("[OTP] Critical Error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server error while processing OTP", 
+      error: error.message,
+      stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined
+    });
   }
 };
 
@@ -229,46 +289,47 @@ export const verifyOtp = async (req, res) => {
           data: { userId: newUser.id, balance: 0, cashbackBalance: 0 }
         });
 
-        // 3. Referral Logic (₹50)
+        // 3. Referral Logic (Instant Reward + Link)
         if (givenReferralCode) {
           const referrer = await tx.user.findUnique({
             where: { referralCode: givenReferralCode }
           });
 
           if (referrer && referrer.id !== newUser.id) {
-            await tx.wallet.update({
-              where: { userId: newUser.id },
-              data: { cashbackBalance: { increment: 50 } }
-            });
-
-            await tx.transaction.create({
-              data: {
-                userId: newUser.id,
-                amount: 50,
-                type: "CASHBACK",
-                direction: "CREDIT",
-                status: "SUCCESS"
-              }
-            });
-
-            await tx.wallet.update({
-              where: { userId: referrer.id },
-              data: { cashbackBalance: { increment: 50 } }
-            });
-
-            await tx.transaction.create({
-              data: {
-                userId: referrer.id,
-                amount: 50,
-                type: "CASHBACK",
-                direction: "CREDIT",
-                status: "SUCCESS"
-              }
-            });
-
+            // Link users
             await tx.user.update({
               where: { id: newUser.id },
               data: { referredBy: referrer.id }
+            });
+
+            // Provide a small instant reward (e.g., ₹5) to the Referrer
+            await tx.wallet.update({
+              where: { userId: referrer.id },
+              data: { cashbackBalance: { increment: 5 } }
+            });
+            await tx.transaction.create({
+              data: {
+                userId: referrer.id,
+                amount: 5,
+                type: "REFERRAL",
+                status: "SUCCESS",
+                direction: "CREDIT"
+              }
+            });
+
+            // Provide a small instant reward (e.g., ₹5) to the New User
+            await tx.wallet.update({
+              where: { userId: newUser.id },
+              data: { cashbackBalance: { increment: 5 } }
+            });
+            await tx.transaction.create({
+              data: {
+                userId: newUser.id,
+                amount: 5,
+                type: "REFERRAL",
+                status: "SUCCESS",
+                direction: "CREDIT"
+              }
             });
           }
         }

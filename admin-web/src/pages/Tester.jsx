@@ -3,6 +3,7 @@ import api from '../services/api';
 import { useSocket } from '../hooks/useSocket';
 import toast from 'react-hot-toast';
 import { Zap, Activity, Clock, ChevronRight } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export const Tester = () => {
   const [mobileNumber, setMobileNumber] = useState('');
@@ -10,7 +11,7 @@ export const Tester = () => {
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
   const [providers, setProviders] = useState([]);
-  const [selectedProvider, setSelectedProvider] = useState('');
+  const [selectedProviders, setSelectedProviders] = useState([]);
   const [selectedForCompare, setSelectedForCompare] = useState([]);
   const [compareResults, setCompareResults] = useState(null);
   const [amount, setAmount] = useState('10');
@@ -73,7 +74,8 @@ export const Tester = () => {
       const { data } = await api.post('/recharge', {
         mobile: mobileNumber,
         amount: Number(amount),
-        operator: 'Jio'
+        operator: 'Jio',
+        testProviders: selectedProviders.length > 0 ? selectedProviders : undefined
       });
       
       setResult({ 
@@ -147,263 +149,213 @@ export const Tester = () => {
   const bestProvider = compareResults ? getBestProvider(compareResults.results) : null;
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-xl font-bold text-[#0F172A] tracking-tight">API Tester</h1>
-        <div className="flex justify-between items-center mt-0.5">
-          <p className="text-sm text-[#64748B]">Benchmark and test provider routing in real-time</p>
-          <button 
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="max-w-7xl mx-auto space-y-8"
+    >
+      <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight drop-shadow-md uppercase italic">API Testing <span className="text-cyan-400">Engine</span></h1>
+          <p className="text-[10px] md:text-sm text-slate-500 mt-1 font-bold uppercase tracking-widest">Benchmark and debug provider routing in real-time</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <motion.button 
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => handleTopUp()}
-            className="flex items-center gap-1.5 px-3 py-1 bg-[#F3E8FF] text-[#6D28D9] text-[10px] font-bold rounded-md hover:bg-[#E9D5FF] transition"
+            className="w-full lg:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-purple-500/10 border border-purple-500/30 text-purple-400 text-[10px] font-black rounded-xl hover:bg-purple-500/20 transition-all shadow-[0_0_20px_rgba(139,92,246,0.15)] uppercase tracking-[0.2em]"
           >
-            <Zap className="w-3 h-3 fill-current" />
-            + ₹1000 Balance
-          </button>
+            <Zap className="w-4 h-4 fill-current" />
+            + ₹1000 Credits
+          </motion.button>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* LEFT PANEL: Trigger Recharge */}
-        <div className="space-y-6">
-          <section className="bg-white border border-[#E2E8F0] rounded-md p-5 shadow-sm">
-            <h2 className="text-sm font-bold text-[#0F172A] mb-4">Trigger Recharge</h2>
-            <form onSubmit={handleTest} className="space-y-4">
-              <div>
-                <label className="block text-xs text-[#64748B] mb-1.5 font-bold uppercase tracking-wider">Mobile Number</label>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start">
+        {/* LEFT PANEL: Inputs (5 cols) */}
+        <div className="lg:col-span-5 space-y-6">
+          <section className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl p-8 shadow-xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Activity className="w-12 h-12 text-cyan-400" />
+            </div>
+            
+            <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-8 flex items-center gap-3">
+              <span className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.8)]"></span>
+              Request Parameters
+            </h2>
+
+            <form onSubmit={handleTest} className="space-y-6">
+              <div className="space-y-2">
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest">Target Mobile</label>
                 <input 
                   type="tel"
                   value={mobileNumber}
                   onChange={(e) => setMobileNumber(e.target.value.replace(/[^0-9]/g, ''))}
                   maxLength={10}
                   placeholder="9876543210"
-                  className="w-full px-3 py-2 text-sm border border-[#E2E8F0] rounded-md outline-none focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB] transition duration-150"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-bold tracking-widest outline-none focus:ring-2 focus:ring-cyan-400/50 focus:border-cyan-400 transition-all placeholder:text-slate-700"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs text-[#64748B] mb-1.5 font-bold uppercase tracking-wider">Amount (₹)</label>
+              <div className="space-y-2">
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest">Amount (₹)</label>
                 <input 
                   type="number"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="10"
-                  className="w-full px-3 py-2 text-sm border border-[#E2E8F0] rounded-md outline-none focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB] transition duration-150"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-bold outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-purple-400 transition-all placeholder:text-slate-700"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs text-[#64748B] mb-3 font-bold uppercase tracking-wider">Provider Override</label>
-                <div className="space-y-2">
-                  <label className={`flex items-center p-3 border rounded-md cursor-pointer transition ${!selectedProvider ? 'border-[#6D28D9] bg-[#F3E8FF]' : 'border-[#E5E7EB] hover:border-[#C4B5FD]'}`}>
+              <div className="space-y-4 pt-4">
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest">Priority Routing</label>
+                <div className="space-y-3">
+                  <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all ${selectedProviders.length === 0 ? 'bg-cyan-400/10 border-cyan-400/50 shadow-[0_0_20px_rgba(34,211,238,0.1)]' : 'bg-white/2 border-white/5 hover:border-white/20'}`}>
                     <input 
-                      type="radio" 
-                      name="provider" 
-                      value="" 
-                      checked={selectedProvider === ""} 
-                      onChange={(e) => setSelectedProvider(e.target.value)}
-                      className="w-4 h-4 text-[#6D28D9] border-gray-300 focus:ring-[#6D28D9]"
+                      type="checkbox" 
+                      checked={selectedProviders.length === 0} 
+                      onChange={() => setSelectedProviders([])}
+                      className="hidden"
                     />
-                    <span className="ml-3 text-sm font-bold text-[#0F172A]">Smart Routing</span>
-                    <span className="ml-auto text-[10px] bg-[#E5E7EB] text-[#64748B] px-2 py-0.5 rounded-full font-bold">Recommended</span>
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${selectedProviders.length === 0 ? 'border-cyan-400 bg-cyan-400' : 'border-slate-700'}`}>
+                      {selectedProviders.length === 0 && <div className="w-1.5 h-1.5 bg-slate-900 rounded-full"></div>}
+                    </div>
+                    <span className="ml-4 text-xs font-black text-white uppercase tracking-widest">Smart Failover</span>
+                    <span className="ml-auto text-[8px] bg-cyan-400 text-slate-900 px-2 py-0.5 rounded-full font-black uppercase tracking-tighter">AI Driven</span>
                   </label>
                   
-                  {(showAll ? providers : providers.slice(0, 4)).map((provider) => (
-                    <label 
-                      key={provider.code} 
-                      className={`flex items-center p-3 border rounded-md cursor-pointer transition ${
-                        provider.isBlacklisted ? 'opacity-50 cursor-not-allowed' : ''
-                      } ${selectedProvider === provider.code ? 'border-[#6D28D9] bg-[#F3E8FF]' : 'border-[#E5E7EB] hover:border-[#C4B5FD]'}`}
-                    >
-                      <input 
-                        type="radio" 
-                        name="provider" 
-                        value={provider.code} 
-                        checked={selectedProvider === provider.code} 
-                        onChange={(e) => setSelectedProvider(e.target.value)}
-                        disabled={provider.isBlacklisted}
-                        className="w-4 h-4 text-[#6D28D9] border-gray-300 focus:ring-[#6D28D9] disabled:bg-gray-200"
-                      />
-                      <div className="ml-3 flex justify-between w-full items-center">
-                        <span className="text-sm font-medium text-[#0F172A]">{provider.name}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-[#64748B] font-mono">{provider.latency || 300}ms</span>
-                          <span className={`text-[10px] px-2 py-0.5 rounded font-medium ${
-                             provider.isBlacklisted ? 'bg-[#FEF2F2] text-[#DC2626]' : 
-                             provider.successRate < 80 ? 'bg-[#FEF3C7] text-[#D97706]' : 'bg-[#ECFDF5] text-[#16A34A]'
-                          }`}>
-                            {provider.isBlacklisted ? 'Blacklisted' : 'Healthy'}
-                          </span>
-                        </div>
-                      </div>
-                    </label>
-                  ))}
-                  
-                  {providers.length > 4 && (
-                    <button 
-                      type="button" 
-                      onClick={() => setShowAll(!showAll)}
-                      className="w-full py-2 text-xs font-semibold text-[#64748B] hover:text-[#0F172A] border border-dashed border-[#E5E7EB] hover:border-[#C4B5FD] rounded-md transition"
-                    >
-                      {showAll ? 'Show Less' : `Show More (${providers.length} APIs)`}
-                    </button>
-                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    {providers.map((p) => (
+                      <button
+                        key={p.code}
+                        type="button"
+                        onClick={() => setSelectedProviders(prev => prev.includes(p.code) ? prev.filter(c => c !== p.code) : [...prev, p.code])}
+                        className={`p-3 text-[10px] font-black uppercase tracking-widest border rounded-xl transition-all ${
+                          selectedProviders.includes(p.code) 
+                          ? 'bg-purple-500/10 border-purple-500/50 text-purple-400 shadow-[0_0_15px_rgba(139,92,246,0.15)]' 
+                          : 'bg-white/2 border-white/5 text-slate-500 hover:border-white/20'
+                        }`}
+                      >
+                        {p.name}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              <button 
+              <motion.button 
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 type="submit"
                 disabled={loading || mobileNumber.length !== 10}
-                className="w-full py-2 px-4 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-gray-300 text-white text-sm font-bold rounded-md transition duration-150 shadow-sm"
+                className="w-full py-4 bg-gradient-to-r from-cyan-500 to-purple-600 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-[0_0_30px_rgba(6,182,212,0.3)] disabled:opacity-50 flex items-center justify-center gap-3"
               >
-                {loading ? 'Processing...' : 'Trigger Recharge'}
-              </button>
+                {loading ? (
+                  <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                ) : <Zap className="w-4 h-4 fill-current" />}
+                {loading ? 'Executing...' : 'Fire Recharge'}
+              </motion.button>
             </form>
           </section>
 
-          {/* Quick Actions / Shortcuts */}
-          <div className="grid grid-cols-2 gap-3">
-            <button onClick={() => setMobileNumber('9999999999')} className="text-xs py-2 px-3 border border-[#E2E8F0] rounded-md hover:bg-[#F1F5F9] transition text-[#64748B] font-medium">
-              Mock Success No.
-            </button>
-            <button onClick={() => setMobileNumber('8888888888')} className="text-xs py-2 px-3 border border-[#E2E8F0] rounded-md hover:bg-[#F1F5F9] transition text-[#64748B] font-medium">
-              Mock Failure No.
-            </button>
+          <div className="grid grid-cols-2 gap-4">
+            <button onClick={() => setMobileNumber('9999999999')} className="text-[10px] py-3 px-4 bg-white/5 border border-white/10 rounded-xl text-slate-400 font-black uppercase tracking-widest hover:bg-white/10 transition-all">Mock Success</button>
+            <button onClick={() => setMobileNumber('8888888888')} className="text-[10px] py-3 px-4 bg-white/5 border border-white/10 rounded-xl text-slate-400 font-black uppercase tracking-widest hover:bg-white/10 transition-all">Mock Failure</button>
           </div>
-
-          {/* Result Card */}
-          {result && (
-            <div className="bg-white border border-[#E2E8F0] rounded-md p-5 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-[#0F172A]">Transaction Status</h3>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                  result.status?.toLowerCase() === 'success' ? 'bg-[#ECFDF5] text-[#16A34A]' : 
-                  result.status?.toLowerCase() === 'pending' ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#FEF2F2] text-[#DC2626]'
-                }`}>
-                  {result.status?.toUpperCase()}
-                </span>
-              </div>
-              <p className="text-xs text-[#64748B] mb-4">{result.message}</p>
-              {result.details && (
-                <div className="bg-[#F8FAFC] border border-[#E2E8F0] p-3 rounded-md overflow-auto max-h-40">
-                  <pre className="text-[10px] text-[#64748B] font-mono">{JSON.stringify(result.details, null, 2)}</pre>
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
-        {/* RIGHT PANEL: Compare APIs */}
-        <div className="space-y-6">
-          <section className="bg-white border border-[#E2E8F0] rounded-md p-5 shadow-sm">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-sm font-bold text-[#0F172A]">Compare APIs</h2>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <span className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">Sandbox</span>
-                <input 
-                  type="checkbox" 
-                  checked={isTestMode} 
-                  onChange={() => setIsTestMode(!isTestMode)}
-                  className="w-3 h-3 text-[#2563EB] rounded border-[#E2E8F0] focus:ring-[#2563EB]"
-                />
-              </label>
-            </div>
-
-            <div className="flex flex-wrap gap-2 mb-6">
-              {providers.map(p => (
-                <button 
-                  key={p.code}
-                  onClick={() => !p.isBlacklisted && toggleCompareProvider(p.code)}
-                  disabled={p.isBlacklisted}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition duration-150 border ${
-                    selectedForCompare.includes(p.code) 
-                      ? 'bg-[#2563EB] text-white border-[#2563EB]' 
-                      : 'bg-white text-[#64748B] border-[#E2E8F0] hover:bg-[#F1F5F9]'
-                  } ${p.isBlacklisted ? 'opacity-40 cursor-not-allowed' : ''}`}
-                >
-                  {p.name}
-                </button>
-              ))}
-            </div>
-
-            <button 
-              onClick={handleCompare}
-              disabled={loading || mobileNumber.length !== 10 || selectedForCompare.length === 0}
-              className="w-full py-2 px-4 bg-[#0F172A] hover:bg-black disabled:bg-gray-300 text-white text-sm font-bold rounded-md transition duration-150"
-            >
-              {loading ? 'Benchmarking...' : 'Run Comparison'}
-            </button>
-
-            {compareResults && (
-              <div className="mt-6">
-                <div className="overflow-hidden border border-[#E2E8F0] rounded-md">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
-                        <th className="px-3 py-2 text-[10px] font-bold text-[#64748B] uppercase">Provider</th>
-                        <th className="px-3 py-2 text-[10px] font-bold text-[#64748B] uppercase">Status</th>
-                        <th className="px-3 py-2 text-[10px] font-bold text-[#64748B] uppercase text-right">Latency</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#E2E8F0]">
-                      {compareResults.results.map((res, idx) => (
-                        <tr key={idx} className="hover:bg-[#F1F5F9] transition duration-75">
-                          <td className="px-3 py-2.5">
-                            <div className="text-xs font-bold text-[#0F172A]">{res.name}</div>
-                          </td>
-                          <td className="px-3 py-2.5">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                              res.status?.toLowerCase() === 'success' ? 'bg-[#ECFDF5] text-[#16A34A]' : 'bg-[#FEF2F2] text-[#DC2626]'
-                            }`}>
-                              {res.status?.toUpperCase()}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2.5 text-right">
-                            <div className={`text-xs font-mono font-bold ${
-                              bestProvider?.provider === res.provider ? 'text-[#16A34A]' : 'text-[#64748B]'
-                            }`}>
-                              {res.responseTime}ms
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+        {/* RIGHT PANEL: Debug Console + Session History */}
+        <div className="lg:col-span-7 space-y-6">
+          <section className="bg-slate-900/50 backdrop-blur-3xl border border-white/10 rounded-2xl h-[450px] flex flex-col shadow-2xl relative overflow-hidden">
+            <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
+              <div className="flex items-center gap-2">
+                <div className="flex gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-rose-500/50"></div>
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-500/50"></div>
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/50"></div>
                 </div>
-
-                {bestProvider && (
-                  <div className="mt-4 p-3 bg-[#ECFDF5] border border-[#D1FAE5] rounded-md flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-[#16A34A] fill-current" />
-                    <span className="text-xs text-[#065F46] font-bold">
-                      ⚡ Fastest: {bestProvider.name} ({bestProvider.responseTime}ms)
-                    </span>
-                  </div>
-                )}
+                <span className="ml-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Debug Console</span>
               </div>
-            )}
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 font-mono space-y-6 custom-scrollbar">
+              {!result && !loading && (
+                <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-30">
+                  <Clock className="w-12 h-12 text-slate-400" />
+                  <p className="text-xs font-black uppercase tracking-widest text-slate-500">Awaiting Signal...</p>
+                </div>
+              )}
+
+              {loading && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 text-cyan-400 text-xs">
+                    <span className="animate-pulse">▶</span>
+                    <span>Initializing transaction sequence...</span>
+                  </div>
+                </div>
+              )}
+
+              {result && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                  <div className={`p-6 rounded-2xl border ${result.status === 'success' ? 'bg-emerald-500/5 border-emerald-500/30 shadow-[0_0_30px_rgba(16,185,129,0.15)]' : 'bg-rose-500/5 border-rose-500/30'}`}>
+                    <div className="flex justify-between items-start mb-6">
+                      <h3 className={`text-xl font-black uppercase tracking-tighter ${result.status === 'success' ? 'text-emerald-400' : 'text-rose-400'}`}>{result.status}</h3>
+                      <div className="text-right">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Time</p>
+                        <p className="text-lg font-black text-white">{result.details?.attempts?.reduce((acc, curr) => acc + (curr.latency || 0), 0) || 0}ms</p>
+                      </div>
+                    </div>
+                    <div className="space-y-3 border-t border-white/5 pt-4">
+                      <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                        <span className="text-slate-500">Final Provider</span>
+                        <span className="text-cyan-400">{result.details?.provider || 'N/A'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Failover Trace</h4>
+                    <div className="space-y-2">
+                      {result.details?.attempts?.map((step, i) => (
+                        <div key={i} className="flex items-center gap-4 bg-white/[0.02] p-3 rounded-xl border border-white/5">
+                          <div className="w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center text-[10px] text-slate-500 font-black">{i+1}</div>
+                          <div className="flex-1">
+                            <p className="text-[10px] font-black text-white uppercase tracking-widest">{step.provider}</p>
+                            <p className="text-[8px] text-slate-500 font-medium">{step.reason || `Latency: ${step.latency}ms`}</p>
+                          </div>
+                          <span className={`text-[10px] font-black uppercase tracking-widest ${step.status === 'SUCCESS' ? 'text-emerald-400' : 'text-rose-400'}`}>{step.status}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </div>
           </section>
 
           {/* Session History Table */}
-          <section className="bg-white border border-[#E2E8F0] rounded-md shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-[#E2E8F0] flex justify-between items-center bg-[#F8FAFC]">
-              <h2 className="text-sm font-bold text-[#0F172A]">Session History</h2>
-              <span className="text-[10px] font-bold text-[#94A3B8] uppercase">{history.length} Records</span>
+          <section className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-xl overflow-hidden">
+            <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/[0.02]">
+              <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Session History</h2>
+              <span className="text-[8px] font-black text-slate-600 uppercase">{history.length} Records</span>
             </div>
-            <div className="max-h-[300px] overflow-y-auto">
+            <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
               {history.length === 0 ? (
-                <div className="p-8 text-center text-[#94A3B8] text-xs">No activity yet</div>
+                <div className="p-8 text-center text-slate-600 text-[10px] font-black uppercase tracking-widest">No activity yet</div>
               ) : (
                 <table className="w-full text-left">
-                  <tbody className="divide-y divide-[#E2E8F0]">
+                  <tbody className="divide-y divide-white/5">
                     {history.map((tx, idx) => (
-                      <tr key={`${tx.id || tx.transactionId || idx}-${idx}`} className="hover:bg-[#F1F5F9] transition duration-75">
-                        <td className="px-4 py-3">
-                          <div className="text-xs font-bold text-[#0F172A]">{tx.mobile}</div>
-                          <div className="text-[10px] text-[#94A3B8] font-bold uppercase tracking-tight">{tx.provider || 'Smart Route'}</div>
+                      <tr key={idx} className="hover:bg-white/[0.02] transition-all">
+                        <td className="px-6 py-4">
+                          <div className="text-xs font-black text-white">{tx.mobile}</div>
+                          <div className="text-[8px] text-slate-500 font-black uppercase tracking-tighter">{tx.provider || 'Smart Route'}</div>
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full uppercase ${
-                            tx.status?.toLowerCase() === 'success' ? 'bg-[#ECFDF5] text-[#16A34A]' : 
-                            tx.status?.toLowerCase() === 'pending' ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#FEF2F2] text-[#DC2626]'
+                        <td className="px-6 py-4 text-right">
+                          <span className={`text-[9px] font-black px-3 py-1 rounded-lg uppercase ${
+                            tx.status?.toLowerCase() === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
                           }`}>
                             {tx.status?.toUpperCase()}
                           </span>
@@ -417,6 +369,6 @@ export const Tester = () => {
           </section>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };

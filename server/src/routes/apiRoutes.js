@@ -156,6 +156,18 @@ router.post("/recharge", auth, validateRechargeInput, idempotencyMiddleware, fra
   }
 });
 
+router.get("/debug/transaction/:txnId", async (req, res) => {
+  try {
+    const txn = await prisma.transaction.findUnique({
+      where: { id: parseInt(req.params.txnId) }
+    });
+    if (!txn) return res.status(404).json({ success: false, message: "Transaction not found" });
+    res.json({ success: true, txn });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 /**
  * @swagger
  * /api/status/{id}:

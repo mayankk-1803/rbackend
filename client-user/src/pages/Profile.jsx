@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { User, Settings, LogOut, ShieldCheck, HelpCircle, ChevronRight, Edit2, Camera } from 'lucide-react';
 import api from '../api';
 import toast from 'react-hot-toast';
@@ -63,83 +64,125 @@ export default function Profile() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <div className="bg-gradient-to-r from-[#6D28D9] via-[#4F46E5] to-[#3B82F6] pt-12 pb-24 px-6 shadow-md relative">
-        <h1 className="text-white text-xl font-bold">My Profile</h1>
-      </div>
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="max-w-4xl mx-auto space-y-4 md:space-y-8"
+    >
+      <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl">
+        <div className="bg-gradient-to-r from-cyan-600/20 via-purple-600/20 to-blue-600/20 p-6 md:p-8 flex flex-col items-center border-b border-white/10 relative overflow-hidden">
+          {/* Animated Background Orbs */}
+          <div className="absolute -top-10 -left-10 w-40 h-40 bg-cyan-500/10 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
 
-      <div className="px-5 -mt-14 relative z-10 flex-1">
-        <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 flex flex-col items-center">
-          <div className="relative mb-4">
-            <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-2xl shadow-inner overflow-hidden">
+          <div className="relative group mb-6">
+            <div className="w-32 h-32 bg-slate-900 rounded-full flex items-center justify-center border-2 border-white/10 shadow-[0_0_30px_rgba(6,182,212,0.2)] overflow-hidden group-hover:shadow-[0_0_50px_rgba(6,182,212,0.4)] transition-all duration-500">
               {uploading ? (
-                <div className="animate-spin h-6 w-6 border-2 border-indigo-600 border-t-transparent rounded-full"></div>
+                <div className="animate-spin h-8 w-8 border-3 border-cyan-400 border-t-transparent rounded-full"></div>
               ) : user.profileImage ? (
                 <img src={user.profileImage} alt="Profile" className="w-full h-full object-cover" />
               ) : (
-                (user.name || 'U').charAt(0).toUpperCase()
+                <span className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 to-purple-400">
+                  {(user.name || 'U').charAt(0).toUpperCase()}
+                </span>
               )}
             </div>
             <button 
               onClick={() => fileInputRef.current?.click()}
-              className="absolute bottom-0 right-0 bg-indigo-600 text-white p-1.5 rounded-full shadow-md hover:bg-indigo-700 transition"
+              className="absolute bottom-1 right-1 bg-gradient-to-br from-cyan-500 to-purple-600 p-2.5 rounded-full shadow-lg hover:scale-110 transition-transform border border-white/20"
             >
-              <Camera className="w-4 h-4" />
+              <Camera className="w-4 h-4 text-white" />
             </button>
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handleImageUpload} 
-              accept="image/*" 
-              className="hidden" 
-            />
+            <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
           </div>
-          
-          {isEditing ? (
-            <div className="flex items-center gap-2 mb-2">
-              <input 
-                type="text" 
-                value={newName} 
-                onChange={(e) => setNewName(e.target.value)} 
-                className="border border-gray-300 rounded px-2 py-1 text-sm outline-none focus:border-indigo-500"
-                autoFocus
-              />
-              <button onClick={handleNameSave} className="bg-indigo-600 text-white text-xs px-3 py-1.5 rounded font-medium hover:bg-indigo-700">Save</button>
-              <button onClick={() => setIsEditing(false)} className="bg-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded font-medium hover:bg-gray-300">Cancel</button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 mb-1">
-              <h2 className="text-lg font-bold text-gray-800">{user.name || 'User Account'}</h2>
-              <button onClick={() => { setIsEditing(true); setNewName(user.name || ''); }} className="text-gray-400 hover:text-indigo-600">
-                <Edit2 className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-          
-          <p className="text-sm text-gray-500 font-medium">{user.phone}</p>
-          <div className="mt-4 px-4 py-1.5 bg-green-50 text-green-600 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1">
-            <ShieldCheck className="w-3 h-3" /> KYC Verified
+
+          <div className="text-center space-y-2">
+            {isEditing ? (
+              <div className="flex items-center gap-3 bg-white/5 p-1 rounded-xl border border-white/10">
+                <input 
+                  type="text" 
+                  value={newName} 
+                  onChange={(e) => setNewName(e.target.value)} 
+                  className="bg-transparent text-white px-4 py-2 outline-none w-32 md:w-48 font-bold text-sm md:text-base"
+                  autoFocus
+                />
+                <button onClick={handleNameSave} className="bg-cyan-500 text-slate-900 text-[10px] font-black uppercase px-3 md:px-4 py-2 rounded-lg hover:bg-cyan-400 transition-all">Save</button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center gap-3">
+                <h2 className="text-xl md:text-3xl font-black text-white tracking-tight drop-shadow-lg">{user.name || 'User Account'}</h2>
+                <button onClick={() => { setIsEditing(true); setNewName(user.name || ''); }} className="text-slate-500 hover:text-cyan-400 transition-colors">
+                  <Edit2 className="w-4 h-4 md:w-5 md:h-5" />
+                </button>
+              </div>
+            )}
+            <p className="text-slate-400 font-mono tracking-widest text-[10px] md:text-xs uppercase">{user.phone}</p>
           </div>
         </div>
 
-        <div className="mt-6 space-y-2 mb-20">
-          {menuItems.map((item, idx) => (
-            <button 
-              key={idx} 
-              onClick={item.action}
-              className="w-full bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between hover:bg-gray-50 transition"
-            >
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${item.textDanger ? 'bg-red-50 text-red-500' : 'bg-indigo-50 text-indigo-500'}`}>
-                  <item.icon className="w-5 h-5" />
+        <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="space-y-4">
+            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Account Navigator</h3>
+            {menuItems.map((item, idx) => (
+              <motion.button 
+                key={idx} 
+                whileHover={{ x: 10, backgroundColor: 'rgba(255,255,255,0.05)' }}
+                onClick={item.action}
+                className="w-full p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between transition-all group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className={`p-3 rounded-xl ${item.textDanger ? 'bg-rose-500/10 text-rose-500' : 'bg-cyan-500/10 text-cyan-400'}`}>
+                    <item.icon className="w-5 h-5" />
+                  </div>
+                  <span className={`font-bold text-sm ${item.textDanger ? 'text-rose-500' : 'text-slate-300 group-hover:text-white'}`}>{item.label}</span>
                 </div>
-                <span className={`font-semibold text-sm ${item.textDanger ? 'text-red-500' : 'text-gray-700'}`}>{item.label}</span>
+                <ChevronRight className={`w-4 h-4 transition-transform group-hover:translate-x-1 ${item.textDanger ? 'text-rose-900' : 'text-slate-600'}`} />
+              </motion.button>
+            ))}
+          </div>
+
+          <div className="space-y-6">
+            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Referral Program</h3>
+            <div className="bg-gradient-to-br from-cyan-500/5 to-purple-500/5 border border-cyan-500/20 p-6 rounded-3xl relative overflow-hidden group">
+              <div className="relative z-10 space-y-4">
+                <div>
+                  <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-1">Your Earnings</p>
+                  <h4 className="text-3xl font-black text-white">₹{user.cashbackBalance || '0.00'}</h4>
+                </div>
+                
+                <div className="p-4 bg-black/20 rounded-2xl border border-white/5 space-y-3">
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">Referral Code</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl font-black text-white tracking-widest">{user.referralCode || 'DIZIPAY50'}</span>
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(user.referralCode || 'DIZIPAY50');
+                        toast.success("Code copied!");
+                      }}
+                      className="px-4 py-2 bg-white/10 rounded-lg text-[10px] font-black uppercase hover:bg-white/20 transition-all"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+                
+                <p className="text-[10px] text-slate-500 leading-relaxed font-medium">Earn ₹50 for every friend who completes their first recharge of ₹100 or more.</p>
               </div>
-              <ChevronRight className={`w-5 h-5 ${item.textDanger ? 'text-red-300' : 'text-gray-300'}`} />
-            </button>
-          ))}
+              <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-cyan-400/5 rounded-full blur-3xl group-hover:bg-cyan-400/10 transition-all duration-700"></div>
+            </div>
+
+            <div className="p-6 rounded-3xl bg-emerald-500/5 border border-emerald-500/20 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                <ShieldCheck className="w-6 h-6" />
+              </div>
+              <div>
+                <h5 className="text-emerald-400 font-black text-xs uppercase tracking-widest">KYC Verified</h5>
+                <p className="text-[10px] text-emerald-500/60 font-medium">Full account access enabled</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

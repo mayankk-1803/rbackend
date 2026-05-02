@@ -17,67 +17,74 @@ export default function PaymentModal({ isOpen, onClose, amount, onPaymentSuccess
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-xl flex items-center justify-center z-[100] p-4 md:p-6">
         <motion.div 
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="bg-white rounded-xl w-full max-w-md shadow-2xl overflow-hidden border border-[#E5E7EB]"
+          className="bg-[#0B0F19] rounded-2xl md:rounded-3xl w-full max-w-md shadow-[0_0_100px_rgba(0,0,0,0.5)] overflow-hidden border border-white/10 relative"
         >
           {/* Header */}
-          <div className="px-6 py-4 border-b border-[#E5E7EB] flex justify-between items-center bg-[#F8FAFC]">
-            <h2 className="text-lg font-bold text-[#0F172A]">{title} Payment</h2>
+          <div className="px-6 py-5 border-b border-white/10 flex justify-between items-center bg-white/[0.02]">
+            <h2 className="text-lg font-black text-white uppercase italic tracking-tighter">{title} <span className="text-cyan-400">Payment</span></h2>
             <button 
               onClick={onClose}
-              className="p-1 hover:bg-[#E2E8F0] rounded-full transition-colors"
+              className="p-2 hover:bg-white/5 rounded-full transition-colors text-slate-500 hover:text-white"
             >
-              <X className="w-5 h-5 text-[#64748B]" />
+              <X className="w-5 h-5" />
             </button>
           </div>
 
           <div className="p-8">
             <div className="text-center mb-8">
-              <p className="text-sm text-[#64748B] font-medium mb-1">Total Payable Amount</p>
-              <h3 className="text-4xl font-bold text-[#0F172A]">₹{formatAmount(amount)}</h3>
+              <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em] mb-1">Authorization Amount</p>
+              <h3 className="text-4xl md:text-5xl font-black text-white tracking-tighter">₹{formatAmount(amount)}</h3>
             </div>
 
-            <div className="space-y-4">
-              <div className="bg-[#F8FAFC] p-4 rounded-lg border border-[#E5E7EB]">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-8 h-8 bg-[#6D28D9] rounded-md flex items-center justify-center text-white font-bold text-xs">
+            <div className="space-y-6">
+              <div className="bg-white/5 p-5 rounded-2xl border border-white/10 relative overflow-hidden group">
+                <div className="absolute inset-0 bg-cyan-400/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div className="relative z-10 flex items-center gap-4 mb-4">
+                  <div className="w-10 h-10 bg-cyan-400 text-slate-900 rounded-xl flex items-center justify-center font-black text-xs shadow-[0_0_15px_rgba(34,211,238,0.3)]">
                     UPI
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-[#0F172A]">Dizipay UPI Secure</p>
-                    <p className="text-[10px] text-[#64748B] font-medium uppercase tracking-wider">Fast & Reliable</p>
+                    <p className="text-sm font-black text-white uppercase tracking-tight">Dizipay Vault Secure</p>
+                    <p className="text-[8px] text-cyan-400/60 font-black uppercase tracking-widest">Spectral Encryption Active</p>
                   </div>
-                  <CheckCircle2 className="w-5 h-5 text-green-600 ml-auto" />
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400 ml-auto shadow-[0_0_10px_rgba(52,211,153,0.3)]" />
                 </div>
-                <div className="flex gap-2">
-                  <div className="flex-1 h-1.5 bg-green-500 rounded-full"></div>
-                  <div className="flex-1 h-1.5 bg-green-500 rounded-full"></div>
-                  <div className="flex-1 h-1.5 bg-green-500 rounded-full"></div>
+                <div className="flex gap-1.5 relative z-10">
+                  <div className="flex-1 h-1 bg-emerald-500/30 rounded-full overflow-hidden">
+                    <motion.div initial={{ x: '-100%' }} animate={{ x: '0%' }} transition={{ duration: 1 }} className="h-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></motion.div>
+                  </div>
+                  <div className="flex-1 h-1 bg-emerald-500/30 rounded-full overflow-hidden">
+                    <motion.div initial={{ x: '-100%' }} animate={{ x: '0%' }} transition={{ duration: 1, delay: 0.2 }} className="h-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></motion.div>
+                  </div>
+                  <div className="flex-1 h-1 bg-emerald-500/30 rounded-full overflow-hidden">
+                    <motion.div initial={{ x: '-100%' }} animate={{ x: '0%' }} transition={{ duration: 1, delay: 0.4 }} className="h-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></motion.div>
+                  </div>
                 </div>
               </div>
 
               <button 
                 onClick={handlePayment}
-                className="w-full bg-[#6D28D9] hover:bg-[#5B21B6] text-white py-4 rounded-lg font-bold text-lg shadow-lg shadow-[#6D28D9]/20 transition-all active:scale-[0.98]"
+                className="w-full bg-cyan-400 hover:bg-cyan-300 text-slate-900 py-5 rounded-2xl font-black text-xs md:text-sm uppercase tracking-[0.2em] shadow-[0_0_30px_rgba(34,211,238,0.3)] transition-all active:scale-[0.98]"
               >
-                Pay Securely
+                Execute Secure Payment
               </button>
 
-              <div className="flex items-center justify-center gap-2 pt-4">
-                <ShieldCheck className="w-4 h-4 text-[#64748B]" />
-                <span className="text-[10px] text-[#64748B] font-bold uppercase tracking-widest">PCI-DSS Compliant • 256-bit SSL</span>
+              <div className="flex items-center justify-center gap-2 pt-2">
+                <ShieldCheck className="w-3.5 h-3.5 text-slate-600" />
+                <span className="text-[8px] text-slate-600 font-black uppercase tracking-widest">PCI-DSS COMPLIANT • QUANTUM ENCRYPTED</span>
               </div>
             </div>
           </div>
 
-          <div className="bg-[#F8FAFC] px-8 py-4 border-t border-[#E5E7EB]">
-            <div className="flex justify-between items-center text-[10px] font-bold text-[#64748B] uppercase tracking-wider">
-              <span>Transaction ID</span>
-              <span>TXN_{Math.floor(Math.random() * 1000000)}</span>
+          <div className="bg-white/[0.02] px-8 py-4 border-t border-white/10">
+            <div className="flex justify-between items-center text-[8px] font-black text-slate-600 uppercase tracking-[0.2em]">
+              <span>Sequence ID</span>
+              <span className="font-mono text-slate-500">TXN_{Math.floor(Math.random() * 1000000)}</span>
             </div>
           </div>
         </motion.div>

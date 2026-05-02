@@ -1,33 +1,28 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-@theme {
-  --color-primary: #0F172A;
-  --color-secondary: #64748B;
-  --color-muted: #94A3B8;
-  --color-accent: #2563EB;
-  --color-accent-hover: #1D4ED8;
-  --color-bg-page: #F8FAFC;
-  --color-border-default: #E2E8F0;
-  --color-border-hover: #CBD5F5;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+/* Base Styles */
+:root {
+  background-color: #030014;
+  color: #f1f5f9;
 }
 
 body {
-  background-color: #F8FAFC;
-  color: #0F172A;
+  margin: 0;
+  padding: 0;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  background: 
+    radial-gradient(circle at 20% 20%, #06b6d4 0%, transparent 40%),
+    radial-gradient(circle at 80% 80%, #8b5cf6 0%, transparent 40%),
+    #030014;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Force Light Mode Global Background */
 #root {
-  background-color: #F8FAFC;
-  min-h-screen: 100vh;
-}
-
-/* Remove Dark Mode Classes and Gradients */
-.dark body, .dark #root, .dark .glass, .dark ::-webkit-scrollbar-thumb {
-  background-color: #F8FAFC !important;
-  color: #0F172A !important;
+  min-height: 100vh;
 }
 
 /* Custom Scrollbar */
@@ -36,14 +31,28 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.01);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #E2E8F0;
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #CBD5E1;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Toast Modernization */
+.hot-toast-cyber {
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 10px;
+  padding: 1rem 1.5rem;
+  border-radius: 1rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }

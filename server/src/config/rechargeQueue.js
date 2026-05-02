@@ -1,4 +1,4 @@
 import { Queue } from "bullmq";
 import { redis } from "./redis.js";
 
-export const rechargeQueue = new Queue("recharge", { redis });
+export const rechargeQueue = new Queue("recharge", { connection: redis });
