@@ -6,7 +6,8 @@ export const validateRechargeInput = (req, res, next) => {
       "string.pattern.base": "Invalid Indian mobile number"
     }),
     amount: Joi.number().positive().required(),
-    operator: Joi.string().uppercase().valid("JIO", "AIRTEL", "VI", "BSNL").optional(),
+    operatorCode: Joi.alternatives().try(Joi.string(), Joi.number()).required(),
+    operator: Joi.string().optional(),
     circle: Joi.string().allow("Unknown").optional(),
     providerCode: Joi.alternatives().try(Joi.string(), Joi.number()).optional().custom((val) => String(val)),
     type: Joi.string().optional(),

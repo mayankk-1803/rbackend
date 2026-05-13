@@ -22,12 +22,12 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="sticky top-0 z-50 bg-white/50 backdrop-blur-2xl border-b border-slate-200">
+    <nav className="sticky top-0 z-50 bg-white/70 backdrop-blur-lg md:backdrop-blur-2xl border-b border-slate-200">
       <div className="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
         
         {/* Logo */}
         <div className="flex items-center gap-2 group cursor-pointer">
-          <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(6,182,212,0.1)] group-hover:shadow-[0_0_30px_rgba(6,182,212,0.2)] transition-all duration-500">
+          <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-all duration-500">
             <Smartphone className="w-6 h-6 text-white" />
           </div>
           <span className="text-xl font-black text-slate-900 tracking-tighter uppercase italic">Dizipay <span className="text-cyan-600">Vault</span></span>
@@ -51,7 +51,7 @@ const Navbar = () => {
                   <motion.div 
                     layoutId="nav-active"
                     className="absolute inset-0 bg-cyan-500/10 border border-cyan-500/20 rounded-xl -z-10"
-                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                    transition={window.innerWidth > 768 ? { type: "spring", bounce: 0.2, duration: 0.6 } : { duration: 0.2 }}
                   />
                 )}
               </Link>

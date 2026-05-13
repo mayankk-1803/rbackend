@@ -1,8 +1,9 @@
 import express from "express";
 import { auth } from "../middlewares/auth.js";
-import { createOrder, verifyPayment, confirmPayment, paymentWebhook } from "../controllers/paymentController.js";
+import { createOrder, verifyPayment, confirmPayment, paymentWebhook, getPaymentStatus } from "../controllers/paymentController.js";
 import { idempotencyMiddleware } from "../middlewares/idempotency.js";
 import { validatePaymentInput } from "../middlewares/validateInput.js";
+import { paymentStatusLimiter } from "../middlewares/rateLimiter.js";
 
 const router = express.Router();
 
@@ -39,6 +40,9 @@ const router = express.Router();
  *         description: Webhook processed
  */
 router.post("/webhook", paymentWebhook);
+
+// Payment Status API for Success Page
+router.get("/status/:orderId", auth, paymentStatusLimiter, getPaymentStatus);
 
 router.use(auth);
 

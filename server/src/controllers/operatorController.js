@@ -6,22 +6,15 @@ export const getOperator = async (req, res) => {
 
     // Validate mobile number
     if (!mobile || !/^[6-9]\d{9}$/.test(mobile)) {
-      return res.status(400).json({ success: false, message: "Invalid Indian mobile number" });
+      return res.json({ success: false, message: "Invalid Indian mobile number format", fallback: true });
     }
 
-    const operatorInfo = await detectOperator(mobile);
+    const result = await detectOperator(mobile);
 
-    res.json({
-      success: true,
-      data: {
-        operator: operatorInfo?.operator || "Unknown",
-        circle: operatorInfo?.circle || "Unknown",
-        logo: operatorInfo?.logo || "",
-        source: operatorInfo?.source || "fallback",
-      }
-    });
+    // Pass the result directly since the service now formats it properly
+    res.json(result);
   } catch (error) {
     console.error("[Operator Error]:", error);
-    res.json({ success: true, data: { operator: "Unknown", circle: "Unknown", logo: "", source: "error_fallback" } });
+    res.json({ success: false, message: "Operator detection failed", fallback: true });
   }
 };

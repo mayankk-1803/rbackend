@@ -4,6 +4,7 @@ import { API_ROUTES } from '../api/routes';
 import { Smartphone, Wallet, Search, Filter, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatAmount, safeArray, safeValue } from '../utils/helpers';
+import socket from '../services/socket';
 
 export default function TransactionHistory() {
   const [transactions, setTransactions] = useState([]);
@@ -23,6 +24,18 @@ export default function TransactionHistory() {
 
   useEffect(() => {
     fetchHistory();
+
+    const handleUpdate = () => fetchHistory();
+
+    socket.on("recharge_success", handleUpdate);
+    socket.on("recharge_failed", handleUpdate);
+    socket.on("wallet_updated", handleUpdate);
+
+    return () => {
+      socket.off("recharge_success", handleUpdate);
+      socket.off("recharge_failed", handleUpdate);
+      socket.off("wallet_updated", handleUpdate);
+    };
   }, [fetchHistory]);
 
   const filteredHistory = safeArray(transactions).filter(txn => 

@@ -17,18 +17,28 @@ export const Login = () => {
     
     setLoading(true);
     try {
-      const res = await api.post('/auth/login', { email, password }, {
+      const res = await api.post('/auth/login-email', { email, password }, {
         headers: { 'x-admin-request': 'true' }
       });
-      const { token, user } = res.data;
       
-      localStorage.setItem('adminToken', token);
-      localStorage.setItem('user', JSON.stringify(user));
+      console.log("LOGIN RESPONSE:", res.data);
       
-      toast.success('Admin authenticated', {
-        className: 'hot-toast-cyber'
-      });
-      window.location.href = "/";
+      if (res.data.success && res.data.token) {
+        const { token, user } = res.data;
+
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        
+        console.log("TOKEN SAVED:", localStorage.getItem("token"));
+
+        toast.success('Admin authenticated', {
+          className: 'hot-toast-cyber'
+        });
+        
+        window.location.href = "/admin/";
+      } else {
+        throw new Error(res.data.message || "Admin authentication failed");
+      }
     } catch(err) {
       toast.error(err.response?.data?.message || 'Authentication failed', {
         className: 'hot-toast-cyber'

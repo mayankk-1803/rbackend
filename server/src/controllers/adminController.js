@@ -17,22 +17,63 @@ export const getDashboard = async (req, res) => {
     }
     
     const stats = await prisma.transaction.aggregate({
-      where: { status: "SUCCESS" },
+      where: { 
+        status: "SUCCESS",
+        type: { in: ["RECHARGE", "BILL_PAYMENT"] } 
+      },
       _sum: {
         commission: true,
-        cashback: true
+        cashback: true,
+        profit: true
       }
     });
+
+    const coinStats = await prisma.coinTransaction.groupBy({
+      by: ['type'],
+      _sum: { amount: true }
+    });
+
+    let totalCoinsIssued = 0;
+    let totalCoinsRedeemed = 0;
+
+    coinStats.forEach(stat => {
+      if (stat.type === 'EARNED') totalCoinsIssued = stat._sum.amount || 0;
+      if (stat.type === 'REDEEMED') totalCoinsRedeemed = stat._sum.amount || 0;
+    });
+
+    const refundCount = await prisma.transaction.count({ where: { type: "REFUND" } });
+    
+    // Get Provider Metrics
+    const providers = await prisma.provider.findMany({
+      select: {
+        name: true,
+        healthStatus: true,
+        avgResponseTime: true,
+        successRate: true,
+        code: true
+      }
+    });
+
+    const apibox = providers.find(p => p.code === 'APIBOX');
 
     const data = {
       totalUsers,
       totalTransactions,
       failureCount,
       pendingCount,
+      refundCount,
       fraudAlerts,
       successRate,
-      totalRevenue: stats._sum.commission || 0,
-      totalCashback: stats._sum.cashback || 0
+      totalRevenue: Number(stats._sum.profit || 0),
+      totalCashback: Number(stats._sum.cashback || 0),
+      totalCoinsIssued,
+      totalCoinsRedeemed,
+      providers,
+      apiboxMetrics: {
+        health: apibox?.healthStatus || "UNKNOWN",
+        responseTime: apibox?.avgResponseTime || 0,
+        successRate: apibox?.successRate || 0
+      }
     };
 
     res.json({ success: true, message: "Admin dashboard fetched", data });
@@ -144,7 +185,21 @@ export const getTransactions = async (req, res) => {
 export const getProviders = async (req, res) => {
   try {
     const providers = await prisma.provider.findMany();
-    res.json({ success: true, data: providers });
+    
+    // Simulate/Fetch balances for each provider
+    const enhancedProviders = await Promise.all(providers.map(async (p) => {
+       const failureCount = await prisma.transaction.count({
+         where: { provider: p.code, status: "FAILED" }
+       });
+       
+       return {
+         ...p,
+         failureCount,
+         balance: p.balance || 0 // Use DB balance or fetch via service
+       };
+    }));
+
+    res.json({ success: true, data: enhancedProviders });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -239,11 +294,11 @@ export const getCharts = async (req, res) => {
     const revenueData = await prisma.transaction.findMany({
       where: {
         status: "SUCCESS",
-        type: "RECHARGE",
+        type: { in: ["RECHARGE", "BILL_PAYMENT"] },
         createdAt: { gte: last7Days }
       },
       select: {
-        amount: true,
+        profit: true,
         createdAt: true
       }
     });
@@ -251,7 +306,7 @@ export const getCharts = async (req, res) => {
     const dailyRevenueMap = {};
     revenueData.forEach(txn => {
       const date = txn.createdAt.toISOString().split('T')[0];
-      dailyRevenueMap[date] = (dailyRevenueMap[date] || 0) + Number(txn.amount);
+      dailyRevenueMap[date] = (dailyRevenueMap[date] || 0) + Number(txn.profit || 0);
     });
 
     const dailyRevenue = Object.entries(dailyRevenueMap).map(([date, revenue]) => ({

@@ -1,0 +1,124 @@
+{
+  "version": "1.0.0",
+  "baseUrl": "https://rchserver.irecharge.in/api/v1/dev",
+  "authentication": {
+    "type": "API Key",
+    "headers": {
+      "x-api-key": "Your API Key (ak_... or dp_...)"
+    }
+  },
+  "endpoints": [
+    {
+      "id": "operator-detect",
+      "group": "Recharge",
+      "name": "Detect Operator",
+      "method": "GET",
+      "path": "/operator/{mobile}",
+      "description": "Automatically detect the mobile operator for a given Indian mobile number.",
+      "params": [
+        { "name": "mobile", "type": "string", "required": true, "description": "10-digit mobile number" }
+      ],
+      "responses": {
+        "success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "operator": "JIO",
+            "message": "Operator detected"
+          }
+        }
+      }
+    },
+    {
+      "id": "get-plans",
+      "group": "Recharge",
+      "name": "Fetch Plans",
+      "method": "GET",
+      "path": "/plans",
+      "description": "Fetch available recharge plans for a specific operator.",
+      "query": [
+        { "name": "mobile", "type": "string", "required": true, "description": "10-digit mobile number" },
+        { "name": "operatorCode", "type": "string", "required": true, "description": "Apibox Operator ID (1: AIRTEL, 2: VI, 5: JIO, etc.)" },
+        { "name": "circle", "type": "string", "required": true, "description": "Circle name (e.g., Delhi, UP East)" }
+      ],
+      "responses": {
+        "success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "data": [
+              { "amount": 10, "validity": "Unlimited", "description": "Top-up" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "initiate-recharge",
+      "group": "Recharge",
+      "name": "Initiate Recharge",
+      "method": "POST",
+      "path": "/recharge",
+      "description": "Initiate a mobile recharge transaction using wallet balance.",
+      "headers": [
+        { "name": "x-idempotency-key", "type": "string", "required": true, "description": "Unique key to prevent duplicate transactions" }
+      ],
+      "body": {
+        "mobile": "98********",
+        "operatorCode": "1",
+        "amount": 10
+      },
+      "responses": {
+        "success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Recharge initiated",
+            "data": { "transactionId": 123, "newBalance": 450.00 }
+          }
+        },
+        "error": {
+          "status": 400,
+          "body": { "success": false, "message": "Insufficient wallet balance" }
+        }
+      }
+    },
+    {
+      "id": "wallet-balance",
+      "group": "Wallet",
+      "name": "Get Balance",
+      "method": "GET",
+      "path": "/wallet",
+      "description": "Fetch current wallet and cashback balance for the authenticated user.",
+      "responses": {
+        "success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "data": { "balance": 500.50, "currency": "INR" }
+          }
+        }
+      }
+    },
+    {
+      "id": "txn-status",
+      "group": "Status",
+      "name": "Transaction Status",
+      "method": "GET",
+      "path": "/status/{id}",
+      "description": "Check the status of a specific recharge or top-up transaction.",
+      "params": [
+        { "name": "id", "type": "integer", "required": true, "description": "Internal Transaction ID" }
+      ],
+      "responses": {
+        "success": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "data": { "status": "SUCCESS", "amount": 10.00, "mobile": "98********" }
+          }
+        }
+      }
+    }
+  ]
+}

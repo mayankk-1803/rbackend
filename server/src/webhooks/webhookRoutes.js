@@ -1,83 +1,28 @@
 import express from "express";
 import eventBus from "../config/eventBus.js";
 import prisma from "../config/prisma.js";
+import { handleApiboxCallback } from "./rechargeWebhookController.js";
+import { rechargeQueue } from "../services/rechargeService.js";
+import { paymentWebhook } from "../controllers/paymentController.js";
+import { webhookLimiter } from "../middlewares/rateLimiter.js";
 
 const router = express.Router();
 
-router.post("/nexgate", async (req, res) => {
-  console.log("🔥 Webhook HIT:", req.body);
+// Apply webhook limiter to all routes in this router
+router.use(webhookLimiter);
 
-  const { order_id, status } = req.body;
-
-  const txn = await prisma.transaction.findUnique({
-    where: { gatewayTxnId: order_id }
-  });
-
-  if (!txn) {
-    console.log("❌ Transaction not found");
-    return res.sendStatus(404);
-  }
-
-  if (status === "SUCCESS" && txn.status !== "SUCCESS") {
-    const result = await prisma.$transaction(async (tx) => {
-      // Update transaction
-      const updatedTxn = await tx.transaction.update({
-        where: { id: txn.id },
-        data: { status: "SUCCESS" }
-      });
-
-      // Update wallet
-      const updatedWallet = await tx.wallet.upsert({
-        where: { userId: txn.userId },
-        create: {
-          userId: txn.userId,
-          balance: txn.amount,
-          cashbackBalance: 0
-        },
-        update: {
-          balance: { increment: txn.amount }
-        }
-      });
-
-      return { updatedTxn, updatedWallet };
-    });
-
-    console.log("Wallet credited");
-
-    // 🔥 EVENT BUS EMIT: WALLET UPDATE
-    eventBus.emit("wallet_update", {
-      userId: result.updatedWallet.userId,
-      walletBalance: result.updatedWallet.balance,
-      cashbackBalance: result.updatedWallet.cashbackBalance
-    });
-
-    eventBus.emit("wallet_updated", { userId: txn.userId.toString() });
-
-    // 🔥 EVENT BUS EMIT: TRANSACTION UPDATE
-    eventBus.emit("recharge_update", {
-      txnId: txn.id,
-      status: "SUCCESS",
-      transaction: result.updatedTxn
-    });
-  }
-
-  if (status === "FAILED") {
-    const updatedTxn = await prisma.transaction.update({
-      where: { id: txn.id },
-      data: { status: "FAILED" }
-    });
-
-    console.log("Payment failed");
-
-    // 🔥 EVENT BUS EMIT: TRANSACTION UPDATE
-    eventBus.emit("recharge_update", {
-      txnId: txn.id,
-      status: "FAILED",
-      transaction: updatedTxn
-    });
-  }
-
-  res.json({ ok: true });
+// Debug: Log all incoming webhook attempts
+router.use((req, res, next) => {
+  console.log(`[WEBHOOK ATTEMPT] ${req.method} ${req.originalUrl}`);
+  console.log(`[WEBHOOK HEADERS]`, JSON.stringify(req.headers));
+  next();
 });
 
-export default router;
+// Apibox callback support (GET & POST)
+router.get("/apibox", handleApiboxCallback);
+router.post("/apibox", handleApiboxCallback);
+
+// NexGate Webhook - Use hardened controller logic
+router.post("/nexgate", paymentWebhook);
+
+export default router;

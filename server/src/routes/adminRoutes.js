@@ -16,6 +16,11 @@ import {
   getAdminWallet,
   getUsers
 } from "../controllers/adminController.js";
+import { 
+  getAdminWalletStats, 
+  initiateAdminTopup, 
+  verifyAdminTopup 
+} from "../controllers/adminWalletController.js";
 
 const router = express.Router();
 
@@ -34,5 +39,10 @@ router.get("/charts", getCharts);
 router.post("/compare-recharge", compareRecharge);
 router.post("/topup", topUpWallet);
 router.get("/wallet", getAdminWallet);
+
+// New Modular Wallet Routes
+router.get("/wallet/stats", getAdminWalletStats);
+router.post("/wallet/topup", initiateAdminTopup);
+router.get("/wallet/verify/:orderId", verifyAdminTopup);
 
 export default router;

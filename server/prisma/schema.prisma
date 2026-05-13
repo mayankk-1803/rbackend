@@ -21,7 +21,7 @@ model auditlog {
   @@index([userId])
 }
 
-model commissionrule {
+model commissionRule {
   id                Int      @id @default(autoincrement())
   operator          String
   userTier          String   @default("Standard")
@@ -69,6 +69,8 @@ model payment {
   intent          payment_intent
   gatewayTxnId    String?
   errorMessage    String?
+  gatewayUrl      String?        @db.Text
+  qrCode          String?        @db.Text
   webhookReceived Boolean        @default(false)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -91,6 +93,7 @@ model provider {
   successRate     Float                 @default(100)
   costPerTxn      Decimal               @default(0) @db.Decimal(10, 2)
   healthStatus    provider_healthStatus @default(HEALTHY)
+  lastCheckAt     DateTime?
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
 
@@ -135,10 +138,12 @@ model transaction {
   retryCount     Int                    @default(0)
   lastRetryAt    DateTime?
   isLocked       Boolean                @default(false)
+  description    String?                @db.VarChar(255)
   createdAt      DateTime               @default(now())
   updatedAt      DateTime               @updatedAt
   recharge       recharge?
   user           user                   @relation(fields: [userId], references: [id])
+  coinTransactions coinTransaction[]
 
   @@index([status])
   @@index([type])
@@ -148,10 +153,12 @@ model transaction {
 model user {
   id               Int       @id @default(autoincrement())
   name             String?
-  email            String    @unique
+  email            String?   @unique
   password         String
   phone            String?   @unique
   isPhoneVerified  Boolean   @default(false)
+  isEmailVerified  Boolean   @default(false)
+  authType         String    @default("phone") // phone or email
   role             user_role @default(user)
   referralCode     String?   @unique
   referredBy       Int?
@@ -161,11 +168,14 @@ model user {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  auditlog    auditlog[]
-  fraudlog    fraudlog[]
-  payment     payment[]
-  transaction transaction[]
-  wallet      wallet?
+  apiKeys         apiKey[]
+  apiLogs         apiLog[]
+  auditlog        auditlog[]
+  fraudlog        fraudlog[]
+  payment         payment[]
+  transaction     transaction[]
+  coinTransaction coinTransaction[]
+  wallet          wallet?
 
   user        user?  @relation("userToUser", fields: [referredBy], references: [id])
   other_user  user[] @relation("userToUser")
@@ -173,6 +183,41 @@ model user {
   @@index([email])
   @@index([phone])
   @@index([referredBy])
+}
+
+model apiKey {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  clientId      String   @unique
+  apiKey        String   @unique
+  apiSecret     String   @unique
+  webhookSecret String?
+  isActive      Boolean  @default(true)
+  lastUsedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          user     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model apiLog {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  endpoint     String
+  method       String
+  statusCode   Int
+  latency      Int
+  ipAddress    String?
+  userAgent    String?
+  requestBody  Json?
+  responseBody Json?
+  createdAt    DateTime @default(now())
+
+  user         user     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model OTP {
@@ -183,6 +228,7 @@ model OTP {
   createdAt DateTime @default(now())
 
   @@index([phone])
+  @@index([expiresAt])
 }
 
 model wallet {
@@ -190,12 +236,29 @@ model wallet {
   userId          Int      @unique
   balance         Decimal  @default(0) @db.Decimal(10, 2)
   cashbackBalance Decimal  @default(0) @db.Decimal(10, 2)
+  coinBalance     Int      @default(0)
   currency        String   @default("INR")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   user            user     @relation(fields: [userId], references: [id])
 
   @@index([userId])
+}
+
+model coinTransaction {
+  id            Int                  @id @default(autoincrement())
+  userId        Int
+  amount        Int
+  type          coinTransaction_type
+  description   String?
+  rechargeTxnId Int?
+  rechargeTxn   transaction?          @relation(fields: [rechargeTxnId], references: [id])
+  createdAt     DateTime             @default(now())
+  user          user                 @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@unique([rechargeTxnId, type])
 }
 
 enum payment_status {
@@ -211,6 +274,8 @@ enum transaction_type {
   CASHBACK
   REFERRAL
   WALLET
+  BILL_PAYMENT
+  POSTPAID
 }
 
 enum fraudlog_actionTaken {
@@ -243,4 +308,9 @@ enum provider_healthStatus {
   HEALTHY
   DEGRADED
   DOWN
+}
+
+enum coinTransaction_type {
+  EARNED
+  REDEEMED
 }

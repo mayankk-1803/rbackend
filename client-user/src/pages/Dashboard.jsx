@@ -1,8 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { motion } from 'framer-motion';
 import { Wallet, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownLeft, Clock, ShieldCheck, Zap, ChevronRight, Activity } from 'lucide-react';
 import api from '../api';
 import { formatAmount, safeArray, safeValue } from '../utils/helpers';
+import socket from '../services/socket';
+
+const StatCard = memo(({ title, value, icon: Icon, color, subtitle, trend }) => (
+  <motion.div 
+    whileHover={window.innerWidth > 768 ? { y: -8, backgroundColor: 'rgba(255,255,255,1)' } : {}}
+    className="bg-white/70 backdrop-blur-lg md:backdrop-blur-2xl border border-slate-200 p-4 md:p-6 rounded-3xl shadow-xl relative overflow-hidden group transition-all"
+  >
+    <div className="flex justify-between items-start mb-4 md:mb-6">
+      <div className={`p-3 md:p-4 rounded-xl md:rounded-2xl ${color} shadow-sm`}>
+        <Icon className="w-5 h-5 md:w-6 md:h-6" />
+      </div>
+      {trend && (
+        <span className="text-[8px] md:text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 md:px-3 py-0.5 md:py-1 rounded-full border border-emerald-100 shadow-sm">+{trend}%</span>
+      )}
+    </div>
+    <h3 className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 md:mb-2">{title}</h3>
+    <p className="text-xl md:text-3xl font-black text-slate-900 tracking-tighter">₹{formatAmount(value)}</p>
+    {subtitle && <p className="text-[8px] md:text-[10px] text-slate-400 font-bold uppercase tracking-tighter mt-3 md:mt-4">{subtitle}</p>}
+    
+    <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-white/5 rounded-full blur-3xl group-hover:bg-white/10 transition-all duration-700"></div>
+  </motion.div>
+));
 
 export default function Dashboard() {
   const [wallet, setWallet] = useState(null);
@@ -50,6 +72,21 @@ export default function Dashboard() {
   useEffect(() => {
     fetchWallet();
     fetchStats();
+
+    const handleUpdate = () => {
+      fetchWallet();
+      fetchStats();
+    };
+
+    socket.on("wallet_updated", handleUpdate);
+    socket.on("recharge_success", handleUpdate);
+    socket.on("recharge_failed", handleUpdate);
+
+    return () => {
+      socket.off("wallet_updated", handleUpdate);
+      socket.off("recharge_success", handleUpdate);
+      socket.off("recharge_failed", handleUpdate);
+    };
   }, []);
 
   const handleReferral = () => {
@@ -58,27 +95,6 @@ export default function Dashboard() {
     navigator.clipboard.writeText(link);
     alert("Referral link copied!");
   };
-
-  const StatCard = ({ title, value, icon: Icon, color, subtitle, trend }) => (
-    <motion.div 
-      whileHover={{ y: -8, backgroundColor: 'rgba(255,255,255,1)' }}
-      className="bg-white/70 backdrop-blur-2xl border border-slate-200 p-4 md:p-6 rounded-3xl shadow-xl relative overflow-hidden group transition-all"
-    >
-      <div className="flex justify-between items-start mb-4 md:mb-6">
-        <div className={`p-3 md:p-4 rounded-xl md:rounded-2xl ${color} shadow-sm`}>
-          <Icon className="w-5 h-5 md:w-6 md:h-6" />
-        </div>
-        {trend && (
-          <span className="text-[8px] md:text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 md:px-3 py-0.5 md:py-1 rounded-full border border-emerald-100 shadow-sm">+{trend}%</span>
-        )}
-      </div>
-      <h3 className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 md:mb-2">{title}</h3>
-      <p className="text-xl md:text-3xl font-black text-slate-900 tracking-tighter">₹{formatAmount(value)}</p>
-      {subtitle && <p className="text-[8px] md:text-[10px] text-slate-400 font-bold uppercase tracking-tighter mt-3 md:mt-4">{subtitle}</p>}
-      
-      <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-white/5 rounded-full blur-3xl group-hover:bg-white/10 transition-all duration-700"></div>
-    </motion.div>
-  );
 
   return (
     <motion.div 
@@ -130,18 +146,18 @@ export default function Dashboard() {
           trend="18"
         />
         <StatCard 
-          title="Reward Points" 
-          value={wallet?.cashbackBalance} 
+          title="Earned Coins" 
+          value={wallet?.coinBalance} 
           icon={Zap} 
-          color="bg-purple-50 text-purple-600"
-          subtitle="Cumulative yield"
+          color="bg-amber-50 text-amber-600"
+          subtitle="50 coins = ₹1"
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Recent Activity */}
         <div className="lg:col-span-8 space-y-6">
-          <div className="bg-white/70 backdrop-blur-2xl border border-slate-200 rounded-[2.5rem] overflow-hidden shadow-xl relative">
+          <div className="bg-white/70 backdrop-blur-lg md:backdrop-blur-2xl border border-slate-200 rounded-[2.5rem] overflow-hidden shadow-xl relative">
             <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <div className="flex items-center gap-3">
                 <Clock className="w-5 h-5 text-cyan-600" />
@@ -192,7 +208,7 @@ export default function Dashboard() {
                        {safeValue(txn.status)}
                      </p>
                    </div>
-                </motion.div>
+                 </motion.div>
               )) : (
                  <div className="py-20 text-center bg-slate-50/50 rounded-3xl border border-slate-100 border-dashed">
                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No spectral signatures detected</p>
@@ -205,7 +221,7 @@ export default function Dashboard() {
         {/* Sidebar */}
         <div className="lg:col-span-4 space-y-8">
           <motion.div 
-            whileHover={{ scale: 1.02 }}
+            whileHover={window.innerWidth > 768 ? { scale: 1.02 } : {}}
             className="bg-gradient-to-br from-indigo-600 to-purple-700 text-white p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden group"
           >
             <div className="relative z-10">
@@ -224,7 +240,7 @@ export default function Dashboard() {
             <div className="absolute -right-12 -bottom-12 w-48 h-48 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all duration-700"></div>
           </motion.div>
 
-          <div className="bg-white/70 backdrop-blur-2xl border border-slate-200 p-8 rounded-[2.5rem] shadow-xl">
+          <div className="bg-white/70 backdrop-blur-lg md:backdrop-blur-2xl border border-slate-200 p-8 rounded-[2.5rem] shadow-xl">
             <div className="flex items-center justify-between mb-8">
               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Spectral Analysis</h3>
               <Activity className="w-4 h-4 text-cyan-600" />

@@ -15,6 +15,7 @@ export const Tester = () => {
   const [selectedForCompare, setSelectedForCompare] = useState([]);
   const [compareResults, setCompareResults] = useState(null);
   const [amount, setAmount] = useState('10');
+  const [operator, setOperator] = useState('Jio');
   const [isTestMode, setIsTestMode] = useState(true);
   const [showAll, setShowAll] = useState(false);
   
@@ -74,7 +75,7 @@ export const Tester = () => {
       const { data } = await api.post('/recharge', {
         mobile: mobileNumber,
         amount: Number(amount),
-        operator: 'Jio',
+        operator: operator,
         testProviders: selectedProviders.length > 0 ? selectedProviders : undefined
       });
       
@@ -193,20 +194,35 @@ export const Tester = () => {
                   value={mobileNumber}
                   onChange={(e) => setMobileNumber(e.target.value.replace(/[^0-9]/g, ''))}
                   maxLength={10}
-                  placeholder="9876543210"
+                  placeholder="98********"
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold tracking-widest outline-none focus:ring-2 focus:ring-cyan-500/10 focus:border-cyan-500 transition-all placeholder:text-slate-300"
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount (₹)</label>
-                <input 
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="10"
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 transition-all placeholder:text-slate-300"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount (₹)</label>
+                  <input 
+                    type="number"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="10"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 transition-all placeholder:text-slate-300"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Operator</label>
+                  <select 
+                    value={operator}
+                    onChange={(e) => setOperator(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold outline-none focus:ring-2 focus:ring-cyan-500/10 focus:border-cyan-500 transition-all"
+                  >
+                    <option value="Jio">Jio</option>
+                    <option value="Airtel">Airtel</option>
+                    <option value="VI">VI</option>
+                    <option value="BSNL">BSNL</option>
+                  </select>
+                </div>
               </div>
 
               <div className="space-y-4 pt-4">

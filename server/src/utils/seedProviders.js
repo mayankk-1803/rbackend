@@ -21,7 +21,7 @@ export const seedProviders = async () => {
     await prisma.provider.createMany({
       data: dummyProviders
     });
-    console.log("✅ 10 Providers seeded successfully");
+    console.log(" 10 Providers seeded successfully");
   } catch (error) {
     console.error("Error seeding providers:", error);
   }

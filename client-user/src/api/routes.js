@@ -14,4 +14,7 @@ export const API_ROUTES = {
     CREATE: "/recharge",
     STATUS: (id) => `/recharge/status/${id}`,
   },
+  PAYMENT: {
+    VERIFY_STATUS: (id) => `/payment/status/${id}`,
+  },
 };

@@ -9,7 +9,7 @@ import {
   Server,
   Zap,
   LogOut,
-  FileText,
+  Code2,
   ChevronRight,
   X
 } from 'lucide-react';
@@ -18,18 +18,22 @@ const navItems = [
   { name: 'Dashboard', path: '/', icon: LayoutDashboard },
   { name: 'Tester', path: '/tester', icon: Smartphone },
   { name: 'Transactions', path: '/transactions', icon: Wallet },
+  { name: 'Wallet', path: '/wallet', icon: Zap },
   { name: 'Alerts', path: '/alerts', icon: Bell },
   { name: 'Providers', path: '/providers', icon: Server },
-  { name: 'API Docs', path: '/api-docs', icon: FileText },
+  { name: 'Developer Hub', path: '/api-docs', icon: Code2 },
 ];
 
 export const Sidebar = ({ isOpen, setIsOpen }) => {
   const location = useLocation();
 
   const handleLogout = () => {
-    localStorage.removeItem('adminToken');
+    if (import.meta.env.DEV) {
+      console.log(" [Logout] Clearing session...");
+    }
+    localStorage.removeItem('token');
     localStorage.removeItem('user');
-    window.location.href = '/login';
+    window.location.href = '/admin/login';
   };
 
   return (

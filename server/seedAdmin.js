@@ -1,56 +1,36 @@
-import bcrypt from 'bcryptjs';
-import dotenv from 'dotenv';
-import prisma from './src/config/prisma.js';
+import bcrypt from "bcryptjs";
+import prisma from "./src/config/prisma.js";
 
-dotenv.config();
+const run = async () => {
+  try {
+    console.log("Preparing fresh admin user...");
+    const hashedPassword = await bcrypt.hash("123456", 10);
+    const email = "admin@dizipay.com";
 
-const seedAdmin = async () => {
-    try {
-        console.log("Connecting to MySQL via Prisma...");
+    // Use upsert to avoid foreign key constraint errors while ensuring fresh credentials
+    const admin = await prisma.user.upsert({
+      where: { email: email },
+      update: {
+        password: hashedPassword,
+        role: "admin",
+        name: "Admin"
+      },
+      create: {
+        name: "Admin",
+        email: email,
+        password: hashedPassword,
+        role: "admin"
+      }
+    });
 
-        const adminEmail = process.env.ADMIN_EMAIL || 'admin@dizipay.com';
-        const adminPass = process.env.ADMIN_PASSWORD || '123456';
+    console.log("ADMIN CREATED/UPDATED SUCCESSFULLY");
+    console.log({ id: admin.id, email: admin.email, role: admin.role });
 
-        // Check if admin already exists
-        const existingAdmin = await prisma.user.findUnique({
-            where: { email: adminEmail }
-        });
-
-        if (existingAdmin) {
-            console.log("Admin user already exists. Updating role...");
-            await prisma.user.update({
-                where: { email: adminEmail },
-                data: { role: 'admin' }
-            });
-            console.log("Admin role updated.");
-        } else {
-            const hash = await bcrypt.hash(adminPass, 10);
-            const admin = await prisma.user.create({
-                data: {
-                    name: "System Admin",
-                    email: adminEmail,
-                    password: hash,
-                    role: 'admin',
-                    referralCode: 'ADMIN',
-                    wallet: {
-                        create: {
-                            balance: 10000,
-                            cashbackBalance: 0
-                        }
-                    }
-                }
-            });
-
-            console.log("Admin user created with ID:", admin.id);
-            console.log("Admin wallet initialized with ₹10,000");
-        }
-
-        console.log("Seeding completed successfully.");
-        process.exit(0);
-    } catch (err) {
-        console.error("Seeding failed:", err);
-        process.exit(1);
-    }
+    process.exit(0);
+  } catch (err) {
+    console.error("SEED ERROR:", err);
+    process.exit(1);
+  }
 };
 
-seedAdmin();
+run();

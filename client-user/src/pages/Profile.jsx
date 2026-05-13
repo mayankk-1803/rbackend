@@ -1,16 +1,48 @@
 import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { User, Settings, LogOut, ShieldCheck, HelpCircle, ChevronRight, Edit2, Camera } from 'lucide-react';
+import { User, Settings, LogOut, ShieldCheck, HelpCircle, ChevronRight, Edit2, Camera, Code2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
 import axios from 'axios';
+import socket from '../services/socket';
 
 export default function Profile() {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || { name: 'User Account', phone: '+91 9876543210' });
+  const [wallet, setWallet] = useState({ coinBalance: 0 });
   const [isEditing, setIsEditing] = useState(false);
   const [newName, setNewName] = useState(user.name || '');
   const [uploading, setUploading] = useState(false);
+  const [redeeming, setRedeeming] = useState(false);
   const fileInputRef = useRef(null);
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    const fetchWallet = () => {
+      api.get("/wallet").then(res => setWallet(res.data.wallet)).catch(console.error);
+    };
+    fetchWallet();
+
+    const handleCoinsAwarded = (data) => {
+      setWallet(prev => {
+        if (!prev) return { coinBalance: data.newBalance };
+        return { ...prev, coinBalance: data.newBalance };
+      });
+    };
+
+    const handleWalletUpdate = () => {
+      fetchWallet();
+    };
+    
+    socket.on('earned_coins_awarded', handleCoinsAwarded);
+    socket.on('wallet_updated', handleWalletUpdate);
+
+    return () => {
+      socket.off('earned_coins_awarded', handleCoinsAwarded);
+      socket.off('wallet_updated', handleWalletUpdate);
+    };
+  }, []);
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -20,8 +52,9 @@ export default function Profile() {
 
   const menuItems = [
     { icon: Settings, label: 'Account Settings', action: () => setIsEditing(true) },
-    { icon: ShieldCheck, label: 'Security & Privacy', action: () => toast('Coming soon!', { icon: '🔒' }) },
-    { icon: HelpCircle, label: 'Help & Support', action: () => toast('Coming soon!', { icon: '🎧' }) },
+    { icon: Code2, label: 'Developer Portal', action: () => navigate('/developer') },
+    { icon: ShieldCheck, label: 'Security & Privacy', action: () => navigate('/profile/security') },
+    { icon: HelpCircle, label: 'Help & Support', action: () => navigate('/profile/support') },
     { icon: LogOut, label: 'Log Out', textDanger: true, action: handleLogout }
   ];
 
@@ -62,6 +95,8 @@ export default function Profile() {
       setUploading(false);
     }
   };
+
+
 
   return (
     <motion.div 
@@ -142,15 +177,23 @@ export default function Profile() {
           </div>
 
           <div className="space-y-6">
-            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Referral Program</h3>
-            <div className="bg-gradient-to-br from-cyan-50 to-purple-50 border border-cyan-100 p-6 rounded-3xl relative overflow-hidden group">
+            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Earned Coins</h3>
+            <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 p-6 rounded-3xl relative overflow-hidden group">
               <div className="relative z-10 space-y-4">
-                <div>
-                  <p className="text-[10px] font-black text-cyan-600 uppercase tracking-widest mb-1">Your Earnings</p>
-                  <h4 className="text-3xl font-black text-slate-900">₹{user.cashbackBalance || '0.00'}</h4>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">Your Coins</p>
+                    <h4 className="text-3xl font-black text-slate-900">{wallet.coinBalance || 0}</h4>
+                  </div>
+                  <button 
+                    onClick={() => navigate('/earned-coins')}
+                    className="px-4 py-2 bg-amber-500 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-amber-500/20 hover:bg-amber-600 transition-all"
+                  >
+                    Manage
+                  </button>
                 </div>
                 
-                <div className="p-4 bg-white/50 rounded-2xl border border-slate-100 space-y-3">
+                <div className="p-4 bg-white/50 rounded-2xl border border-amber-100/50 space-y-3">
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Referral Code</p>
                   <div className="flex items-center justify-between">
                     <span className="text-xl font-black text-slate-900 tracking-widest">{user.referralCode || 'DIZIPAY50'}</span>
@@ -159,16 +202,16 @@ export default function Profile() {
                         navigator.clipboard.writeText(user.referralCode || 'DIZIPAY50');
                         toast.success("Code copied!");
                       }}
-                      className="px-4 py-2 bg-slate-100 rounded-lg text-[10px] font-black uppercase hover:bg-slate-200 transition-all text-slate-700"
+                      className="px-4 py-2 bg-amber-100 text-amber-700 rounded-lg text-[10px] font-black uppercase hover:bg-amber-200 transition-all"
                     >
                       Copy
                     </button>
                   </div>
                 </div>
                 
-                <p className="text-[10px] text-slate-500 leading-relaxed font-medium">Earn ₹50 for every friend who completes their first recharge of ₹100 or more.</p>
+                <p className="text-[10px] text-slate-500 leading-relaxed font-medium">Earn 1-2 coins on successful recharges. 50 Coins = ₹1 Wallet Balance.</p>
               </div>
-              <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-cyan-400/5 rounded-full blur-3xl group-hover:bg-cyan-400/10 transition-all duration-700"></div>
+              <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-amber-400/5 rounded-full blur-3xl group-hover:bg-amber-400/10 transition-all duration-700"></div>
             </div>
 
             <div className="p-6 rounded-3xl bg-emerald-50 border border-emerald-100 flex items-center gap-4">

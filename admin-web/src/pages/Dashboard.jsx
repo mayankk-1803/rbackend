@@ -33,6 +33,8 @@ export const Dashboard = () => {
     pendingCount: 0,
     successRate: 0,
     fraudAlerts: 0,
+    totalCoinsIssued: 0,
+    totalCoinsRedeemed: 0,
   });
   const [chartData, setChartData] = useState({ success: 0, pending: 0, failed: 0, dailyRevenue: [] });
   const [loading, setLoading] = useState(true);
@@ -95,13 +97,15 @@ export const Dashboard = () => {
         <p className="text-sm text-slate-500 mt-1 font-medium">Real-time system health and transaction metrics</p>
       </header>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <StatCard index={0} title="Total Users" value={loading ? '...' : stats.totalUsers} />
         <StatCard index={1} title="Revenue" value={loading ? '...' : `₹${stats.totalRevenue.toLocaleString()}`} />
         <StatCard index={2} title="Total Transactions" value={loading ? '...' : stats.totalTransactions} />
-        <StatCard index={3} title="Pending" value={loading ? '...' : stats.pendingCount} />
-        <StatCard index={4} title="Success Rate" value={loading ? '...' : `${stats.successRate}%`} />
-        <StatCard index={5} title="Fraud Alerts" value={loading ? '...' : stats.fraudAlerts} />
+        <StatCard index={3} title="Success Rate" value={loading ? '...' : `${stats.successRate}%`} />
+        <StatCard index={4} title="Earned Coins Issued" value={loading ? '...' : stats.totalCoinsIssued} />
+        <StatCard index={5} title="Earned Coins Redeemed" value={loading ? '...' : stats.totalCoinsRedeemed} />
+        <StatCard index={6} title="Pending" value={loading ? '...' : stats.pendingCount} />
+        <StatCard index={7} title="Fraud Alerts" value={loading ? '...' : stats.fraudAlerts} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mt-6">

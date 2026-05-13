@@ -21,8 +21,7 @@ export const updateWalletBalance = async (userId, amountChange, type, metadata =
       }
     }
 
-    // 2. Row-level locking: SELECT FOR UPDATE
-    await tx.$executeRaw`SELECT * FROM Wallet WHERE userId = ${userId} FOR UPDATE`;
+    // 2. Fetch wallet (Prisma ORM replaces raw SQL, Serializable handles locking)
 
     const wallet = await tx.wallet.findUnique({
       where: { userId }

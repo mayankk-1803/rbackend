@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api';
-import { API_ROUTES } from '../api/routes';
 import toast from 'react-hot-toast';
-import { Phone, Mail, Lock, Loader2, ArrowRight, Smartphone, MessageSquare } from 'lucide-react';
+import { Loader2, ArrowRight, Smartphone, Mail, Lock, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import OTPInput from '../components/OTPInput';
 
 export default function Login() {
+  const [authMethod, setAuthMethod] = useState('phone'); // 'phone' or 'email'
+  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [phone, setPhone] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [confirmationResult, setConfirmationResult] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [isPhoneLogin, setIsPhoneLogin] = useState(true);
   const [timer, setTimer] = useState(0);
   const navigate = useNavigate();
 
@@ -26,7 +26,7 @@ export default function Login() {
   }, [timer]);
 
   const handleSendOTP = async () => {
-    if (phone.length < 10) return toast.error("Enter valid phone number", { className: 'hot-toast-cyber' });
+    if (phone.length < 10) return toast.error("Enter valid phone number");
     
     setLoading(true);
     try {
@@ -34,10 +34,9 @@ export default function Login() {
       await api.post('/auth/send-otp', { phone: formatPhone });
       setConfirmationResult(true);
       setTimer(60);
-      toast.success("OTP sent successfully", { className: 'hot-toast-cyber hot-toast-success' });
+      toast.success("OTP sent successfully");
     } catch (err) {
-      console.error(err);
-      toast.error(err.response?.data?.message || "Failed to send OTP", { className: 'hot-toast-cyber hot-toast-error' });
+      toast.error(err.response?.data?.message || "Failed to send OTP");
     } finally {
       setLoading(false);
     }
@@ -45,21 +44,15 @@ export default function Login() {
 
   const handleVerifyAndLogin = async (e) => {
     e.preventDefault();
-    if (!otpCode || otpCode.length !== 4) return toast.error("Enter 4-digit OTP", { className: 'hot-toast-cyber' });
+    if (!otpCode || otpCode.length !== 6) return toast.error("Enter 6-digit OTP");
     
     setLoading(true);
     try {
       const formatPhone = phone.startsWith('+') ? phone : `+91${phone}`;
-      const res = await api.post('/auth/verify-otp', { otpCode, phone: formatPhone });
-
-      if (res.data.success) {
-        localStorage.setItem('token', res.data.token);
-        localStorage.setItem('user', JSON.stringify(res.data.user));
-        toast.success('Welcome back!', { className: 'hot-toast-cyber hot-toast-success' });
-        window.location.href = '/';
-      }
+      const res = await api.post('/auth/verify-otp', { code: otpCode, phone: formatPhone });
+      handleAuthSuccess(res.data.data);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Invalid OTP or Verification failed", { className: 'hot-toast-cyber hot-toast-error' });
+      toast.error(err.response?.data?.message || "Invalid OTP");
     } finally {
       setLoading(false);
     }
@@ -67,26 +60,25 @@ export default function Login() {
 
   const handleEmailLogin = async (e) => {
     e.preventDefault();
-    if(!email || !password) return;
-    
+    if (!email || !password) return toast.error("Email and password required");
+
     setLoading(true);
     try {
-      const { data } = await api.post(API_ROUTES.AUTH.LOGIN, { email, password });
-      const { token, user } = data.data;
-      
-      if (user.role !== 'user') {
-        toast.error('Unauthorized access', { className: 'hot-toast-cyber' });
-        return;
-      }
-      
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      toast.success('Successfully logged in', { className: 'hot-toast-cyber hot-toast-success' });
-      window.location.href = '/';
-    } catch(err) {
-      toast.error(err.response?.data?.message || 'Authentication failed', { className: 'hot-toast-cyber hot-toast-error' });
+      const res = await api.post('/auth/login-email', { email, password });
+      handleAuthSuccess(res.data.data);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Invalid email or password");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAuthSuccess = (apiData) => {
+    if (apiData?.token) {
+      localStorage.setItem('token', apiData.token);
+      localStorage.setItem('user', JSON.stringify(apiData.user));
+      toast.success('Welcome back!');
+      window.location.href = '/';
     }
   };
 
@@ -96,7 +88,6 @@ export default function Login() {
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
         <div className="absolute -top-40 -left-40 w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-[140px]"></div>
         <div className="absolute top-1/2 -right-40 w-[500px] h-[500px] bg-cyan-500/5 rounded-full blur-[120px]"></div>
-        <div className="absolute -bottom-40 left-1/4 w-[700px] h-[700px] bg-indigo-500/5 rounded-full blur-[150px]"></div>
       </div>
 
       <motion.div 
@@ -107,21 +98,41 @@ export default function Login() {
         <div className="bg-white/70 backdrop-blur-2xl p-8 border border-slate-200 rounded-[2.5rem] shadow-xl">
           <div className="text-center mb-8">
             <div className="inline-flex p-3 rounded-2xl bg-purple-50 border border-purple-100 mb-4">
-              {isPhoneLogin ? <Smartphone className="w-6 h-6 text-purple-600" /> : <Mail className="w-6 h-6 text-purple-600" />}
+              <ShieldCheck className="w-6 h-6 text-purple-600" />
             </div>
-            <h2 className="text-3xl font-black text-slate-900 tracking-tight italic">
-              {isPhoneLogin ? 'OTP LOGIN' : 'WELCOME'}
+            <h2 className="text-3xl font-black text-slate-900 tracking-tight italic uppercase">
+              SECURE LOGIN
             </h2>
-            <p className="text-slate-500 text-sm mt-2">Access your Dizipay account securely</p>
+            <p className="text-slate-500 text-sm mt-2">Access your Dizipay account</p>
+          </div>
+
+          {/* Auth Method Tabs */}
+          <div className="flex p-1 bg-slate-100 rounded-2xl mb-8">
+            <button
+              onClick={() => { setAuthMethod('phone'); setConfirmationResult(null); }}
+              className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${
+                authMethod === 'phone' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Mobile OTP
+            </button>
+            <button
+              onClick={() => setAuthMethod('email')}
+              className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${
+                authMethod === 'email' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Email Password
+            </button>
           </div>
 
           <AnimatePresence mode="wait">
-            {isPhoneLogin ? (
+            {authMethod === 'phone' ? (
               <motion.div
-                key="phone"
-                initial={{ opacity: 0, x: 20 }}
+                key="phone-auth"
+                initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
+                exit={{ opacity: 0, x: 20 }}
                 className="space-y-6"
               >
                 {!confirmationResult ? (
@@ -137,16 +148,17 @@ export default function Login() {
                             type="tel"
                             value={phone}
                             onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                            className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-medium outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 transition-all placeholder:text-slate-300"
-                            placeholder="9876543210"
+                            className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-medium outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 transition-all"
+                            placeholder="98********"
                           />
+                          <Smartphone className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
                         </div>
                       </div>
                     </div>
                     <button
                       onClick={handleSendOTP}
                       disabled={loading || phone.length < 10}
-                      className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-2xl text-sm font-black tracking-widest shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 transition-all disabled:opacity-50 flex items-center justify-center gap-2 group"
+                      className="w-full py-4 bg-slate-900 text-white rounded-2xl text-sm font-black tracking-widest shadow-lg hover:bg-black transition-all disabled:opacity-50 flex items-center justify-center gap-2 group"
                     >
                       {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                         <>
@@ -161,34 +173,22 @@ export default function Login() {
                     <div className="space-y-2">
                       <div className="flex justify-between items-center px-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Verification</label>
-                        <button type="button" onClick={() => setConfirmationResult(null)} className="text-[10px] font-bold text-purple-600 hover:text-purple-700 transition-colors">CHANGE</button>
+                        <button type="button" onClick={() => setConfirmationResult(null)} className="text-[10px] font-bold text-purple-600">CHANGE</button>
                       </div>
-                      <div className="relative">
-                        <MessageSquare className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                        <input
-                          type="text"
-                          value={otpCode}
-                          onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                          className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 text-2xl font-black tracking-[0.5em] outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 transition-all placeholder:text-slate-200"
-                          placeholder="0000"
-                          autoFocus
-                        />
-                      </div>
+                      <OTPInput value={otpCode} onChange={setOtpCode} length={6} color="purple" />
                     </div>
                     <button
                       type="submit"
-                      disabled={loading || otpCode.length < 4}
-                      className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-2xl text-sm font-black tracking-widest shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                      disabled={loading || otpCode.length < 6}
+                      className="w-full py-4 bg-slate-900 text-white rounded-2xl text-sm font-black tracking-widest hover:bg-black transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                       {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'VERIFY & LOGIN'}
                     </button>
                     <div className="text-center">
                       {timer > 0 ? (
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                          Resend in <span className="text-slate-900">{timer}s</span>
-                        </p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Resend in {timer}s</p>
                       ) : (
-                        <button type="button" onClick={handleSendOTP} className="text-[10px] font-black text-purple-600 hover:text-purple-700 transition-colors uppercase tracking-widest">RESEND OTP</button>
+                        <button type="button" onClick={handleSendOTP} className="text-[10px] font-black text-purple-600 uppercase tracking-widest">RESEND OTP</button>
                       )}
                     </div>
                   </form>
@@ -196,75 +196,70 @@ export default function Login() {
               </motion.div>
             ) : (
               <motion.form
-                key="email"
+                key="email-auth"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                className="space-y-5"
                 onSubmit={handleEmailLogin}
+                className="space-y-6"
               >
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Email Address</label>
-                  <div className="relative group">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-purple-600 transition-colors" />
+                  <div className="relative">
                     <input
                       type="email"
-                      required
                       value={email}
                       onChange={e => setEmail(e.target.value)}
-                      className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 transition-all"
+                      className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-medium outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 transition-all"
                       placeholder="name@example.com"
                     />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
                   </div>
                 </div>
+
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Password</label>
-                  <div className="relative group">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-purple-600 transition-colors" />
+                  <div className="flex justify-between items-center px-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Password</label>
+                    <Link to="/forgot-password" size="sm" className="text-[10px] font-bold text-purple-600">FORGOT?</Link>
+                  </div>
+                  <div className="relative">
                     <input
                       type="password"
-                      required
                       value={password}
                       onChange={e => setPassword(e.target.value)}
-                      className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 transition-all"
+                      className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-medium outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 transition-all"
                       placeholder="••••••••"
                     />
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
                   </div>
                 </div>
+
                 <button
                   type="submit"
-                  disabled={loading}
-                  className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-2xl text-sm font-black tracking-widest shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  disabled={loading || !email || !password}
+                  className="w-full py-4 bg-slate-900 text-white rounded-2xl text-sm font-black tracking-widest hover:bg-black transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'SIGN IN'}
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                    <>
+                      LOGIN ACCOUNT
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
                 </button>
               </motion.form>
             )}
           </AnimatePresence>
 
-          <div className="mt-8 flex flex-col items-center gap-6">
-            <button 
-              onClick={() => { setIsPhoneLogin(!isPhoneLogin); setConfirmationResult(null); }}
-              className="text-[10px] font-black text-slate-400 hover:text-slate-900 transition-colors uppercase tracking-[0.2em] border-b border-slate-200 pb-1"
-            >
-              {isPhoneLogin ? 'Login with Email instead' : 'Login with Phone OTP instead'}
-            </button>
-            
-            <div className="text-sm font-medium">
-              <span className="text-slate-500">Don't have an account? </span>
-              <Link to="/register" className="text-purple-600 hover:text-purple-700 transition-colors underline underline-offset-4">Sign Up</Link>
-            </div>
+          <div className="mt-8 pt-8 border-t border-slate-100 text-center">
+            <span className="text-slate-500 text-sm">New to Dizipay? </span>
+            <Link to="/register" className="text-purple-600 font-bold hover:underline underline-offset-4">Create Account</Link>
           </div>
         </div>
         
-        {/* Footer info */}
-        <div className="mt-8 text-center">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]">
-            Powered by Dizipay Secure
-          </p>
-        </div>
+        <p className="mt-8 text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">
+          Dizipay Security Infrastructure v2.0
+        </p>
       </motion.div>
     </div>
   );
 }
-

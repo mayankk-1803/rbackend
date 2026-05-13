@@ -1,368 +1,294 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
-import { API_ROUTES } from '../api/routes';
 import toast from 'react-hot-toast';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import PaymentModal from '../components/PaymentModal';
 import RechargePaymentModal from '../components/RechargePaymentModal';
+import { OPERATORS, operatorMeta } from '../config/operators';
+import socket from '../services/socket';
+import { Smartphone, ChevronDown, CheckCircle2, Activity } from 'lucide-react';
 
-import { io } from "socket.io-client";
+const OperatorDropdown = ({ selected, onSelect }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const clickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setIsOpen(false);
+    };
+    document.addEventListener('mousedown', clickOutside);
+    return () => document.removeEventListener('mousedown', clickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-bold focus:border-cyan-500 transition-all"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-black uppercase tracking-tight">
+            {selected ? operatorMeta[selected]?.label : "Select Operator"}
+          </span>
+          {selected && <div className={`w-2 h-2 rounded-full bg-cyan-500 animate-pulse`} />}
+        </div>
+        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="absolute z-[100] top-full mt-2 w-full bg-white border border-slate-100 rounded-3xl shadow-2xl overflow-hidden max-h-[300px] overflow-y-auto"
+          >
+            {Object.keys(OPERATORS).filter(k => k !== 'UNKNOWN').map(opKey => {
+              const op = OPERATORS[opKey];
+              const meta = operatorMeta[op];
+              return (
+                <button
+                  key={op}
+                  onClick={() => { onSelect(op); setIsOpen(false); }}
+                  className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-all border-b border-slate-50 last:border-none"
+                >
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-700">{meta.label}</span>
+                  {selected === op && <CheckCircle2 className="w-4 h-4 text-cyan-500" />}
+                </button>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+const PlanCard = memo(({ plan, isSelected, onClick }) => (
+  <motion.div
+    whileTap={{ scale: 0.98 }}
+    onClick={() => onClick(plan.amount.toString())}
+    className={`flex-shrink-0 w-64 p-5 rounded-2xl border transition-all cursor-pointer snap-start ${
+      isSelected ? 'bg-cyan-50 border-cyan-200' : 'bg-white border-slate-100'
+    }`}
+  >
+    <div className="flex justify-between items-start mb-4">
+      <div className="flex flex-col">
+        <span className="text-2xl font-black text-slate-900">₹{plan.amount}</span>
+        {plan.category && <span className="text-[8px] font-black uppercase text-cyan-600 tracking-tighter">{plan.category}</span>}
+      </div>
+      {isSelected && <span className="bg-cyan-600 text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-full">Active</span>}
+    </div>
+    <div className="space-y-2">
+      <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
+        <span>Data</span>
+        <span className="text-slate-900">{plan.data}</span>
+      </div>
+      <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
+        <span>Validity</span>
+        <span className="text-slate-900">{plan.validity}</span>
+      </div>
+    </div>
+    <p className="mt-4 text-[10px] text-slate-400 font-medium leading-relaxed line-clamp-2">{plan.description}</p>
+  </motion.div>
+));
 
 export default function MobileRecharge() {
-  const [rechargeStatus, setRechargeStatus] = useState('IDLE'); // IDLE, PROCESSING, SUCCESS, FAILED
+  const [rechargeStatus, setRechargeStatus] = useState('IDLE');
   const [txnId, setTxnId] = useState(null);
   const [number, setNumber] = useState('');
   const [amount, setAmount] = useState('');
   const [operator, setOperator] = useState('');
-  const [operatorLogo, setOperatorLogo] = useState('');
   const [loading, setLoading] = useState(false);
   const [detecting, setDetecting] = useState(false);
+  const [plans, setPlans] = useState([]);
+  const [plansLoading, setPlansLoading] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [showRechargeModal, setShowRechargeModal] = useState(false);
   const navigate = useNavigate();
+  
+  const opAbortRef = useRef(null);
 
   useEffect(() => {
     if (number.length === 10 && /^[6-9]\d{9}$/.test(number)) {
-      const detectOperator = async () => {
+      const detectOp = async () => {
+        if (opAbortRef.current) opAbortRef.current.abort();
+        const controller = new AbortController();
+        opAbortRef.current = controller;
         setDetecting(true);
-        console.log(`[Detection] Fetching operator for: ${number}`);
         try {
-          const { data } = await api.get(`/operator-detect/${number}`);
-          if (data.success && data.data.operator) {
-            setOperator(data.data.operator);
-            setOperatorLogo(data.data.logo);
-            console.log(`[Detection] Result:`, data.data);
-            toast.success(`Detected: ${data.data.operator}`, { 
-              icon: '📡',
-              style: { borderRadius: '10px', background: '#333', color: '#fff' }
-            });
+          // Use the dedicated developer endpoint for best accuracy
+          const { data } = await api.get(`/v1/dev/operator/${number}`, { signal: controller.signal });
+          if (data.success && data.operator) {
+            const detected = data.operator.toUpperCase();
+            // Match against our standard OPERATORS list
+            const matchedKey = Object.keys(OPERATORS).find(k => k === detected || OPERATORS[k] === detected);
+            if (matchedKey) {
+              setOperator(OPERATORS[matchedKey]);
+              toast.success(`Detected: ${operatorMeta[OPERATORS[matchedKey]].label}`);
+            }
           }
         } catch (err) {
-          console.error("Operator detection failed", err);
+          if (err.name !== 'CanceledError') setOperator('');
         } finally {
-          setDetecting(false);
+          if (opAbortRef.current === controller) setDetecting(false);
         }
       };
-      
-      const timeoutId = setTimeout(detectOperator, 300); // 300ms debounce
-      return () => clearTimeout(timeoutId);
-    } else {
-      setOperator('');
-      setOperatorLogo('');
+      detectOp();
     }
   }, [number]);
 
-  // Task 3 & 4: Real-time Sync + Fallback
   useEffect(() => {
-    if (!txnId || rechargeStatus !== 'PROCESSING') return;
-
-    const socket = io("http://localhost:5000");
-
-    const handleSuccess = (data) => {
-      if (String(data.txnId) === String(txnId)) {
-        setRechargeStatus('SUCCESS');
-        toast.success("Recharge Successful! ✅", { id: 'recharge-status' });
-        setTimeout(() => navigate('/history'), 2000);
-      }
-    };
-
-    const handleFailure = (data) => {
-      if (String(data.txnId) === String(txnId)) {
-        setRechargeStatus('FAILED');
-        toast.error("Recharge Failed ❌. Refunded to wallet.", { id: 'recharge-status' });
-      }
-    };
-
-    socket.on("recharge_success", handleSuccess);
-    socket.on("recharge_failed", handleFailure);
-    socket.on("recharge_update", (data) => {
-      if (String(data.txnId) === String(txnId)) {
-        if (data.status === 'SUCCESS') handleSuccess(data);
-        if (data.status === 'FAILED') handleFailure(data);
-      }
-    });
-
-    // Fallback: Check DB status after 10 seconds
-    const fallbackTimeout = setTimeout(async () => {
-      try {
-        const { data } = await api.get(`/status/${txnId}`);
-        if (data.success) {
-          if (data.data.status === 'SUCCESS') {
-            setRechargeStatus('SUCCESS');
-            toast.success("Recharge Confirmed! ✅", { id: 'recharge-status' });
-            setTimeout(() => navigate('/history'), 2000);
-          } else if (data.data.status === 'FAILED') {
-            setRechargeStatus('FAILED');
-            toast.error("Recharge Failed (Confirmed) ❌", { id: 'recharge-status' });
-          }
+    if (operator && number.length === 10) {
+      const getPlans = async () => {
+        setPlansLoading(true);
+        try {
+          const opCode = operatorMeta[operator]?.code || "1";
+          const { data } = await api.get(`/v1/dev/plans?operatorCode=${opCode}&mobile=${number}&circle=Delhi`);
+          if (data.success) setPlans(data.data || []);
+        } catch (err) {
+          setPlans([]);
+        } finally {
+          setPlansLoading(false);
         }
-      } catch (err) {
-        console.error("Fallback check failed", err);
-      }
-    }, 10000);
+      };
+      getPlans();
+    } else setPlans([]);
+  }, [operator, number]);
 
-    return () => {
-      socket.disconnect();
-      clearTimeout(fallbackTimeout);
-    };
-  }, [txnId, rechargeStatus, navigate]);
+  const validateForm = () => {
+    if (!/^[6-9]\d{9}$/.test(number)) {
+      toast.error("Please enter a valid 10-digit mobile number");
+      return false;
+    }
+    if (!operator) {
+      toast.error("Please select an operator");
+      return false;
+    }
+    if (!amount || Number(amount) <= 0) {
+      toast.error("Please enter a valid amount");
+      return false;
+    }
+    return true;
+  };
 
   const handleRechargeDirectly = async () => {
+    if (!validateForm()) return;
     setShowRechargeModal(false);
-    const loadingToast = toast.loading('Processing Mobile recharge...');
+    const lt = toast.loading('Initiating...');
     setLoading(true);
     try {
-      console.log("[Recharge] Initiating recharge directly from wallet...");
-      const idempotencyKey = crypto.randomUUID();
-      const safeOperator = operator || 'Unknown';
-      const { data } = await api.post('/recharge', {
-        mobile: number,
-        amount: Number(amount),
-        providerCode: safeOperator.toLowerCase(),
-        operator: safeOperator,
-        type: 'mobile'
-      }, {
-        headers: { 'x-idempotency-key': idempotencyKey }
+      const opCode = operatorMeta[operator]?.code;
+      const { data } = await api.post('/v1/dev/recharge', { 
+        mobile: number, 
+        operatorCode: opCode, 
+        amount: Number(amount) 
       });
       
-      console.log("[Recharge] Response:", data);
-
-      if (data.success && data.data.status === "PENDING") {
-        const newTxnId = data.data.id;
-        setTxnId(newTxnId);
+      if (data.success) {
+        setTxnId(data.data?.transactionId || data.data?.id);
         setRechargeStatus('PROCESSING');
-        toast.loading('Processing ⏳', { id: loadingToast });
-      } else if (data.success && data.data.status === "SUCCESS") {
-        setRechargeStatus('SUCCESS');
-        toast.success("Recharge Successful ✅", { id: loadingToast });
-        setTimeout(() => navigate('/history'), 2000);
-      }
-      
-      // We don't navigate yet if PENDING, we wait for socket/polling status
+        toast.success("Recharge Authorized", { id: lt });
+      } else throw new Error(data.message || "Failed");
     } catch(err) {
       setRechargeStatus('FAILED');
-      console.error("[Recharge Error]:", err);
-      const errorMsg = err.response?.data?.message || 'Recharge failed';
-      toast.error(errorMsg, { id: loadingToast });
-      
-      if (errorMsg.includes("Insufficient")) {
-        // Option to top up
-        setShowPayment(true);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleTopUpSuccess = async () => {
-    console.log("[TopUp] Success, retrying recharge...");
-    setShowPayment(false);
-    await handleRechargeDirectly();
-  };
-
-  const handlePaymentFlow = async () => {
-    try {
-      console.log("[Payment] Creating TOPUP order for recharge...");
-      const res = await api.post('/payment/create-order', {
-        amount: Number(amount),
-        upiId: 'demo@upi',
-        intent: 'RECHARGE'
-      }, {
-        headers: {
-          "x-idempotency-key": crypto.randomUUID()
-        }
-      });
-      
-      const paymentId = res.data.data.id;
-      console.log("[Payment] Order created:", paymentId);
-
-      console.log("[Payment] Confirming payment...");
-      const confirmRes = await api.post('/payment/confirm', { paymentId });
-      
-      if (confirmRes.data.success) {
-        console.log("[Payment] TOPUP Success, proceeding to recharge");
-        await handleTopUpSuccess();
-      } else {
-        throw new Error("Payment confirmation failed");
-      }
-    } catch (err) {
-      console.error("[Payment Error]:", err);
-      toast.error(err.response?.data?.message || "Payment failed");
-      setShowPayment(false);
-    }
+      toast.error(err.response?.data?.message || err.message, { id: lt });
+      if (err.response?.status === 400 && err.response?.data?.message?.includes("balance")) setShowPayment(true);
+    } finally { setLoading(false); }
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="max-w-4xl mx-auto space-y-4 md:space-y-8"
-    >
-      <div className="bg-white/70 backdrop-blur-2xl border border-slate-200 rounded-2xl md:rounded-3xl shadow-xl overflow-hidden">
-        <div className="px-6 md:px-8 py-5 md:py-6 border-b border-slate-100 bg-slate-50/50">
-          <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">Mobile Recharge</h2>
-          <p className="text-[10px] md:text-sm text-slate-400 mt-1 font-medium tracking-wide">Instant power-up for your connection</p>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-4xl mx-auto space-y-4">
+      <div className="bg-white border border-slate-200 rounded-[2.5rem] shadow-xl overflow-hidden">
+        <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase italic">Secure <span className="text-cyan-600">Recharge</span></h2>
+          {operator && (
+            <div className="flex items-center gap-3 px-4 py-2 bg-white border border-slate-200 rounded-full shadow-sm">
+               <span className="text-[10px] font-black uppercase text-slate-400">Signal:</span>
+               <span className="text-[10px] font-black uppercase text-cyan-600">{operatorMeta[operator].label} (Code: {operatorMeta[operator].code})</span>
+            </div>
+          )}
         </div>
 
-        <div className="p-6 md:p-8 space-y-6 md:space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-            {/* Left: Input Form */}
-            <div className="space-y-4 md:space-y-6">
+        <div className="p-8 space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-6">
               <div>
-                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Mobile Number</label>
-                <div className="relative group">
-                  <input
-                    type="text"
-                    required
-                    maxLength="10"
-                    value={number}
-                    onChange={e => setNumber(e.target.value.replace(/\D/g, ''))}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/10 focus:border-cyan-500 transition-all text-lg font-bold tracking-wider group-hover:border-slate-300"
-                    placeholder="Enter 10-digit number"
+                <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-1">Mobile Terminal</label>
+                <div className="relative">
+                  <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input 
+                    type="tel" 
+                    maxLength="10" 
+                    value={number} 
+                    onChange={e => setNumber(e.target.value.replace(/\D/g, ''))} 
+                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 text-xl font-bold focus:border-cyan-500 transition-all outline-none" 
+                    placeholder="Enter 10-digit number" 
                   />
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
-                    {detecting && (
-                      <span className="animate-spin h-4 w-4 border-2 border-cyan-400 border-t-transparent rounded-full"></span>
-                    )}
-                    {operator && (
-                      <motion.div 
-                        initial={{ opacity: 0, x: 10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="flex items-center gap-2 bg-cyan-50 border border-cyan-100 px-3 py-1 rounded-full shadow-sm"
-                      >
-                        {operatorLogo && (
-                          <img src={operatorLogo} alt={operator} className="w-4 h-4 object-contain" />
-                        )}
-                        <span className="text-[10px] font-black text-cyan-600 uppercase tracking-widest">{operator}</span>
-                      </motion.div>
-                    )}
-                  </div>
+                  {detecting && <div className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin h-4 w-4 border-2 border-cyan-400 border-t-transparent rounded-full" />}
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Amount (₹)</label>
-                <div className="relative group">
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    value={amount}
-                    onChange={e => setAmount(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 transition-all text-lg font-bold group-hover:border-slate-300"
-                    placeholder="0.00"
-                  />
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">
-                    {/* Symbol is already in input for simplicity or can be absolute */}
-                  </div>
-                </div>
+                <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-1">Operator Gateway</label>
+                <OperatorDropdown selected={operator} onSelect={setOperator} />
               </div>
             </div>
 
-            {/* Right: Quick Info/Feedback */}
-            <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-4 md:p-6 flex md:flex-col justify-between md:justify-center items-center text-left md:text-center gap-4">
-              <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-cyan-50 to-purple-50 rounded-xl md:rounded-2xl flex items-center justify-center border border-slate-100 shadow-sm flex-shrink-0">
-                <span className="text-xl md:text-3xl">⚡</span>
+            <div className="space-y-6">
+              <div>
+                <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-1">Recharge Credits (₹)</label>
+                <input 
+                  type="tel" 
+                  value={amount} 
+                  onChange={e => setAmount(e.target.value.replace(/\D/g, ''))} 
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 text-xl font-bold focus:border-cyan-500 transition-all outline-none" 
+                  placeholder="0.00" 
+                />
               </div>
-              <div className="flex-1">
-                <h4 className="text-slate-900 text-xs md:text-sm font-bold tracking-tight">Cyber-Fast Processing</h4>
-                <p className="text-[10px] text-slate-400 mt-0.5 md:mt-1 max-w-[200px]">Your recharge is processed through our high-speed primary gateway.</p>
+              <div className="p-6 bg-slate-900 rounded-[2rem] text-center space-y-2">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em]">Authorized Provider</p>
+                <p className="text-white text-xs font-black uppercase italic tracking-tighter">Apibox Direct <span className="text-cyan-400">Sync</span></p>
               </div>
             </div>
           </div>
 
-          {/* Browse Plans Section */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest">Recommended Plans</h3>
-              <div className="h-[1px] flex-1 mx-4 bg-slate-100"></div>
-            </div>
-            
-            <div className="flex gap-4 overflow-x-auto pb-4 snap-x no-scrollbar">
-              {[
-                { id: 1, price: 299, data: '2GB/Day', validity: '28 Days', desc: 'Unlimited Calls + 100 SMS/Day' },
-                { id: 2, price: 666, data: '1.5GB/Day', validity: '84 Days', desc: 'Unlimited Calls + Disney+ Hotstar' },
-                { id: 3, price: 719, data: '2GB/Day', validity: '84 Days', desc: 'Truly Unlimited + Prime Video' },
-                { id: 4, price: 155, data: '1GB Total', validity: '24 Days', desc: 'Budget Plan for secondary use' }
-              ].map((plan) => (
-                  <motion.div
-                    key={plan.id}
-                    whileHover={{ scale: 1.02, y: -5 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setAmount(plan.price.toString())}
-                    className={`flex-shrink-0 w-64 p-5 rounded-2xl border transition-all cursor-pointer snap-start ${
-                      amount === plan.price.toString() 
-                      ? 'bg-cyan-50 border-cyan-200 shadow-md' 
-                      : 'bg-slate-50 border-slate-100 hover:border-slate-200'
-                    }`}
-                  >
-                  <div className="flex justify-between items-start mb-4">
-                    <span className="text-2xl font-black text-slate-900">₹{plan.price}</span>
-                    {amount === plan.price.toString() && (
-                      <span className="bg-cyan-600 text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-full shadow-sm">Selected</span>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
-                      <span>Data</span>
-                      <span className="text-slate-900">{plan.data}</span>
-                    </div>
-                    <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
-                      <span>Validity</span>
-                      <span className="text-slate-900">{plan.validity}</span>
-                    </div>
-                  </div>
-                  <p className="mt-4 text-[10px] text-slate-400 font-medium leading-relaxed">{plan.desc}</p>
-                </motion.div>
-              ))}
+            <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em]">Recommended Signals</h3>
+            <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
+              {plansLoading ? [1, 2, 3].map(i => <div key={i} className="flex-shrink-0 w-64 h-32 bg-slate-50 rounded-2xl border border-slate-100 animate-pulse"></div>) :
+               plans.length > 0 ? plans.map((plan, idx) => <PlanCard key={idx} plan={plan} isSelected={amount === plan.amount.toString()} onClick={setAmount} />) :
+               <div className="flex-1 py-12 border-2 border-dashed border-slate-100 rounded-[2rem] flex flex-col items-center justify-center gap-3 grayscale opacity-30">
+                  <Activity className="w-8 h-8" />
+                  <span className="text-[9px] font-black uppercase tracking-widest">Awaiting Valid Input</span>
+               </div>}
             </div>
           </div>
 
           <div className="flex justify-end pt-4">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              disabled={loading || !number || !amount || rechargeStatus === 'PROCESSING'}
-              onClick={() => setShowRechargeModal(true)}
-              className="w-full md:w-auto px-10 py-4 bg-gradient-to-r from-cyan-600 to-purple-600 text-white font-black rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all text-xs md:text-sm uppercase tracking-widest shadow-lg shadow-cyan-600/10 hover:shadow-cyan-600/20 flex items-center justify-center gap-3"
+            <button 
+              disabled={loading || rechargeStatus === 'PROCESSING'} 
+              onClick={() => validateForm() && setShowRechargeModal(true)} 
+              className="w-full md:w-auto px-12 py-5 bg-slate-900 text-white font-black rounded-[1.5rem] disabled:opacity-50 hover:bg-black transition-all text-[11px] font-black uppercase tracking-widest shadow-xl"
             >
-              {loading ? (
-                <>
-                  <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
-                  Initiating...
-                </>
-              ) : rechargeStatus === 'PROCESSING' ? (
-                <>
-                  <span className="animate-pulse h-2 w-2 bg-white rounded-full"></span>
-                  Processing ⏳
-                </>
-              ) : rechargeStatus === 'SUCCESS' ? (
-                'Recharge Successful ✅'
-              ) : rechargeStatus === 'FAILED' ? (
-                'Recharge Failed ❌'
-              ) : 'Confirm Recharge'}
-            </motion.button>
+              {loading ? 'Processing sequence...' : 'Authorize Terminal Recharge'}
+            </button>
           </div>
         </div>
       </div>
 
-      <PaymentModal
-        isOpen={showPayment}
-        onClose={() => setShowPayment(false)}
-        amount={amount}
-        onPaymentSuccess={handlePaymentFlow}
-        title="Top Up Wallet & Recharge"
-      />
+      <AnimatePresence>
+        {showPayment && (
+          <PaymentModal isOpen={showPayment} onClose={() => setShowPayment(false)} amount={amount} onPaymentSuccess={() => navigate('/wallet')} title="Top Up & Recharge" />
+        )}
+      </AnimatePresence>
 
-      <RechargePaymentModal
-        isOpen={showRechargeModal}
-        onClose={() => setShowRechargeModal(false)}
-        onConfirm={handleRechargeDirectly}
-        amount={amount}
-        mobile={number}
-        operator={operator}
-      />
+      <AnimatePresence>
+        {showRechargeModal && (
+          <RechargePaymentModal isOpen={showRechargeModal} onClose={() => setShowRechargeModal(false)} onConfirm={handleRechargeDirectly} amount={amount} mobile={number} operator={operator} />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

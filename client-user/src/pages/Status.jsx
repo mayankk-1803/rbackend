@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../api';
 import { API_ROUTES } from '../api/routes';
 import { motion } from 'framer-motion';
-import { io } from 'socket.io-client';
+import socket from '../services/socket';
 import { toast } from 'react-hot-toast';
 
 export default function Status() {
@@ -12,20 +12,17 @@ export default function Status() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    // Initialize Socket.io for live updates
-    const socket = io(import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000');
-
     const handleUpdate = (data) => {
-      console.log('📡 Status Update Received:', data);
+      console.log('[Status Update Received]:', data);
       
       setTxn((prev) => {
         if (prev && prev.id === data.txnId) {
           const updated = { ...prev, status: data.status?.toLowerCase(), ...data.transaction };
           
           if (data.status === "success") {
-            toast.success("Recharge Successful 🎉");
+            toast.success("Recharge Successful");
           } else if (data.status === "failed") {
-            toast.error(`Recharge Failed: ${data.reason || 'Unknown error'} ❌`);
+            toast.error(`Recharge Failed: ${data.reason || 'Unknown error'}`);
           }
           
           return updated;
@@ -38,7 +35,8 @@ export default function Status() {
     socket.on('recharge_status', handleUpdate);
 
     return () => {
-      socket.disconnect();
+      socket.off('recharge_update', handleUpdate);
+      socket.off('recharge_status', handleUpdate);
     };
   }, []);
 
@@ -49,8 +47,12 @@ export default function Status() {
     setTxn(null);
     setError('');
     try {
-      const { data } = await api.get(API_ROUTES.RECHARGE.STATUS(txnId));
-      setTxn(data.data);
+      const res = await api.get(API_ROUTES.RECHARGE.STATUS(txnId));
+      if (res?.data?.success) {
+        setTxn(res?.data?.data);
+      } else {
+        setError(res?.data?.message || 'Transaction not found');
+      }
     } catch(err) {
       setError(err.response?.data?.message || 'Transaction not found');
     } finally {

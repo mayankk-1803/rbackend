@@ -4,45 +4,61 @@ import eventBus from "./eventBus.js";
 let io;
 
 export const initSocket = (server) => {
+  const allowedOrigins = process.env.ALLOWED_ORIGINS 
+    ? process.env.ALLOWED_ORIGINS.split(',') 
+    : ["http://localhost:3000", "http://localhost:5173"];
+
   io = new Server(server, {
     cors: {
-      origin: "*", // Configure safely in production
+      origin: allowedOrigins,
+      methods: ["GET", "POST"],
+      credentials: true
     },
+    transports: ["websocket", "polling"]
   });
 
+
   io.on("connection", (socket) => {
-    console.log(`User connected: ${socket.id}`);
+    const userId = socket.handshake.auth?.userId || socket.handshake.query?.userId;
+    if (userId) {
+      socket.join(userId.toString());
+      console.log(`[Socket] User ${userId} joined their private room: ${socket.id}`);
+    }
     
     socket.on("disconnect", () => {
-      console.log(`User disconnected: ${socket.id}`);
+      console.log(`[Socket] User disconnected: ${socket.id}`);
     });
   });
 
   const adminNamespace = io.of("/admin");
 
   adminNamespace.on("connection", (socket) => {
-    console.log(`Admin connected to dashboard: ${socket.id}`);
-    
+    console.log(`[Socket] Admin connected: ${socket.id}`);
     socket.on("disconnect", () => {
-      console.log(`Admin disconnected: ${socket.id}`);
+      console.log(`[Socket] Admin disconnected: ${socket.id}`);
     });
   });
 
-  // Listen to inner-service events and broadcast them to everyone (User + Admin)
+  // Realtime Lifecycle Broadcaster
+  eventBus.on("recharge_pending", (data) => {
+    if (data.userId) {
+      io.to(data.userId.toString()).emit("recharge_pending", data);
+    }
+    adminNamespace.emit("recharge_pending", data);
+  });
+
   eventBus.on("recharge_success", (data) => {
-    // Only emit success to admin, 'recharge_update' handles the user broadcast
+    if (data.userId) {
+      io.to(data.userId.toString()).emit("recharge_success", data);
+    }
     adminNamespace.emit("recharge_success", data);
   });
   
   eventBus.on("recharge_failed", (data) => {
-    // Only emit failure to admin, 'recharge_update' handles the user broadcast
-    adminNamespace.emit("recharge_failed", data);
-  });
-  
-  eventBus.on("recharge_status", (data) => {
     if (data.userId) {
-      io.to(data.userId.toString()).emit("recharge_status", data);
+      io.to(data.userId.toString()).emit("recharge_failed", data);
     }
+    adminNamespace.emit("recharge_failed", data);
   });
 
   eventBus.on("wallet_updated", (data) => {
@@ -51,12 +67,13 @@ export const initSocket = (server) => {
     }
   });
 
-  eventBus.on("wallet_update", (data) => {
-    io.emit("wallet_update", data);
-  });
-
+  // Legacy/Global fallback
   eventBus.on("recharge_update", (data) => {
-    io.emit("recharge_update", data);
+    if (data.userId) {
+      io.to(data.userId.toString()).emit("recharge_update", data);
+    } else {
+      io.emit("recharge_update", data);
+    }
   });
 
   eventBus.on("provider_status", (data) => adminNamespace.emit("provider_status", data));

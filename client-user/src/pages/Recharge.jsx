@@ -4,7 +4,8 @@ import { motion } from 'framer-motion';
 import { Smartphone, Tv, Zap, Droplets, Flame, Wifi, Landmark, ChevronRight, ShieldCheck } from 'lucide-react';
 
 const rechargeTypes = [
-  { type: 'Mobile', path: '/recharge/mobile', icon: Smartphone, desc: 'Mobile prepaid/postpaid bills', color: 'from-cyan-500 to-blue-600' },
+  { type: 'Mobile Prepaid', path: '/recharge/mobile-prepaid', icon: Smartphone, desc: 'Instant prepaid recharge', color: 'from-cyan-500 to-blue-600' },
+  { type: 'Mobile Postpaid', path: '/recharge/mobile-postpaid', icon: Smartphone, desc: 'Mobile bill payments', color: 'from-purple-500 to-indigo-600' },
   { type: 'DTH', path: '/recharge/dth', icon: Tv, desc: 'Direct-to-Home television', color: 'from-purple-500 to-indigo-600' },
   { type: 'Electricity', path: '/recharge/electricity', icon: Zap, desc: 'Electricity utility payments', color: 'from-amber-400 to-orange-600' },
   { type: 'Water', path: '/recharge/water', icon: Droplets, desc: 'Municipal water services', color: 'from-blue-400 to-cyan-600' },

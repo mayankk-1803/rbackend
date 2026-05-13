@@ -149,7 +149,7 @@ export const Providers = () => {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 mb-8">
+                  <div className="grid grid-cols-2 gap-4 mb-4">
                     <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 group-hover:border-slate-200 transition-colors">
                       <div className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-2 flex items-center gap-2">
                         Success
@@ -161,6 +161,21 @@ export const Providers = () => {
                         Latency
                       </div>
                       <div className="text-xl font-black text-slate-900">{prov.avgResponseTime || '120'}ms</div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 mb-8">
+                    <div className="bg-purple-50 rounded-2xl p-4 border border-purple-100 group-hover:border-purple-200 transition-colors">
+                      <div className="text-[9px] text-purple-400 font-black uppercase tracking-widest mb-2 flex items-center gap-2">
+                        Balance
+                      </div>
+                      <div className="text-xl font-black text-purple-900">₹{Number(prov.balance || 0).toLocaleString()}</div>
+                    </div>
+                    <div className="bg-rose-50 rounded-2xl p-4 border border-rose-100 group-hover:border-rose-200 transition-colors">
+                      <div className="text-[9px] text-rose-400 font-black uppercase tracking-widest mb-2 flex items-center gap-2">
+                        Failures
+                      </div>
+                      <div className="text-xl font-black text-rose-900">{prov.failureCount || 0}</div>
                     </div>
                   </div>
 
