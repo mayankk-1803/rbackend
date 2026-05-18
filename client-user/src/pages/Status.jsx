@@ -129,7 +129,7 @@ export default function Status() {
                   </div>
                   <div className="grid grid-cols-2 divide-x divide-slate-100">
                     <div className="p-4 md:p-5">
-                      <span className="block text-[8px] md:text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1.5">Settlement</span>
+                      <span className="block text-[8px] md:text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1.5">Payment</span>
                       <span className="font-black text-slate-900 text-lg md:text-xl tracking-tighter">₹{txn.amount}</span>
                     </div>
                     <div className="p-4 md:p-5">

@@ -20,7 +20,6 @@ import ApiAnalytics from '../components/developer/ApiAnalytics';
 const TABS = [
   { id: 'docs', name: 'Documentation', icon: Book },
   { id: 'keys', name: 'API Credentials', icon: Key },
-  { id: 'keys', name: 'API Credentials', icon: Key },
   { id: 'analytics', name: 'Analytics', icon: Activity }
 ];
 

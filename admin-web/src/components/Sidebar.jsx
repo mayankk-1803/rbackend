@@ -11,17 +11,19 @@ import {
   LogOut,
   Code2,
   ChevronRight,
-  X
+  X,
+  ShieldAlert
 } from 'lucide-react';
 
 const navItems = [
   { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-  { name: 'Tester', path: '/tester', icon: Smartphone },
-  { name: 'Transactions', path: '/transactions', icon: Wallet },
-  { name: 'Wallet', path: '/wallet', icon: Zap },
-  { name: 'Alerts', path: '/alerts', icon: Bell },
-  { name: 'Providers', path: '/providers', icon: Server },
-  { name: 'Developer Hub', path: '/api-docs', icon: Code2 },
+  { name: 'RECHARGE', path: '/recharge', icon: Smartphone }, // Simple label for user management
+  { name: 'Wallet', path: '/wallet', icon: Wallet },
+  { name: 'Transactions', path: '/reports/transactions', icon: Smartphone },
+  { name: 'Cashback Settings', path: '/settings/cashback', icon: Zap },
+  { name: 'Complaints', path: '/reports/disputes', icon: ShieldAlert },
+  { name: 'Operators', path: '/providers', icon: Server },
+  { name: 'API Settings', path: '/api-docs', icon: Code2 },
 ];
 
 export const Sidebar = ({ isOpen, setIsOpen }) => {
@@ -31,8 +33,8 @@ export const Sidebar = ({ isOpen, setIsOpen }) => {
     if (import.meta.env.DEV) {
       console.log(" [Logout] Clearing session...");
     }
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    localStorage.removeItem('dizipay_admin_token');
+    localStorage.removeItem('dizipay_admin_data');
     window.location.href = '/admin/login';
   };
 
@@ -66,7 +68,7 @@ export const Sidebar = ({ isOpen, setIsOpen }) => {
             <h1 className="text-xl font-black text-slate-900 tracking-tighter uppercase italic">
               Dizipay <span className="text-purple-600 text-shadow-glow">Admin</span>
             </h1>
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em]">Core Console v1.2</p>
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em]">Admin Panel v1.2</p>
           </div>
           <button 
             onClick={() => setIsOpen(false)}

@@ -229,7 +229,7 @@ export default function PaymentSuccess() {
         {/* Footer info */}
         <div className="px-8 py-4 bg-slate-50/50 border-t border-slate-100 flex justify-center items-center gap-2">
            <ShieldCheck className="w-3 h-3 text-slate-400" />
-           <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">End-to-End Encrypted Telemetry</span>
+           <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">End-to-End Encrypted Transactions</span>
         </div>
       </div>
     </div>

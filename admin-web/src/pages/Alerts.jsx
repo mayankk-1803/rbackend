@@ -34,7 +34,7 @@ export const Alerts = () => {
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-2">
             <ShieldAlert className="w-4 h-4 md:w-5 md:h-5 text-rose-500" />
-            <h1 className="text-xl md:text-3xl font-black text-slate-900 tracking-tighter uppercase italic">Security <span className="text-rose-600 text-shadow-glow">Telemetry</span></h1>
+            <h1 className="text-xl md:text-3xl font-black text-slate-900 tracking-tighter uppercase italic">Security <span className="text-rose-600 text-shadow-glow">Transactions</span></h1>
           </div>
           <p className="text-[8px] md:text-[10px] text-slate-500 font-black uppercase tracking-[0.2em]">Monitoring spectral anomalies and provider integrity logs</p>
         </div>

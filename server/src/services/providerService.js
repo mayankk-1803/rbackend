@@ -1,7 +1,6 @@
 import prisma from "../config/prisma.js";
 import { Prisma } from "@prisma/client";
 import { updateProviderMetrics } from "./routingService.js";
-import { simulateProviderAPI } from "./providerSimulator.js";
 
 /**
  * Generic function to call a recharge provider API

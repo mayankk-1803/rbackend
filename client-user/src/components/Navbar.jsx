@@ -10,14 +10,14 @@ const Navbar = () => {
     { path: "/", label: "Home", icon: Home },
     { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { path: "/recharge", label: "Recharge", icon: Smartphone },
-    { path: "/history", label: "History", icon: History },
-    { path: "/status", label: "Status", icon: Activity },
+    { path: "/reports/transactions", label: "History", icon: History },
+    { path: "/reports/ledger", label: "Reports", icon: Activity },
     { path: "/profile", label: "Profile", icon: User },
   ];
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    localStorage.removeItem("dizipay_user_token");
+    localStorage.removeItem("dizipay_user_data");
     window.location.href = "/login";
   };
 
@@ -30,7 +30,7 @@ const Navbar = () => {
           <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-all duration-500">
             <Smartphone className="w-6 h-6 text-white" />
           </div>
-          <span className="text-xl font-black text-slate-900 tracking-tighter uppercase italic">Dizipay <span className="text-cyan-600">Vault</span></span>
+          <span className="text-xl font-black text-slate-900 tracking-tighter uppercase italic">Dizipay <span className="text-cyan-600">Wallet</span></span>
         </div>
 
         {/* Links */}

@@ -23,6 +23,18 @@ import {
 } from 'lucide-react';
 import api from '../../api';
 
+const CustomAreaTooltip = ({ active, payload, label }) => {
+  if (!active || !payload || !payload.length || !payload[0] || !payload[0].payload) {
+    return null;
+  }
+  return (
+    <div className="bg-white p-4 rounded-2xl shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] text-xs border border-slate-100">
+      <p className="font-bold text-slate-700 mb-2">Date: {new Date(label).toLocaleDateString()}</p>
+      <p className="text-cyan-600 font-black">Requests: {payload[0].value}</p>
+    </div>
+  );
+};
+
 export default function ApiAnalytics() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -96,7 +108,7 @@ export default function ApiAnalytics() {
            </div>
         </div>
 
-        <div className="h-[300px] w-full">
+        <div className="w-full h-full min-h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data?.activity || []}>
               <defs>
@@ -118,14 +130,7 @@ export default function ApiAnalytics() {
                 tickLine={false} 
                 tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} 
               />
-              <Tooltip 
-                contentStyle={{ 
-                  borderRadius: '1.5rem', 
-                  border: 'none', 
-                  boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
-                  padding: '1rem'
-                }}
-              />
+              <Tooltip content={<CustomAreaTooltip />} cursor={{ stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '3 3' }} />
               <Area 
                 type="monotone" 
                 dataKey="_count.id" 
@@ -143,7 +148,7 @@ export default function ApiAnalytics() {
          {/* Success Rate Chart */}
          <div className="bg-slate-900 p-8 rounded-[2.5rem] shadow-2xl border border-white/10">
             <h3 className="text-lg font-black text-white uppercase tracking-tight italic mb-8">Performance <span className="text-cyan-400">Index</span></h3>
-            <div className="h-[200px] w-full">
+            <div className="w-full h-full min-h-[200px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data?.activity || []}>
                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />

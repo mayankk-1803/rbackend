@@ -1,6 +1,6 @@
 import express from "express";
 import { auth } from "../middlewares/auth.js";
-import { idempotencyMiddleware } from "../middlewares/idempotency.js";
+import { idempotency, requireIdempotency } from "../middlewares/idempotency.js";
 import { fraudDetectionMiddleware } from "../middlewares/fraudDetection.js";
 import { getOperator } from "../controllers/operatorController.js";
 import { getWallet } from "../controllers/walletController.js";
@@ -29,7 +29,7 @@ router.post("/recharge/pay-postpaid-bill", auth, payPostpaidBill);
  * @route POST /api/recharge
  * @description SYNC Recharge Execution with Apibox via rechargeController
  */
-router.post("/recharge", auth, validateRechargeInput, idempotencyMiddleware, fraudDetectionMiddleware, recharge);
+router.post("/recharge", auth, validateRechargeInput, idempotency, fraudDetectionMiddleware, recharge);
 
 /**
  * Debug Transaction Status

@@ -8,7 +8,7 @@ import axios from 'axios';
 import socket from '../services/socket';
 
 export default function Profile() {
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || { name: 'User Account', phone: '+91 9876543210' });
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem('dizipay_user_data')) || { name: 'User Account', phone: '+91 9876543210' });
   const [wallet, setWallet] = useState({ coinBalance: 0 });
   const [isEditing, setIsEditing] = useState(false);
   const [newName, setNewName] = useState(user.name || '');
@@ -44,8 +44,8 @@ export default function Profile() {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    localStorage.removeItem('dizipay_user_token');
+    localStorage.removeItem('dizipay_user_data');
     toast.success('Logged out successfully');
     window.location.href = '/login';
   };
@@ -63,7 +63,7 @@ export default function Profile() {
       const res = await api.put('/user/update-profile', { name: newName });
       const updated = { ...user, ...res.data.data };
       setUser(updated);
-      localStorage.setItem('user', JSON.stringify(updated));
+      localStorage.setItem('dizipay_user_data', JSON.stringify(updated));
       setIsEditing(false);
       toast.success("Name updated successfully");
     } catch(e) {
@@ -86,7 +86,7 @@ export default function Profile() {
       
       const updated = { ...user, ...res.data.data };
       setUser(updated);
-      localStorage.setItem('user', JSON.stringify(updated));
+      localStorage.setItem('dizipay_user_data', JSON.stringify(updated));
       toast.success("Profile image updated");
     } catch (e) {
       console.error(e);

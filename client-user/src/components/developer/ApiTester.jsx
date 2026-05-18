@@ -82,11 +82,11 @@ export default function ApiTester() {
   const fetchKeys = async () => {
     try {
       const res = await api.get('/developer/keys');
-      if (res.data?.success) {
+      if (res.data?.success && Array.isArray(res.data?.data)) {
         setKeys(res.data.data);
         if (res.data.data.length > 0) {
           setSelectedKey(res.data.data[0]);
-          setApiSecret(res.data.data[0].apiSecret || '');
+          setApiSecret(res.data.data[0]?.apiSecret || '');
         }
       }
     } catch (err) {}
@@ -160,10 +160,10 @@ export default function ApiTester() {
       });
 
       setResponse({
-        endpoint: `${selectedEndpoint.method} ${finalPath}`,
-        payload: selectedEndpoint.method === 'POST' ? JSON.parse(requestBody) : finalParams,
+        endpoint: `${selectedEndpoint?.method || ''} ${finalPath || ''}`,
+        payload: selectedEndpoint?.method === 'POST' ? JSON.parse(requestBody || '{}') : (finalParams || {}),
         status: result?.status || 500,
-        data: result?.data || { message: "Network failure" }
+        data: result?.data || { success: false, message: "Network failure or malformed response" }
       });
 
       // Store transaction ID if successful recharge
@@ -174,7 +174,7 @@ export default function ApiTester() {
 
       setLatency(result?.latency || 0);
     } catch (err) {
-      toast.error("Execution error: " + err.message);
+      toast.error("Processing error: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -310,7 +310,7 @@ export default function ApiTester() {
                     <div className="p-4 bg-white/5 rounded-2xl">
                       <p className="text-cyan-400 font-mono text-[10px] mb-2">{response.endpoint}</p>
                       <pre className="text-cyan-400 font-mono text-[10px] whitespace-pre-wrap overflow-hidden">
-                        {JSON.stringify(response.payload, null, 2)}
+                        {JSON.stringify(response?.payload || {}, null, 2)}
                       </pre>
                     </div>
                   </div>
@@ -318,7 +318,7 @@ export default function ApiTester() {
                     <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Response Body</p>
                     <div className="p-4 bg-white/5 rounded-2xl overflow-hidden">
                       <pre className="text-cyan-400 font-mono text-[10px] whitespace-pre-wrap">
-                        {JSON.stringify(response.data, null, 2)}
+                        {JSON.stringify(response?.data || {}, null, 2)}
                       </pre>
                     </div>
                   </div>

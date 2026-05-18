@@ -10,7 +10,7 @@ const api = axios.create({
 // Request Interceptor: Add Auth Token & Logging
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("dizipay_admin_token");
     
     if (import.meta.env.DEV) {
       console.log(` [API Request] ${config.method?.toUpperCase()} ${config.url} | Auth: ${token ? "YES" : "NO"}`);
@@ -19,8 +19,14 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // Add Idempotency Key for mutation methods
+    if (['post', 'put', 'patch', 'delete'].includes(config.method?.toLowerCase())) {
+      config.headers['x-idempotency-key'] = `admin_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    }
     
     return config;
+
   },
   (error) => {
     if (import.meta.env.DEV) {
@@ -31,6 +37,17 @@ api.interceptors.request.use(
 );
 
 // Response Interceptor: Handle Global Errors & Logging
+import toast from "react-hot-toast";
+
+const lastToast = { message: "", time: 0 };
+const showToastOnce = (message, type = "error") => {
+  const now = Date.now();
+  if (lastToast.message === message && now - lastToast.time < 3000) return;
+  lastToast.message = message;
+  lastToast.time = now;
+  toast[type](message);
+};
+
 api.interceptors.response.use(
   (response) => {
     if (import.meta.env.DEV) {
@@ -43,12 +60,13 @@ api.interceptors.response.use(
     const message = error.response?.data?.message || "Something went wrong";
 
     if (status === 401) {
-      if (import.meta.env.DEV) {
-        console.error(" [Unauthorized] Session expired or invalid. Redirecting to login...");
-      }
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      localStorage.removeItem("dizipay_admin_token");
+      localStorage.removeItem("dizipay_admin_data");
       window.location.href = "/admin/login";
+    } else if (status === 429) {
+      showToastOnce("Rate limit exceeded. Please slow down.", "error");
+    } else if (status !== 404) {
+      showToastOnce(message, "error");
     }
 
     if (import.meta.env.DEV) {

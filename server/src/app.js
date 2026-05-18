@@ -7,17 +7,24 @@ import { apiLogger } from "./middlewares/apiLogger.js";
 
 import authRoutes from "./routes/authRoutes.js";
 import otpRoutes from "./routes/otpRoutes.js";
-// import rechargeRoutes from "./routes/rechargeRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import webhookRoutes from "./webhooks/webhookRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import walletRoutes from "./routes/walletRoutes.js";
+import { handleProviderWebhook } from "./controllers/webhookController.js";
+
 import apiRoutes from "./routes/apiRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import developerRoutes from "./routes/developerRoutes.js";
 import testApiRoutes from "./routes/testApiRoutes.js";
 import healthRoutes from "./routes/healthRoutes.js";
 import apiDevRoutes from "./routes/apiDevRoutes.js";
+import reportRoutes from "./routes/reportRoutes.js";
+import adminReportRoutes from "./routes/adminReportRoutes.js";
+
+import cookieParser from "cookie-parser";
+import { globalErrorHandler } from "./middlewares/errorHandler.js";
+import { idempotency } from "./middlewares/idempotency.js";
 
 const app = express();
 
@@ -37,33 +44,14 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow Postman / server-side / mobile apps
-    if (!origin) {
+    if (!origin || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
     console.error("CORS BLOCKED:", origin);
-
-    return callback(
-      new Error(`CORS not allowed for origin: ${origin}`)
-    );
+    return callback(new Error(`CORS not allowed for origin: ${origin}`));
   },
-
   credentials: true,
-
-  methods: [
-    "GET",
-    "POST",
-    "PUT",
-    "PATCH",
-    "DELETE",
-    "OPTIONS"
-  ],
-
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: [
     "Content-Type",
     "Authorization",
@@ -71,19 +59,12 @@ const corsOptions = {
     "x-idempotency-key",
     "x-api-key",
     "x-client-id",
-    "x-api-secret"
+    "x-api-secret",
+    "Cookie"
   ],
-
-  exposedHeaders: [
-    "Authorization"
-  ],
-
+  exposedHeaders: ["Authorization", "Set-Cookie"],
   optionsSuccessStatus: 200
 };
-
-// IMPORTANT:
-// DO NOT USE app.options("*", cors(...))
-// It crashes with newer Express/path-to-regexp versions
 
 app.use(cors(corsOptions));
 
@@ -93,38 +74,22 @@ app.use(cors(corsOptions));
  * =========================================================
  */
 
-app.set("trust proxy", 1);
-
-app.use(
-  helmet({
-    crossOriginResourcePolicy: false
-  })
-);
+app.set("trust proxy", 1); // Trust first proxy (Nginx)
+app.use(helmet({ crossOriginResourcePolicy: false }));
+app.use(cookieParser(process.env.COOKIE_SECRET || "dizipay_secret"));
 
 /**
  * =========================================================
- * RAW LOGGER
+ * RAW LOGGER & WEBHOOKS
  * =========================================================
  */
 
 app.use((req, res, next) => {
-  if (
-    req.url.includes("webhook") ||
-    req.url.includes("payment")
-  ) {
-    console.log(
-      `[RAW REQUEST] ${req.method} ${req.url}`
-    );
+  if (req.url.includes("webhook") || req.url.includes("payment")) {
+    console.log(`[RAW REQUEST] ${req.method} ${req.url}`);
   }
-
   next();
 });
-
-/**
- * =========================================================
- * WEBHOOK ROUTES
- * =========================================================
- */
 
 app.use("/api/webhook", webhookRoutes);
 
@@ -135,9 +100,7 @@ app.use("/api/webhook", webhookRoutes);
  */
 
 app.use(express.json());
-
 app.use(express.urlencoded({ extended: true }));
-
 app.use(apiLogger);
 
 /**
@@ -155,147 +118,70 @@ setupSwagger(app);
  */
 
 app.all("/payment-success", async (req, res) => {
-  const frontendUrl =
-    process.env.FRONTEND_URL ||
-    "https://irecharge.in";
-
-  const query = req.query || {};
-  const body = req.body || {};
-
-  const params = new URLSearchParams({
-    ...query,
-    ...body
-  });
-
-  const orderId =
-    params.get("order_id") ||
-    params.get("paymentId");
-
+  const frontendUrl = process.env.FRONTEND_URL || "https://irecharge.in";
+  const params = new URLSearchParams({ ...req.query, ...req.body });
+  const orderId = params.get("order_id") || params.get("paymentId");
   const status = params.get("status");
 
-  console.log(
-    `[Redirector] Processing ${req.method} | Order: ${orderId} | Status: ${status}`
-  );
+  console.log(`[Redirector] Processing ${req.method} | Order: ${orderId} | Status: ${status}`);
 
-  /**
-   * =========================================================
-   * FALLBACK PAYMENT VERIFICATION
-   * =========================================================
-   */
-
-  if (
-    orderId &&
-    (status === "SUCCESS" || status === "PAID")
-  ) {
-    console.log(
-      `[Redirector] SUCCESS detected. Triggering fallback verification for Order ${orderId}...`
-    );
-
+  if (orderId && (status === "SUCCESS" || status === "PAID")) {
     (async () => {
       try {
-        const { checkNexgateStatus } =
-          await import(
-            "./services/providers/nexgateService.js"
-          );
+        const { checkNexgateStatus } = await import("./services/providers/nexgateService.js");
+        const { paymentWebhook } = await import("./controllers/paymentController.js");
+        const gatewayStatus = await checkNexgateStatus(orderId);
 
-        const { paymentWebhook } =
-          await import(
-            "./controllers/paymentController.js"
-          );
-
-        const gatewayStatus =
-          await checkNexgateStatus(orderId);
-
-        if (
-          gatewayStatus.success &&
-          gatewayStatus.status === "SUCCESS"
-        ) {
+        if (gatewayStatus.success && gatewayStatus.status === "SUCCESS") {
           await paymentWebhook(
-            {
-              body: {
-                order_id: orderId,
-                status: "SUCCESS",
-                transaction_id:
-                  gatewayStatus.operatorTxnId,
-                amount:
-                  gatewayStatus.raw?.amount,
-                message:
-                  "Proactive Verification (Redirect Fallback)"
-              }
-            },
-            {
-              json: () => {},
-              status: () => ({
-                json: () => {}
-              })
-            }
+            { body: { order_id: orderId, status: "SUCCESS", transaction_id: gatewayStatus.operatorTxnId, amount: gatewayStatus.raw?.amount, message: "Proactive Verification" } },
+            { json: () => {}, status: () => ({ json: () => {} }) }
           );
         }
       } catch (err) {
-        console.error(
-          `[Redirector Fallback Error] Order ${orderId}:`,
-          err.message
-        );
+        console.error(`[Redirector Fallback Error] Order ${orderId}:`, err.message);
       }
     })();
   }
 
-  const redirectUrl = `${frontendUrl}/payment-success?${params.toString()}`;
-
-  res.setHeader(
-    "Cache-Control",
-    "no-store, no-cache, must-revalidate, proxy-revalidate"
-  );
-
-  res.redirect(redirectUrl);
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.redirect(`${frontendUrl}/payment-success?${params.toString()}`);
 });
 
 /**
  * =========================================================
- * HEALTH ROUTE
+ * ROUTES
  * =========================================================
  */
 
 app.use("/health", healthRoutes);
-
-/**
- * =========================================================
- * AUTH ROUTES (NO RATE LIMIT)
- * =========================================================
- */
-
 app.use("/api/auth", authRoutes);
-
 app.use("/api/otp", otpRoutes);
 
-/**
- * =========================================================
- * RATE LIMITED ROUTES
- * =========================================================
- */
-
-app.use("/api", apiLimiter);
+// Apply rate limiting and idempotency to all protected APIs
+app.use("/api", apiLimiter, idempotency);
 
 app.use("/api/payment", paymentRoutes);
-
 app.use("/api/user", userRoutes);
-
 app.use("/api/wallet", walletRoutes);
-
-// app.use("/api/recharge", rechargeRoutes);
-
 app.use("/api/admin", adminRoutes);
-
+app.use("/api/admin/reports", adminReportRoutes);
 app.use("/api/developer", developerRoutes);
-
 app.use("/api/v1/dev", apiDevRoutes);
-
+app.use("/api/reports", reportRoutes);
 app.use("/api", apiRoutes);
+
+
+// Universal Webhook
+app.post("/api/webhooks/:providerCode", handleProviderWebhook);
+app.get("/api/webhooks/:providerCode", handleProviderWebhook);
 
 /**
  * =========================================================
- * EXPORT
+ * GLOBAL ERROR HANDLER
  * =========================================================
  */
+
+app.use(globalErrorHandler);
 
 export default app;

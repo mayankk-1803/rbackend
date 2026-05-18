@@ -1,6 +1,7 @@
 import prisma from "../config/prisma.js";
 import eventBus from "../config/eventBus.js";
 import { Prisma } from "@prisma/client";
+import { issueReward } from "../services/rewardEngine.js";
 
 export const handleApiboxCallback = async (req, res) => {
   // Support both GET and POST
@@ -8,17 +9,28 @@ export const handleApiboxCallback = async (req, res) => {
 
   console.log("[APIBOX] Webhook HIT:", params);
 
-  // Apibox uses STATUS (1=Success, 2=Pending, 3=Failed) and RefTxnId
-  const { RefTxnId, STATUS, MSG, TXNID, OPTXNID } = params;
+  // Apibox uses flexible naming. We support:
+  // Status/STATUS, RefTxnId/OurTxnId, OPTXNID/OPtxnId
+  const RefTxnId = params.RefTxnId || params.OurTxnId || params.agentid || params.AGENTID;
+  const STATUS = params.STATUS || params.Status || params.status;
+  const MSG = params.MSG || params.msg || params.remark;
+  const TXNID = params.TXNID || params.txnid;
+  const OPTXNID = params.OPTXNID || params.OPtxnId || params.operator_id;
 
   if (!RefTxnId) {
-    console.warn("[APIBOX] Missing RefTxnId in webhook");
+    console.warn("[APIBOX] Missing transaction reference in webhook");
     return res.status(400).send("Missing RefTxnId");
   }
 
   try {
+    const txnIdNum = Number(RefTxnId);
+    if (isNaN(txnIdNum)) {
+      console.warn("[APIBOX] Invalid RefTxnId format:", RefTxnId);
+      return res.status(400).send("Invalid RefTxnId");
+    }
+
     const txn = await prisma.transaction.findUnique({
-      where: { id: Number(RefTxnId) }
+      where: { id: txnIdNum }
     });
 
     if (!txn) {
@@ -31,16 +43,17 @@ export const handleApiboxCallback = async (req, res) => {
       return res.status(200).send("OK");
     }
 
-    const statusInt = Number(STATUS);
+    const statusStr = String(STATUS);
     let finalStatus = "PENDING";
     let isRefund = false;
 
-    if (statusInt === 1) {
+    // Apibox: 1=Success, 2=Pending, 3=Failed
+    if (statusStr === "1" || statusStr.toLowerCase() === "success") {
       finalStatus = "SUCCESS";
-    } else if (statusInt === 3) {
+    } else if (statusStr === "3" || statusStr.toLowerCase() === "failed") {
       finalStatus = "FAILED";
       isRefund = true;
-    } else if (statusInt === 2) {
+    } else if (statusStr === "2" || statusStr.toLowerCase() === "pending") {
       finalStatus = "PENDING";
     } else {
       console.log(`[APIBOX] Unhandled status ${STATUS} for Txn ${RefTxnId}.`);
@@ -60,9 +73,14 @@ export const handleApiboxCallback = async (req, res) => {
 
       let updatedWallet = null;
 
-      // 2. SUCCESS Logic: Optional Cashback/Referral
+      // 2. SUCCESS Logic: Credit Cashback Reward
       if (finalStatus === "SUCCESS") {
-         // Keep existing cashback logic if needed
+         try {
+           // We'll call this outside the transaction or via event bus if preferred,
+           // but for immediate consistency we can do it here if issueReward handles its own tx
+         } catch (e) {
+           console.error("[APIBOX] Reward Issue Error:", e.message);
+         }
       }
 
       // 3. FAILED Logic: Refund
@@ -92,19 +110,31 @@ export const handleApiboxCallback = async (req, res) => {
       return { updatedTxn, updatedWallet };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
+    // [CRITICAL] Reward Issuance
+    if (finalStatus === "SUCCESS") {
+      // Trigger cashback reward engine
+      await issueReward(txn.id).catch(err => console.error("Reward Error:", err));
+    }
+
     // [CRITICAL] EVENT BUS EMITS
     if (finalStatus === "SUCCESS" || finalStatus === "FAILED") {
       eventBus.emit(`recharge_${finalStatus.toLowerCase()}`, {
-        txnId: txn.id,
+        transactionId: txn.id,
         status: finalStatus.toLowerCase(),
         transaction: result.updatedTxn,
-        reason: MSG
+        reason: MSG,
+        userId: txn.userId,
+        amount: txn.amount,
+        providerTxnId: result.updatedTxn.providerTxnId
       });
       
-      eventBus.emit("recharge_update", {
-        txnId: txn.id,
+      eventBus.emit("transaction_updated", {
+        transactionId: txn.id,
         status: finalStatus,
-        transaction: result.updatedTxn
+        transaction: result.updatedTxn,
+        amount: txn.amount,
+        providerTxnId: result.updatedTxn.providerTxnId,
+        userId: txn.userId
       });
     }
 

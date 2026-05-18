@@ -68,12 +68,13 @@ export const initSocket = (server) => {
   });
 
   // Legacy/Global fallback
-  eventBus.on("recharge_update", (data) => {
+  eventBus.on("transaction_updated", (data) => {
     if (data.userId) {
-      io.to(data.userId.toString()).emit("recharge_update", data);
+      io.to(data.userId.toString()).emit("transaction_updated", data);
     } else {
-      io.emit("recharge_update", data);
+      io.emit("transaction_updated", data);
     }
+    adminNamespace.emit("transaction_updated", data);
   });
 
   eventBus.on("provider_status", (data) => adminNamespace.emit("provider_status", data));

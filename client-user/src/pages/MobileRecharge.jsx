@@ -114,7 +114,7 @@ export default function MobileRecharge() {
     if (number.length === 10 && /^[6-9]\d{9}$/.test(number)) {
       const detectOp = async () => {
         if (opAbortRef.current) opAbortRef.current.abort();
-        const controller = new AbortController();
+        const controller = new AbortManageler();
         opAbortRef.current = controller;
         setDetecting(true);
         try {
@@ -248,7 +248,7 @@ export default function MobileRecharge() {
                 />
               </div>
               <div className="p-6 bg-slate-900 rounded-[2rem] text-center space-y-2">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em]">Authorized Provider</p>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em]">Authorized Operator</p>
                 <p className="text-white text-xs font-black uppercase italic tracking-tighter">Apibox Direct <span className="text-cyan-400">Sync</span></p>
               </div>
             </div>

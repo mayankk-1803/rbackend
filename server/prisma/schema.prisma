@@ -7,20 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model auditlog {
-  id        Int      @id @default(autoincrement())
-  action    String
-  adminId   Int?
-  userId    Int?
-  details   Json?
-  ipAddress String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      user?    @relation(fields: [userId], references: [id])
-
-  @@index([userId])
-}
-
 model commissionRule {
   id                Int      @id @default(autoincrement())
   operator          String
@@ -115,39 +101,160 @@ model recharge {
 }
 
 model transaction {
-  id             Int                    @id @default(autoincrement())
-  userId         Int
-  amount         Decimal                @db.Decimal(10, 2)
-  type           transaction_type
-  status         transaction_status     @default(PENDING)
-  direction      transaction_direction?
-  balanceAfter   Decimal?               @db.Decimal(10, 2)
-  mobile         String?
-  operator       String?
-  cashback       Decimal                @default(0) @db.Decimal(10, 2)
-  commission     Decimal                @default(0) @db.Decimal(10, 2)
-  profit         Decimal                @default(0) @db.Decimal(10, 2)
-  provider       String?
-  providerTxnId  String?
-  amountDeducted Boolean                @default(false)
-  refundStatus   String                 @default("none")
-  refundedAt     DateTime?
-  idempotencyKey String?                @unique
-  gatewayTxnId   String?
-  paymentGateway String?
-  retryCount     Int                    @default(0)
-  lastRetryAt    DateTime?
-  isLocked       Boolean                @default(false)
-  description    String?                @db.VarChar(255)
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
-  recharge       recharge?
-  user           user                   @relation(fields: [userId], references: [id])
+  id              Int                    @id @default(autoincrement())
+  userId          Int
+  amount          Decimal                @db.Decimal(10, 2)
+  type            transaction_type
+  status          transaction_status     @default(PENDING)
+  direction       transaction_direction?
+  balanceAfter    Decimal?               @db.Decimal(10, 2)
+  mobile          String?
+  operator        String?
+  cashback        Decimal                @default(0) @db.Decimal(10, 2)
+  cashbackCoins   Int                    @default(0)
+  rewardClaimed   Boolean                @default(false)
+  commission      Decimal                @default(0) @db.Decimal(10, 2)
+  profit          Decimal                @default(0) @db.Decimal(10, 2)
+  provider        String?
+  providerTxnId   String?
+  providerRef     String?                @unique
+  amountDeducted  Boolean                @default(false)
+  refundStatus    String                 @default("none")
+  refundedAt      DateTime?
+  idempotencyKey  String?                @unique
+  gatewayTxnId    String?
+  paymentGateway  String?
+  retryCount      Int                    @default(0)
+  lastRetryAt     DateTime?
+  isLocked        Boolean                @default(false)
+  description     String?                @db.VarChar(255)
+  invoiceSnapshot Json?
+  apiResponse     Json?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  recharge         recharge?
+  user             user                  @relation(fields: [userId], references: [id])
   coinTransactions coinTransaction[]
+  disputes         dispute[]
+  ledgerEntries    ledgerEntry[]
 
   @@index([status])
   @@index([type])
   @@index([userId])
+  @@index([createdAt])
+  @@index([mobile])
+}
+
+model ledgerEntry {
+  id               Int                @id @default(autoincrement())
+  userId           Int
+  amount           Decimal            @db.Decimal(10, 2)
+  balanceBefore    Decimal            @db.Decimal(10, 2)
+  balanceAfter     Decimal            @db.Decimal(10, 2)
+  type             ledgerEntry_type
+  transactionId    Int?
+  referenceEntryId Int?
+  description      String?            @db.VarChar(255)
+  metadata         Json?
+  createdAt        DateTime           @default(now())
+
+  user        user         @relation(fields: [userId], references: [id])
+  transaction transaction? @relation(fields: [transactionId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([transactionId])
+  @@index([type])
+}
+
+model cashbackSettings {
+  id                     Int         @id @default(1)
+  cashbackEnabled        Boolean     @default(true)
+  rewardMode             reward_mode @default(PERCENTAGE)
+  coinConversionRate     Int         @default(100)
+  minRechargeAmount      Decimal     @default(10) @db.Decimal(10, 2)
+  maxCashbackPerRecharge Decimal     @default(50) @db.Decimal(10, 2)
+  dailyCashbackLimit     Decimal     @default(500) @db.Decimal(10, 2)
+  cooldownSeconds        Int         @default(0)
+  globalPercentage       Float       @default(1.0)
+  operatorWiseCashback   Json?
+  slabWiseCashback       Json?
+  cashbackExpiryDays     Int         @default(0) // 0 means no expiry
+  updatedById            Int?
+  updatedAt              DateTime    @updatedAt
+
+  updatedBy user? @relation(fields: [updatedById], references: [id])
+}
+
+model dispute {
+  id            Int             @id @default(autoincrement())
+  userId        Int
+  transactionId Int
+  type          String
+  description   String          @db.Text
+  status        dispute_status  @default(OPEN)
+  remarks       String?         @db.Text
+  adminId       Int?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  user        user        @relation(fields: [userId], references: [id])
+  transaction transaction @relation(fields: [transactionId], references: [id])
+  admin       user?       @relation("adminDisputes", fields: [adminId], references: [id])
+
+  @@index([userId])
+  @@index([transactionId])
+  @@index([status])
+}
+
+model auditLog {
+  id        Int      @id @default(autoincrement())
+  action    String
+  adminId   Int?
+  userId    Int?
+  entity    String?
+  entityId  Int?
+  details   Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  admin user? @relation("adminAudit", fields: [adminId], references: [id])
+  user  user? @relation("userAudit", fields: [userId], references: [id])
+
+  @@index([adminId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model walletSnapshot {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  balance     Decimal  @db.Decimal(10, 2)
+  coinBalance Int
+  createdAt   DateTime @default(now())
+
+  user user @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  title     String
+  message   String   @db.Text
+  type      String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user user @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([isRead])
 }
 
 model user {
@@ -158,8 +265,8 @@ model user {
   phone            String?   @unique
   isPhoneVerified  Boolean   @default(false)
   isEmailVerified  Boolean   @default(false)
-  authType         String    @default("phone") // phone or email
-  role             user_role @default(user)
+  authType         String    @default("phone")
+  role             user_role @default(USER)
   referralCode     String?   @unique
   referredBy       Int?
   referralEarnings Decimal   @default(0) @db.Decimal(10, 2)
@@ -168,17 +275,24 @@ model user {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  apiKeys         apiKey[]
-  apiLogs         apiLog[]
-  auditlog        auditlog[]
-  fraudlog        fraudlog[]
-  payment         payment[]
-  transaction     transaction[]
-  coinTransaction coinTransaction[]
-  wallet          wallet?
+  apiKeys          apiKey[]
+  apiLogs          apiLog[]
+  fraudlog         fraudlog[]
+  payment          payment[]
+  transaction      transaction[]
+  coinTransaction  coinTransaction[]
+  wallet           wallet?
+  ledgerEntries    ledgerEntry[]
+  disputes         dispute[]
+  adminDisputes    dispute[] @relation("adminDisputes")
+  auditLogs        auditLog[] @relation("userAudit")
+  adminAuditLogs   auditLog[] @relation("adminAudit")
+  walletSnapshots  walletSnapshot[]
+  notifications    notification[]
+  cashbackSettings cashbackSettings[]
 
-  user        user?  @relation("userToUser", fields: [referredBy], references: [id])
-  other_user  user[] @relation("userToUser")
+  user       user?  @relation("userToUser", fields: [referredBy], references: [id])
+  other_user user[] @relation("userToUser")
 
   @@index([email])
   @@index([phone])
@@ -196,7 +310,8 @@ model apiKey {
   lastUsedAt    DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  user          user     @relation(fields: [userId], references: [id])
+
+  user user @relation(fields: [userId], references: [id])
 
   @@index([userId])
 }
@@ -214,7 +329,7 @@ model apiLog {
   responseBody Json?
   createdAt    DateTime @default(now())
 
-  user         user     @relation(fields: [userId], references: [id])
+  user user @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([createdAt])
@@ -240,7 +355,8 @@ model wallet {
   currency        String   @default("INR")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  user            user     @relation(fields: [userId], references: [id])
+
+  user user @relation(fields: [userId], references: [id])
 
   @@index([userId])
 }
@@ -252,9 +368,10 @@ model coinTransaction {
   type          coinTransaction_type
   description   String?
   rechargeTxnId Int?
-  rechargeTxn   transaction?          @relation(fields: [rechargeTxnId], references: [id])
+  rechargeTxn   transaction?         @relation(fields: [rechargeTxnId], references: [id])
   createdAt     DateTime             @default(now())
-  user          user                 @relation(fields: [userId], references: [id])
+
+  user user @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([userId, createdAt])
@@ -290,8 +407,34 @@ enum transaction_status {
 }
 
 enum user_role {
-  user
-  admin
+  USER
+  RETAILER
+  DISTRIBUTOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum ledgerEntry_type {
+  RECHARGE_DEBIT
+  CASHBACK_CREDIT
+  REFUND_CREDIT
+  REDEMPTION_DEBIT
+  REVERSAL_CREDIT
+  ADMIN_ADJUSTMENT
+  TOPUP_CREDIT
+}
+
+enum reward_mode {
+  PERCENTAGE
+  RANDOM
+}
+
+enum dispute_status {
+  OPEN
+  UNDER_REVIEW
+  PROVIDER_ESCALATED
+  RESOLVED
+  REJECTED
 }
 
 enum transaction_direction {

@@ -1,5 +1,5 @@
 import prisma from "../config/prisma.js";
-import { rechargeWithApibox } from "../services/providers/apiboxService.js";
+import { addRechargeJob } from "../services/queueService.js";
 import { APIBOX_OPERATORS } from "../config/operators.js";
 import eventBus from "../config/eventBus.js";
 import { Prisma } from "@prisma/client";
@@ -108,67 +108,26 @@ export const recharge = async (req, res) => {
 
     const { transaction, updatedWallet } = initResult;
 
-    // 4. CALL APIBOX (WAIT FOR RESPONSE)
-    console.log("CALLING APIBOX");
-    let apiResponse;
-    try {
-      apiResponse = await rechargeWithApibox({
-        mobile,
-        amount,
-        operator: String(operatorCode),
-        txnId: transaction.id
-      });
-    } catch (apiErr) {
-      console.error("APIBOX CRITICAL ERROR:", apiErr.message);
-      apiResponse = { success: false, status: "PENDING", message: "Provider timeout" };
-    }
-
-    const finalStatus = apiResponse.status || "PENDING";
-    const providerTxnId = apiResponse.operatorTxnId || apiResponse.providerTxnId;
-    const providerMessage = apiResponse.message || "Provider Error";
-
-    // 5. UPDATE DB STATUS (Storing actual provider message)
-    await prisma.transaction.update({
-      where: { id: transaction.id },
-      data: {
-        status: finalStatus,
-        providerTxnId: providerTxnId || null,
-        description: providerMessage // Storing actual message (Invalid Ip, etc.)
-      }
+    // 4. ENQUEUE RECHARGE JOB
+    await addRechargeJob({
+      userId: transaction.userId,
+      amount: transaction.amount,
+      mobile: transaction.mobile,
+      operator: transaction.operator,
+      txnId: transaction.id,
+      retryCount: 0,
+      idempotencyKey: transaction.idempotencyKey
     });
 
-    // 6. REFUND IF FAILED
-    if (finalStatus === "FAILED") {
-      console.log(`[RECHARGE] FAILED: ${providerMessage}. Refunding User ${userId}`);
-      await prisma.$transaction(async (tx) => {
-        await tx.wallet.update({ where: { userId }, data: { balance: { increment: amount } } });
-        await tx.transaction.update({
-          where: { id: transaction.id },
-          data: { refundStatus: "refunded", refundedAt: new Date() }
-        });
-        await tx.transaction.create({
-          data: {
-            userId,
-            amount: new Prisma.Decimal(amount),
-            type: "REFUND",
-            status: "SUCCESS",
-            direction: "CREDIT",
-            description: `Refund for failed recharge ${transaction.id}: ${providerMessage}`
-          }
-        });
-      });
-    }
-
-    // 7. NOTIFY & RESPONSE
+    // 5. NOTIFY & RESPONSE
     eventBus.emit("wallet_updated", { userId: userId.toString() });
 
     return res.json({
-      success: finalStatus === "SUCCESS",
+      success: true,
       provider: "APIBOX",
       operator: operatorName,
-      status: finalStatus,
-      providerTxnId: providerTxnId,
-      message: providerMessage
+      status: "PENDING",
+      message: "Recharge request queued successfully"
     });
 
   } catch (error) {
@@ -237,60 +196,23 @@ export const payPostpaidBill = async (req, res) => {
 
     const { transaction } = initResult;
 
-    // Call APIBOX for Payment
-    const provider = getProvider("APIBOX");
-    let apiResponse;
-    try {
-      apiResponse = await provider.recharge({
-        mobile,
-        amount,
-        operator: String(operatorCode),
-        txnId: transaction.id
-      });
-    } catch (apiErr) {
-      apiResponse = { success: false, status: "PENDING", message: "Provider timeout" };
-    }
-
-    const finalStatus = apiResponse.status || "PENDING";
-    const providerTxnId = apiResponse.operatorTxnId || apiResponse.providerTxnId;
-
-    // Update Transaction
-    await prisma.transaction.update({
-      where: { id: transaction.id },
-      data: {
-        status: finalStatus,
-        providerTxnId: providerTxnId || null,
-        description: apiResponse.message || transaction.description
-      }
+    // 4. ENQUEUE POSTPAID JOB
+    await addRechargeJob({
+      userId: transaction.userId,
+      amount: transaction.amount,
+      mobile: transaction.mobile,
+      operator: transaction.operator,
+      txnId: transaction.id,
+      retryCount: 0,
+      idempotencyKey: transaction.idempotencyKey
     });
-
-    // Handle Failure (Refund)
-    if (finalStatus === "FAILED") {
-      await prisma.$transaction(async (tx) => {
-        await tx.wallet.update({ where: { userId }, data: { balance: { increment: amount } } });
-        await tx.transaction.update({
-          where: { id: transaction.id },
-          data: { refundStatus: "refunded", refundedAt: new Date() }
-        });
-        await tx.transaction.create({
-          data: {
-            userId,
-            amount: new Prisma.Decimal(amount),
-            type: "REFUND",
-            status: "SUCCESS",
-            direction: "CREDIT",
-            description: `Refund for failed bill payment ${transaction.id}`
-          }
-        });
-      });
-    }
 
     eventBus.emit("wallet_updated", { userId: userId.toString() });
 
     return res.json({
-      success: finalStatus === "SUCCESS" || finalStatus === "PENDING",
-      status: finalStatus,
-      message: apiResponse.message || "Payment processed",
+      success: true,
+      status: "PENDING",
+      message: "Payment request queued successfully",
       transactionId: transaction.id
     });
 

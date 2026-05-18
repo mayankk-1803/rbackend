@@ -1,37 +1,67 @@
-import axios from "axios";
+import { redisClient } from "../../../config/redis.js";
+import { apiboxRequest } from "./client.js";
 
 /**
- * Fetches current wallet balance from Apibox
+ * Fetches current wallet balance from Apibox with caching and resiliency
  */
 export const getBalance = async () => {
-  const API_URL = process.env.APIBOX_BASE_URL || "https://Apibox.co.in/Api/Service";
-  const API_TOKEN = process.env.APIBOX_TOKEN;
+  const CACHE_KEY = "provider:apibox:balance";
+  const BREAKER_KEY = "provider:apibox:breaker";
 
   try {
-    const params = {
-      ApiToken: API_TOKEN
-    };
-
-    const response = await axios.get(`${API_URL}/GetBalance`, {
-      params,
-      timeout: 10000
-    });
-
-    if (response.data && response.data.STATUS === 1) {
-      return {
-        success: true,
-        balance: Number(response.data.BALANCE || 0),
-        raw: response.data
+    // 1. Check Circuit Breaker
+    const isBroken = await redisClient.get(BREAKER_KEY);
+    if (isBroken) {
+      const cachedBalance = await redisClient.get(CACHE_KEY);
+      return { 
+        success: true, 
+        cached: true, 
+        providerAvailable: false,
+        balance: Number(cachedBalance || 0),
+        message: "Provider in cooldown"
       };
     }
 
-    return {
-      success: false,
-      message: response.data?.MESSAGE || "Failed to fetch balance",
-      raw: response.data
-    };
+    const responseData = await apiboxRequest("/Balance", {}, false);
+
+    if (responseData && responseData.STATUS === 1) {
+      const balance = Number(responseData.BALANCE || 0);
+      // Update Cache
+      await redisClient.setex(CACHE_KEY, 3600, balance.toString());
+      // Reset Breaker failures on success
+      await redisClient.del(`${BREAKER_KEY}:failures`);
+      
+      return {
+        success: true,
+        cached: false,
+        providerAvailable: true,
+        balance,
+        raw: responseData
+      };
+    }
+
+    throw new Error(responseData?.MESSAGE || "Provider reported error");
+
   } catch (error) {
-    console.error(`[APIBOX BALANCE ERROR]:`, error.message);
-    return { success: false, message: error.message };
+    console.error(`[APIBOX][BALANCE_ERROR]:`, error.message);
+    
+    // Increment Failure Count for Breaker
+    const failureCount = await redisClient.incr(`${BREAKER_KEY}:failures`);
+    if (failureCount === 1) await redisClient.expire(`${BREAKER_KEY}:failures`, 300);
+    
+    if (failureCount >= 3) {
+      console.warn(`[APIBOX][CIRCUIT_BREAKER] Tripping breaker for 2 minutes`);
+      await redisClient.setex(BREAKER_KEY, 120, "broken");
+    }
+
+    // Return Cached Balance as fallback
+    const cachedBalance = await redisClient.get(CACHE_KEY);
+    return { 
+      success: true, // We return success: true because we have cached data
+      cached: true, 
+      providerAvailable: false,
+      balance: Number(cachedBalance || 0),
+      message: error.message
+    };
   }
 };

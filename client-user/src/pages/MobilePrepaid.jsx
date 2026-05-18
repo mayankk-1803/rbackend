@@ -108,7 +108,7 @@ export default function MobilePrepaid() {
     if (number.length === 10 && /^[6-9]\d{9}$/.test(number)) {
       const detectOp = async () => {
         if (opAbortRef.current) opAbortRef.current.abort();
-        const controller = new AbortController();
+        const controller = new AbortManageler();
         opAbortRef.current = controller;
         setDetecting(true);
         try {
@@ -195,7 +195,7 @@ export default function MobilePrepaid() {
           </div>
           <div className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-full shadow-sm">
              <ShieldCheck className="w-4 h-4 text-emerald-500" />
-             <span className="text-[8px] font-black uppercase text-slate-500">Secure Protocol</span>
+             <span className="text-[8px] font-black uppercase text-slate-500">Secure Search</span>
           </div>
         </div>
 

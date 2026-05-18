@@ -10,8 +10,8 @@ export const Tester = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
-  const [providers, setProviders] = useState([]);
-  const [selectedProviders, setSelectedProviders] = useState([]);
+  const [providers, setOperators] = useState([]);
+  const [selectedOperators, setSelectedOperators] = useState([]);
   const [selectedForCompare, setSelectedForCompare] = useState([]);
   const [compareResults, setCompareResults] = useState(null);
   const [amount, setAmount] = useState('10');
@@ -20,36 +20,25 @@ export const Tester = () => {
   const [showAll, setShowAll] = useState(false);
   
   const { useSocketEvent } = useSocket();
+  const abortRef = React.useRef(null);
 
   useEffect(() => {
-    const fetchProviders = async () => {
+    const fetchOperators = async () => {
       try {
         const { data } = await api.get('/admin/providers');
-        setProviders(data.data || []);
+        setOperators(data.data || []);
       } catch (err) {
         console.error('Failed to fetch providers', err);
       }
     };
-    fetchProviders();
+    fetchOperators();
+
+    return () => {
+      if (abortRef.current) abortRef.current.abort();
+    };
   }, []);
 
-  useSocketEvent('recharge_success', (data) => {
-    updateHistory(data.transaction);
-    if(result && result.transactionId === data.transaction?.transactionId) {
-      setResult(prev => ({ ...prev, status: 'success', details: data.transaction }));
-      toast.success('Recharge successful');
-    }
-  });
-
-  useSocketEvent('recharge_failed', (data) => {
-    updateHistory(data.transaction);
-    if(result && result.transactionId === data.transaction?.transactionId) {
-      setResult(prev => ({ ...prev, status: 'failed', details: data.transaction }));
-      toast.error('Recharge failed');
-    }
-  });
-
-  const updateHistory = (tx) => {
+  const updateHistory = React.useCallback((tx) => {
     if (!tx) return;
     setHistory(prev => {
       const map = new Map(prev.map(t => [t.id || t.transactionId, t]));
@@ -59,10 +48,35 @@ export const Tester = () => {
         .reverse()
         .slice(0, 50);
     });
-  };
+  }, []);
+
+  const onRechargeSuccess = React.useCallback((data) => {
+    updateHistory(data.transaction);
+    if(result && result.transactionId === data.transaction?.transactionId) {
+      setResult(prev => ({ ...prev, status: 'success', details: data.transaction }));
+      toast.success('Recharge successful');
+    }
+  }, [result, updateHistory]);
+
+  const onRechargeFailed = React.useCallback((data) => {
+    updateHistory(data.transaction);
+    if(result && result.transactionId === data.transaction?.transactionId) {
+      setResult(prev => ({ ...prev, status: 'failed', details: data.transaction }));
+      toast.error('Recharge failed');
+    }
+  }, [result, updateHistory]);
+
+  useSocketEvent('recharge_success', onRechargeSuccess);
+  useSocketEvent('recharge_failed', onRechargeFailed);
 
   const handleTest = async (e) => {
     e.preventDefault();
+    if (loading) return;
+    
+    // Cancel previous if exists
+    if (abortRef.current) abortRef.current.abort();
+    abortRef.current = new AbortController();
+
     if (mobileNumber.length !== 10) return toast.error('Enter valid 10-digit number');
     const amt = Number(amount);
     if (!amt || amt <= 0) return toast.error('Enter valid amount');
@@ -71,13 +85,13 @@ export const Tester = () => {
     const loadingToast = toast.loading("Processing recharge...");
     try {
       setLoading(true);
-      setResult(null);
+      setResult({ status: 'Awaiting Response...', message: 'Firing request to provider gateway...' });
       const { data } = await api.post('/recharge', {
         mobile: mobileNumber,
         amount: Number(amount),
         operator: operator,
-        testProviders: selectedProviders.length > 0 ? selectedProviders : undefined
-      });
+        testOperators: selectedOperators.length > 0 ? selectedOperators : undefined
+      }, { signal: abortRef.current.signal });
       
       setResult({ 
         status: 'pending', 
@@ -88,11 +102,13 @@ export const Tester = () => {
       if(data.data) updateHistory(data.data);
       toast.success("Request sent successfully", { id: loadingToast });
     } catch (err) {
+      if (err.name === 'CanceledError' || err.name === 'AbortError') return;
       const msg = err.response?.data?.message || err.message;
-      setResult({ status: 'failed_api', message: msg });
+      setResult({ status: 'failed_api', message: msg, details: { attempts: [{ provider: 'API Gateway', status: 'ERROR', reason: msg }] } });
       toast.error(msg, { id: loadingToast });
     } finally {
       setLoading(false);
+      abortRef.current = null;
     }
   };
 
@@ -134,20 +150,20 @@ export const Tester = () => {
     }
   };
 
-  const toggleCompareProvider = (code) => {
+  const toggleCompareOperator = (code) => {
     setSelectedForCompare(prev => 
       prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]
     );
   };
 
-  const getBestProvider = (results) => {
+  const getBestOperator = (results) => {
     if (!results || results.length === 0) return null;
     const successOnly = results.filter(r => r.status === 'SUCCESS');
     if (successOnly.length === 0) return null;
     return successOnly.reduce((prev, curr) => prev.responseTime < curr.responseTime ? prev : curr);
   };
 
-  const bestProvider = compareResults ? getBestProvider(compareResults.results) : null;
+  const bestOperator = compareResults ? getBestOperator(compareResults.results) : null;
 
   return (
     <motion.div
@@ -157,7 +173,7 @@ export const Tester = () => {
     >
       <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight drop-shadow-sm uppercase italic">API Testing <span className="text-cyan-600">Engine</span></h1>
+          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight drop-shadow-sm uppercase italic">RECHARGE <span className="text-cyan-600">Engine</span></h1>
           <p className="text-[10px] md:text-sm text-slate-400 mt-1 font-bold uppercase tracking-widest">Benchmark and debug provider routing in real-time</p>
         </div>
         <div className="flex items-center gap-4">
@@ -228,15 +244,15 @@ export const Tester = () => {
               <div className="space-y-4 pt-4">
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Priority Routing</label>
                 <div className="space-y-3">
-                  <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all ${selectedProviders.length === 0 ? 'bg-cyan-50 border-cyan-200 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}>
+                  <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all ${selectedOperators.length === 0 ? 'bg-cyan-50 border-cyan-200 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}>
                     <input 
                       type="checkbox" 
-                      checked={selectedProviders.length === 0} 
-                      onChange={() => setSelectedProviders([])}
+                      checked={selectedOperators.length === 0} 
+                      onChange={() => setSelectedOperators([])}
                       className="hidden"
                     />
-                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${selectedProviders.length === 0 ? 'border-cyan-600 bg-cyan-600' : 'border-slate-300'}`}>
-                      {selectedProviders.length === 0 && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${selectedOperators.length === 0 ? 'border-cyan-600 bg-cyan-600' : 'border-slate-300'}`}>
+                      {selectedOperators.length === 0 && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
                     </div>
                     <span className="ml-4 text-xs font-black text-slate-900 uppercase tracking-widest">Smart Failover</span>
                     <span className="ml-auto text-[8px] bg-cyan-600 text-white px-2 py-0.5 rounded-full font-black uppercase tracking-tighter">AI Driven</span>
@@ -247,9 +263,9 @@ export const Tester = () => {
                       <button
                         key={p.code}
                         type="button"
-                        onClick={() => setSelectedProviders(prev => prev.includes(p.code) ? prev.filter(c => c !== p.code) : [...prev, p.code])}
+                        onClick={() => setSelectedOperators(prev => prev.includes(p.code) ? prev.filter(c => c !== p.code) : [...prev, p.code])}
                         className={`p-3 text-[10px] font-black uppercase tracking-widest border rounded-xl transition-all ${
-                          selectedProviders.includes(p.code) 
+                          selectedOperators.includes(p.code) 
                           ? 'bg-purple-50 border-purple-200 text-purple-600 shadow-sm' 
                           : 'bg-slate-50 border-slate-200 text-slate-400 hover:border-slate-300'
                         }`}
@@ -325,7 +341,7 @@ export const Tester = () => {
                     </div>
                     <div className="space-y-3 border-t border-white/5 pt-4">
                       <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-                        <span className="text-slate-500">Final Provider</span>
+                        <span className="text-slate-500">Final Operator</span>
                         <span className="text-cyan-400">{result.details?.provider || 'N/A'}</span>
                       </div>
                     </div>

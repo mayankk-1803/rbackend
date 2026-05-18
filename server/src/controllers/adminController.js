@@ -1,6 +1,9 @@
 import prisma from "../config/prisma.js";
 import { addRechargeJob } from "../services/queueService.js";
 import { compareProviders } from "../services/compareService.js";
+import { recordFinancialEntry } from "../services/ledgerService.js";
+import { logAction, AUDIT_ACTIONS } from "../services/auditService.js";
+import { Prisma } from "@prisma/client";
 
 export const getDashboard = async (req, res) => {
   try {
@@ -18,33 +21,30 @@ export const getDashboard = async (req, res) => {
     
     const stats = await prisma.transaction.aggregate({
       where: { 
-        status: "SUCCESS",
-        type: { in: ["RECHARGE", "BILL_PAYMENT"] } 
+        status: "SUCCESS"
       },
       _sum: {
         commission: true,
         cashback: true,
-        profit: true
+        profit: true,
+        amount: true
       }
     });
 
-    const coinStats = await prisma.coinTransaction.groupBy({
-      by: ['type'],
-      _sum: { amount: true }
-    });
-
-    let totalCoinsIssued = 0;
-    let totalCoinsRedeemed = 0;
-
-    coinStats.forEach(stat => {
-      if (stat.type === 'EARNED') totalCoinsIssued = stat._sum.amount || 0;
-      if (stat.type === 'REDEEMED') totalCoinsRedeemed = stat._sum.amount || 0;
+    const topupStats = await prisma.transaction.aggregate({
+      where: {
+        status: "SUCCESS",
+        type: "TOPUP"
+      },
+      _sum: {
+        amount: true
+      }
     });
 
     const refundCount = await prisma.transaction.count({ where: { type: "REFUND" } });
     
-    // Get Provider Metrics
-    const providers = await prisma.provider.findMany({
+    // Get Operator Metrics
+    const operators = await prisma.provider.findMany({
       select: {
         name: true,
         healthStatus: true,
@@ -54,7 +54,7 @@ export const getDashboard = async (req, res) => {
       }
     });
 
-    const apibox = providers.find(p => p.code === 'APIBOX');
+    const apibox = operators.find(p => p.code === 'APIBOX');
 
     const data = {
       totalUsers,
@@ -66,9 +66,8 @@ export const getDashboard = async (req, res) => {
       successRate,
       totalRevenue: Number(stats._sum.profit || 0),
       totalCashback: Number(stats._sum.cashback || 0),
-      totalCoinsIssued,
-      totalCoinsRedeemed,
-      providers,
+      totalAdded: Number(topupStats._sum.amount || 0),
+      providers: operators,
       apiboxMetrics: {
         health: apibox?.healthStatus || "UNKNOWN",
         responseTime: apibox?.avgResponseTime || 0,
@@ -126,45 +125,75 @@ export const getTopUsers = async (req, res) => {
 
 export const retryTxn = async (req, res) => {
   try {
+    const txnId = parseInt(req.params.id);
+    console.log(`[RETRY][REQUESTED] → Txn #${txnId} by Admin ${req.user.id}`);
+
     const txn = await prisma.transaction.findUnique({
-      where: { id: parseInt(req.params.id) }
+      where: { id: txnId }
     });
 
     if (!txn) {
+      console.warn(`[RETRY][FAILED] → Txn #${txnId} not found`);
       return res.status(404).json({
         success: false,
         message: "Transaction not found"
       });
     }
 
-    if (txn.status !== "FAILED") {
+    // Allow retry for FAILED or stuck PENDING (e.g. > 5 mins old)
+    const isPending = txn.status === "PENDING";
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const isStuck = isPending && txn.updatedAt < fiveMinutesAgo;
+
+    if (txn.status !== "FAILED" && !isStuck) {
+      console.warn(`[RETRY][VALIDATED] → Txn #${txnId} ineligible (Status: ${txn.status})`);
       return res.status(400).json({
         success: false,
-        message: "Only failed transactions can be retried"
+        message: isPending ? "Transaction is still processing. Please wait 5 minutes before retrying stuck transactions." : "Only failed or stuck transactions can be retried"
       });
     }
+
+    // Block if max retries exceeded
+    if (txn.retryCount >= 3) {
+      console.warn(`[RETRY][BLOCKED] → Txn #${txnId} exceeded max retries (3)`);
+      return res.status(400).json({
+        success: false,
+        message: "Maximum retry attempts (3) exceeded. Please investigate or refund manually."
+      });
+    }
+
+    console.log(`[RETRY][VALIDATED] → Txn #${txnId} eligible. Resetting to PENDING...`);
 
     // Reset status to PENDING
     await prisma.transaction.update({
       where: { id: txn.id },
-      data: { status: "PENDING", retryCount: { increment: 1 } }
+      data: { 
+        status: "PENDING", 
+        retryCount: { increment: 1 },
+        lastRetryAt: new Date()
+      }
     });
 
     // Re-add to queue
+    console.log(`[RETRY][PROVIDER_CALL] → Re-queueing job for Txn #${txnId}`);
     await addRechargeJob({
       userId: txn.userId,
       amount: txn.amount,
       mobile: txn.mobile,
       operator: txn.operator,
       txnId: txn.id,
-      idempotencyKey: txn.idempotencyKey
+      retryCount: txn.retryCount + 1, // Pass current + 1
+      idempotencyKey: txn.idempotencyKey 
     });
+
+    console.log(`[RETRY][SUCCESS] → Txn #${txnId} re-queued successfully`);
 
     res.json({
       success: true,
       message: "Transaction re-queued for processing"
     });
   } catch (err) {
+    console.error(`[RETRY][FAILED] → Txn #${req.params.id}: ${err.message}`);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -329,26 +358,110 @@ export const getCharts = async (req, res) => {
 
 export const topUpWallet = async (req, res) => {
   try {
-    const { userId, amount } = req.body;
+    const { userId, amount, description } = req.body;
     const targetUserId = userId ? Number(userId) : Number(req.user.id);
     
     if (!targetUserId) {
       return res.status(400).json({ success: false, message: "User ID required" });
     }
 
-    const wallet = await prisma.wallet.upsert({
-      where: { userId: targetUserId },
-      update: { balance: { increment: amount } },
-      create: { 
-        userId: targetUserId, 
-        balance: amount,
-        cashbackBalance: 0 
-      }
+    const result = await recordFinancialEntry({
+      userId: targetUserId,
+      amount: amount,
+      type: 'TOPUP_CREDIT',
+      description: description || "Admin Wallet Top-up"
     });
 
-    res.json({ success: true, message: "Wallet topped up", balance: wallet.balance });
+    await logAction({
+      action: AUDIT_ACTIONS.WALLET_ADJUSTMENT,
+      adminId: req.user.id,
+      userId: targetUserId,
+      entity: "WALLET",
+      details: { amount, description },
+      req
+    });
+
+    res.json({ success: true, message: "Wallet topped up", balance: result.balanceAfter });
   } catch (err) {
     console.error("TopUp Error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const getCashbackSettings = async (req, res) => {
+  try {
+    let settings = await prisma.cashbackSettings.findFirst({
+      where: { id: 1 }
+    });
+    if (!settings) {
+      settings = await prisma.cashbackSettings.create({ 
+        data: { 
+          id: 1,
+          cashbackEnabled: true,
+          rewardMode: 'PERCENTAGE',
+          coinConversionRate: 100,
+          minRechargeAmount: 10,
+          maxCashbackPerRecharge: 50,
+          dailyCashbackLimit: 500,
+          cooldownSeconds: 0,
+          globalPercentage: 1.0,
+          operatorWiseCashback: {},
+          slabWiseCashback: []
+        } 
+      });
+    }
+    res.json({ success: true, data: settings });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const updateCashbackSettings = async (req, res) => {
+  try {
+    const { 
+      cashbackEnabled, 
+      rewardMode, 
+      coinConversionRate, 
+      minRechargeAmount, 
+      maxCashbackPerRecharge,
+      dailyCashbackLimit,
+      cooldownSeconds,
+      globalPercentage,
+      operatorWiseCashback,
+      slabWiseCashback
+    } = req.body;
+
+    const data = {
+      cashbackEnabled: Boolean(cashbackEnabled),
+      rewardMode: rewardMode || 'PERCENTAGE',
+      coinConversionRate: parseInt(coinConversionRate || 100),
+      minRechargeAmount: new Prisma.Decimal(minRechargeAmount || 10),
+      maxCashbackPerRecharge: new Prisma.Decimal(maxCashbackPerRecharge || 50),
+      dailyCashbackLimit: new Prisma.Decimal(dailyCashbackLimit || 500),
+      cooldownSeconds: parseInt(cooldownSeconds || 0),
+      globalPercentage: parseFloat(globalPercentage || 0),
+      operatorWiseCashback: operatorWiseCashback || {},
+      slabWiseCashback: slabWiseCashback || [],
+      updatedById: req.user.id
+    };
+
+    const settings = await prisma.cashbackSettings.upsert({
+      where: { id: 1 },
+      update: data,
+      create: { ...data, id: 1 }
+    });
+
+    await logAction({
+      action: AUDIT_ACTIONS.CASHBACK_UPDATE,
+      adminId: req.user.id,
+      entity: "CASHBACK_SETTINGS",
+      details: data,
+      req
+    });
+
+    res.json({ success: true, data: settings });
+  } catch (err) {
+    console.error("Update Cashback Error:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };

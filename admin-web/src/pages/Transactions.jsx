@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
-import { Search, Filter } from 'lucide-react';
+import { Search, Filter, RefreshCw } from 'lucide-react';
 import { useSocket } from '../hooks/useSocket';
 import { motion } from 'framer-motion';
 
@@ -26,11 +26,33 @@ export const Transactions = () => {
   };
 
   useEffect(() => {
+    console.log("[FETCH][TRANSACTIONS] Initial load");
     fetchTransactions();
   }, []);
 
-  useSocketEvent('recharge_success', () => fetchTransactions());
-  useSocketEvent('recharge_failed', () => fetchTransactions());
+  useSocketEvent('transaction_updated', (data) => {
+    if (data?.transaction) {
+      setTransactions(prev => prev.map(tx => 
+        tx.id === data.transactionId ? { ...tx, ...data.transaction } : tx
+      ));
+    }
+  });
+
+  useSocketEvent('recharge_success', (data) => {
+    if (data?.transaction) {
+      setTransactions(prev => prev.map(tx => 
+        tx.id === data.transactionId ? { ...tx, ...data.transaction } : tx
+      ));
+    }
+  });
+
+  useSocketEvent('recharge_failed', (data) => {
+    if (data?.transaction) {
+      setTransactions(prev => prev.map(tx => 
+        tx.id === data.transactionId ? { ...tx, ...data.transaction } : tx
+      ));
+    }
+  });
 
   const filteredData = transactions.filter(t => 
     (t.mobile?.toString() || '').includes(searchTerm) || 
@@ -61,6 +83,13 @@ export const Transactions = () => {
               className="w-full sm:w-64 pl-9 pr-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-xs font-black uppercase tracking-widest text-slate-900 focus:ring-4 focus:ring-cyan-500/10 focus:border-cyan-500/30 outline-none transition-all placeholder:text-slate-400 shadow-inner"
             />
           </div>
+          <button 
+            onClick={() => { console.log("[MANUAL_REFRESH] Triggered"); fetchTransactions(); }}
+            className="p-2.5 bg-slate-100 border border-slate-200 text-slate-500 rounded-xl hover:bg-slate-200 transition-all shadow-sm hover:shadow-md hover:text-cyan-600"
+            title="Refresh Transactions"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
           <button className="p-2.5 bg-slate-100 border border-slate-200 text-slate-500 rounded-xl hover:bg-slate-200 transition-all shadow-sm hover:shadow-md hover:text-cyan-600">
             <Filter className="w-4 h-4" />
           </button>
@@ -81,7 +110,7 @@ export const Transactions = () => {
                 <th className="px-6 py-4">Mobile</th>
                 <th className="px-6 py-4 text-right">Amount</th>
                 <th className="px-6 py-4 text-center">Status</th>
-                <th className="px-6 py-4">Provider</th>
+                <th className="px-6 py-4">Operator</th>
                 <th className="px-6 py-4 text-right">Date</th>
               </tr>
             </thead>

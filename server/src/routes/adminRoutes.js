@@ -14,8 +14,14 @@ import {
   compareRecharge,
   topUpWallet,
   getAdminWallet,
-  getUsers
+  getUsers,
+  getCashbackSettings,
+  updateCashbackSettings
 } from "../controllers/adminController.js";
+import { getCommissionReport } from "../controllers/reportController.js";
+import { resolveDispute, getAllDisputes } from "../controllers/disputeController.js";
+
+
 import { 
   getAdminWalletStats, 
   initiateAdminTopup, 
@@ -44,5 +50,14 @@ router.get("/wallet", getAdminWallet);
 router.get("/wallet/stats", getAdminWalletStats);
 router.post("/wallet/topup", initiateAdminTopup);
 router.get("/wallet/verify/:orderId", verifyAdminTopup);
+
+// V3 Fintech Routes
+router.get("/reports/commission", getCommissionReport);
+router.get("/cashback/settings", getCashbackSettings);
+router.patch("/cashback/settings", updateCashbackSettings);
+router.patch("/disputes/:id", resolveDispute);
+router.get("/disputes", getAllDisputes);
+
+
 
 export default router;

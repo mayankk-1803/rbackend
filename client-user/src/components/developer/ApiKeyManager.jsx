@@ -41,7 +41,7 @@ export default function ApiKeyManager() {
     try {
       const res = await api.post('/developer/keys/generate');
       setKeys(prev => [...prev, res.data.data]);
-      toast.success("API Keys generated successfully");
+      toast.success("API Key generated successfully");
     } catch (err) {
       toast.error(err.response?.data?.message || "Generation failed");
     }
@@ -77,11 +77,11 @@ export default function ApiKeyManager() {
         </div>
         <button 
           onClick={generateNewKey}
-          disabled={keys.length >= 2}
+          disabled={keys.length >= 1}
           className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus className="w-4 h-4" />
-          Generate New Keys
+          Generate New Key
         </button>
       </div>
 
@@ -99,7 +99,7 @@ export default function ApiKeyManager() {
                   <Key className="w-5 h-5 text-cyan-400" />
                 </div>
                 <div>
-                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Production Key #{idx + 1}</h3>
+                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Production Key</h3>
                   <div className="flex items-center gap-2">
                      <span className={`w-1.5 h-1.5 rounded-full ${key.isActive ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">

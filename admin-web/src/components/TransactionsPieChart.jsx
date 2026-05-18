@@ -1,6 +1,19 @@
 import React from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
+const CustomTooltip = ({ active, payload }) => {
+  if (!active || !payload || !payload.length || !payload[0] || !payload[0].payload) {
+    return null;
+  }
+  
+  return (
+    <div className="bg-white p-3 rounded-lg shadow-[0_4px_6px_-1px_rgb(0,0,0,0.1)] text-xs border border-slate-100">
+      <p className="font-bold text-slate-700">{payload[0].name}</p>
+      <p className="text-slate-600 mt-1">{new Intl.NumberFormat('en-IN').format(payload[0].value)}</p>
+    </div>
+  );
+};
+
 export const TransactionsPieChart = ({ success = 0, pending = 0, failed = 0 }) => {
   const data = [
     { name: 'SUCCESS', value: success },
@@ -20,27 +33,26 @@ export const TransactionsPieChart = ({ success = 0, pending = 0, failed = 0 }) =
   };
 
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <PieChart>
-        <Pie
-          data={data}
-          cx="50%"
-          cy="50%"
-          innerRadius={60}
-          outerRadius={80}
-          paddingAngle={5}
-          dataKey="value"
-        >
-          {data.map((entry, index) => (
-             <Cell key={`cell-${index}`} fill={COLORS[entry.name]} />
-          ))}
-        </Pie>
-        <Tooltip 
-          formatter={(value) => new Intl.NumberFormat('en-IN').format(value)}
-          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
-        />
-        <Legend verticalAlign="bottom" height={36}/>
-      </PieChart>
-    </ResponsiveContainer>
+    <div className="w-full h-full min-h-[250px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="50%"
+            innerRadius={60}
+            outerRadius={80}
+            paddingAngle={5}
+            dataKey="value"
+          >
+            {data.map((entry, index) => (
+               <Cell key={`cell-${index}`} fill={COLORS[entry.name]} />
+            ))}
+          </Pie>
+          <Tooltip content={<CustomTooltip />} />
+          <Legend verticalAlign="bottom" height={36}/>
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
   );
 };

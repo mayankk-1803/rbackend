@@ -1,38 +1,33 @@
-import express from 'express';
-import prisma from '../config/prisma.js';
-import { redisClient } from '../config/redis.js';
+import express from "express";
+import prisma from "../config/prisma.js";
+import { redisClient } from "../config/redis.js";
 
 const router = express.Router();
 
-router.get('/', async (req, res) => {
-  const healthStatus = {
-    status: 'ok',
+router.get("/", (req, res) => {
+  res.json({
+    success: true,
+    status: "HEALTHY",
     timestamp: new Date().toISOString(),
-    prisma: false,
-    redis: false,
-    smsConfigured: !!(process.env.SMS_API_KEY && process.env.SMS_API_URL)
-  };
+    version: "3.0.0-fintech"
+  });
+});
 
+router.get("/db", async (req, res) => {
   try {
-    // Lightweight Prisma check
     await prisma.$queryRaw`SELECT 1`;
-    healthStatus.prisma = true;
+    res.json({ success: true, status: "UP", database: "MySQL" });
+  } catch (err) {
+    res.status(500).json({ success: false, status: "DOWN", error: err.message });
+  }
+});
 
-    // Lightweight Redis check
-    const pong = await redisClient.ping();
-    healthStatus.redis = (pong === 'PONG');
-
-    const overallStatus = healthStatus.prisma && healthStatus.redis ? 'ok' : 'degraded';
-    res.status(overallStatus === 'ok' ? 200 : 503).json({
-      status: overallStatus,
-      ...healthStatus
-    });
-  } catch (error) {
-    res.status(503).json({
-      status: 'error',
-      message: error.message,
-      ...healthStatus
-    });
+router.get("/redis", async (req, res) => {
+  try {
+    const ping = await redisClient.ping();
+    res.json({ success: true, status: "UP", redis: ping });
+  } catch (err) {
+    res.status(500).json({ success: false, status: "DOWN", error: err.message });
   }
 });
 

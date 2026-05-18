@@ -131,10 +131,14 @@ export default function ApiDocs({ searchQuery }) {
     setError(null);
     try {
       const res = await api.get('/developer/manifest');
-      const data = res.data.payload;
-      setManifest(data);
-      if (data.endpoints && data.endpoints.length > 0) {
-        setSelectedEndpoint(data.endpoints[0]);
+      const data = res.data?.payload || res.data?.data;
+      if (data) {
+        setManifest(data);
+        if (data.endpoints && data.endpoints.length > 0) {
+          setSelectedEndpoint(data.endpoints[0]);
+        }
+      } else {
+        throw new Error("No documentation data received");
       }
     } catch (err) {
       console.error("[Manifest Fetch Error]:", err);

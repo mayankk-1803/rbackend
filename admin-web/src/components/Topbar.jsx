@@ -26,7 +26,7 @@ export const Topbar = ({ toggleSidebar }) => {
       <div className="flex items-center gap-3 md:gap-6">
         <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-purple-500/5 border border-purple-500/20 rounded-full">
           <Shield className="w-3 h-3 text-purple-400" />
-          <span className="text-[8px] font-black text-purple-400 uppercase tracking-[0.2em]">Root Authority</span>
+          <span className="text-[8px] font-black text-purple-400 uppercase tracking-[0.2em]">Root Admin Access</span>
         </div>
 
         <motion.button 

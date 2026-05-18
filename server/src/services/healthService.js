@@ -1,15 +1,38 @@
 import prisma from "../config/prisma.js";
 import eventBus from "../config/eventBus.js";
-import { getProvider } from "./providers/providerFactory.js";
+import { getProvider, isSupported } from "./providers/providerFactory.js";
 
-export const monitorProviderHealth = async () => {
-  console.log("[HEALTH] Starting real health check for all providers...");
+const failureTracking = new Map();
+const COOLDOWN_MS = 600000; // 10 minutes cooldown for failing providers
+const HEALTH_CACHE_TTL = 300000; // 5 minutes cache TTL
+
+export const monitorProviderHealth = async (force = false) => {
+  const now = Date.now();
+  
+  // Throttle health checks unless forced
+  const lastGlobalCheck = failureTracking.get('global_check_timestamp') || 0;
+  if (!force && now - lastGlobalCheck < HEALTH_CACHE_TTL) {
+    return;
+  }
+
+  console.log(`[HEALTH][START] Running scheduled provider status checks...`);
+  failureTracking.set('global_check_timestamp', now);
   
   try {
-    const providers = await prisma.provider.findMany();
+    const providers = await prisma.provider.findMany({
+      where: { isActive: true }
+    });
     
     for (const provider of providers) {
-      const startTime = Date.now();
+      // Individual cooldown for failing APIs
+      const lastFailure = failureTracking.get(provider.code);
+      if (lastFailure && now - lastFailure < COOLDOWN_MS) {
+        continue;
+      }
+
+      if (!isSupported(provider.code)) continue;
+
+      const startTime = now;
       let isUp = false;
       let responseTime = 0;
       let balance = 0;
@@ -17,7 +40,7 @@ export const monitorProviderHealth = async () => {
       try {
         const providerService = getProvider(provider.code);
         
-        // 1. Check Balance as a Heartbeat
+        // 1. Check Balance as a Heartbeat (only for providers that support it)
         if (providerService.balance) {
            const balanceRes = await providerService.balance();
            if (balanceRes.success) {
@@ -25,44 +48,40 @@ export const monitorProviderHealth = async () => {
               balance = balanceRes.balance;
            }
         } else {
-           // Fallback ping or dummy success
            isUp = true;
         }
         
         responseTime = Date.now() - startTime;
+        failureTracking.delete(provider.code);
       } catch (err) {
-        console.error(`[HEALTH] Provider ${provider.name} check failed: ${err.message}`);
+        failureTracking.set(provider.code, Date.now());
+        console.error(`[HEALTH][FAILURE] Provider ${provider.name}: ${err.message}`);
       }
 
-      // Update health status
+      // 2. Determine Health Level
       let newStatus = "DOWN";
       if (isUp) {
-        if (responseTime < 2000) {
+        if (responseTime < 3000) {
           newStatus = "HEALTHY";
-        } else if (responseTime < 5000) {
+        } else if (responseTime < 10000) {
           newStatus = "DEGRADED";
         } else {
           newStatus = "DOWN";
         }
       }
 
-      const updateData = {
-        healthStatus: newStatus,
-        avgResponseTime: responseTime,
-        lastCheckAt: new Date()
-      };
-
-      // Auto-update balance in DB if available
-      if (isUp) {
-        // Assuming there's a balance field in provider table or a related metric
-      }
-
+      // 3. Persist and Notify
       await prisma.provider.update({
         where: { id: provider.id },
-        data: updateData
+        data: {
+          healthStatus: newStatus,
+          avgResponseTime: responseTime,
+          lastCheckAt: new Date()
+        }
       });
 
       if (provider.healthStatus !== newStatus) {
+        console.log(`[HEALTH][UPDATE] ${provider.name} status changed: ${provider.healthStatus} -> ${newStatus}`);
         eventBus.emit("provider_health_update", { 
           provider: provider.code, 
           name: provider.name,
@@ -71,12 +90,16 @@ export const monitorProviderHealth = async () => {
         });
       }
     }
+    console.log(`[HEALTH][FINISH] Completed health checks.`);
   } catch (err) {
-    console.error("[HEALTH] Health monitoring service error:", err);
+    console.error("[HEALTH][FATAL] Health monitoring service error:", err);
   }
 };
 
-export const startHealthMonitoring = (intervalMs = 300000) => { // Every 5 mins
-  setInterval(monitorProviderHealth, intervalMs);
-  console.log(`[HEALTH] Periodic health monitoring started (Interval: ${intervalMs}ms)`);
+export const startHealthMonitoring = (intervalMs = 600000) => { // Default 10 mins
+  // Run once immediately
+  monitorProviderHealth(true);
+  
+  setInterval(() => monitorProviderHealth(false), intervalMs);
+  console.log(`[HEALTH] Health monitoring active (Check Interval: ${intervalMs}ms)`);
 };

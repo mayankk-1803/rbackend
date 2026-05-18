@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../api';
 import { API_ROUTES } from '../api/routes';
-import { Smartphone, Wallet, Search, Filter, Calendar } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Smartphone, Wallet, Search, Filter, Calendar, FileText, AlertCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { formatAmount, safeArray, safeValue } from '../utils/helpers';
 import socket from '../services/socket';
 
@@ -10,13 +10,14 @@ export default function TransactionHistory() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState("All");
 
   const fetchHistory = useCallback(async () => {
     try {
       const res = await api.get(API_ROUTES.USER.TRANSACTIONS);
       setTransactions(safeArray(res.data.data));
     } catch (err) {
-      console.error(err);
+      console.error(res);
     } finally {
       setLoading(false);
     }
@@ -24,13 +25,10 @@ export default function TransactionHistory() {
 
   useEffect(() => {
     fetchHistory();
-
     const handleUpdate = () => fetchHistory();
-
     socket.on("recharge_success", handleUpdate);
     socket.on("recharge_failed", handleUpdate);
     socket.on("wallet_updated", handleUpdate);
-
     return () => {
       socket.off("recharge_success", handleUpdate);
       socket.off("recharge_failed", handleUpdate);
@@ -38,11 +36,32 @@ export default function TransactionHistory() {
     };
   }, [fetchHistory]);
 
-  const filteredHistory = safeArray(transactions).filter(txn => 
-    safeValue(txn.type, "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    safeValue(txn.mobile, "").includes(searchTerm) ||
-    safeValue(txn.operator, "").toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredHistory = safeArray(transactions).filter(txn => {
+    // 1. Tab Filtering
+    const matchesTab = 
+      activeTab === 'All' || 
+      (activeTab === 'SUCCESS' && txn.status === 'SUCCESS') ||
+      (activeTab === 'FAILED' && txn.status === 'FAILED') ||
+      (activeTab === 'PENDING' && txn.status === 'PENDING') ||
+      (activeTab === 'RECHARGE' && txn.type === 'RECHARGE') ||
+      (activeTab === 'CASHBACK' && txn.type === 'CASHBACK') ||
+      (activeTab === 'REFUND' && txn.type === 'REFUND');
+
+    if (!matchesTab) return false;
+
+    // 2. Search Term Filtering
+    if (!searchTerm) return true;
+    
+    const term = searchTerm.toLowerCase();
+    return (
+      safeValue(txn.mobile, "").includes(term) ||
+      safeValue(txn.operator, "").toLowerCase().includes(term) ||
+      safeValue(txn.providerTxnId, "").toLowerCase().includes(term) ||
+      safeValue(txn.id, "").toString().includes(term)
+    );
+  });
+
+  const tabs = ['All', 'SUCCESS', 'FAILED', 'RECHARGE', 'CASHBACK', 'REFUND'];
 
   return (
     <motion.div 
@@ -52,8 +71,8 @@ export default function TransactionHistory() {
     >
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6">
         <div className="space-y-1">
-          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter uppercase italic">Ledger <span className="text-cyan-600">Vault</span></h1>
-          <p className="text-slate-500 text-[8px] md:text-[10px] font-bold uppercase tracking-[0.2em]">Authorized Transaction Archive</p>
+          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter uppercase italic">Ledger <span className="text-cyan-600">Wallet</span></h1>
+          <p className="text-slate-500 text-[8px] md:text-[10px] font-bold uppercase tracking-[0.2em]">Authorized Transaction View All</p>
         </div>
         
         <div className="flex flex-wrap gap-3 w-full md:w-auto">
@@ -61,7 +80,7 @@ export default function TransactionHistory() {
             <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-cyan-600 transition-colors" />
             <input 
               type="text"
-              placeholder="Search ID, Mobile..."
+              placeholder="Search ID, Mobile, Ref..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl md:rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/10 focus:border-cyan-500 text-xs md:text-sm text-slate-900 placeholder:text-slate-300 transition-all shadow-sm"
@@ -72,17 +91,17 @@ export default function TransactionHistory() {
 
       {/* Filter Tabs */}
       <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-        {['All', 'RECHARGE', 'SUCCESS', 'FAILED', 'CASHBACK', 'REFUND'].map((filter) => (
+        {tabs.map((tab) => (
           <button
-            key={filter}
-            onClick={() => setSearchTerm(filter === 'All' ? '' : filter)}
+            key={tab}
+            onClick={() => setActiveTab(tab)}
             className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap ${
-              (searchTerm === filter || (filter === 'All' && searchTerm === ''))
-                ? 'bg-cyan-600 text-white border-cyan-500 shadow-sm'
+              activeTab === tab
+                ? 'bg-cyan-600 text-white border-cyan-500 shadow-lg shadow-cyan-500/20'
                 : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 shadow-sm'
             }`}
           >
-            {filter}
+            {tab}
           </button>
         ))}
       </div>
@@ -95,57 +114,71 @@ export default function TransactionHistory() {
           </div>
         ) : filteredHistory.length > 0 ? (
           <div className="grid grid-cols-1 gap-4">
-            {filteredHistory.map((txn, idx) => (
-              <motion.div 
-                key={idx}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                whileHover={{ scale: 1.01, backgroundColor: 'rgba(255,255,255,1)' }}
-                className="bg-white/70 backdrop-blur-xl border border-slate-200 p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group transition-all shadow-sm hover:shadow-md"
-              >
-                <div className="flex items-center gap-3 md:gap-4">
-                  <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center shadow-sm ${
-                    txn.type === 'RECHARGE' ? 'bg-cyan-50 text-cyan-600' : 
-                    txn.type === 'CASHBACK' ? 'bg-emerald-50 text-emerald-600' :
-                    'bg-purple-50 text-purple-600'
-                  }`}>
-                    {txn.type === 'RECHARGE' ? <Smartphone className="w-5 h-5 md:w-6 md:h-6" /> : <Wallet className="w-5 h-5 md:w-6 md:h-6" />}
-                  </div>
-                  <div>
-                    <p className="text-xs md:text-sm font-black text-slate-900 uppercase tracking-tight">
-                      {safeValue(txn.operator, 'Wallet')} {txn.mobile && <span className="text-slate-400 font-mono ml-1 md:ml-2">[{txn.mobile}]</span>}
-                    </p>
-                    <div className="flex items-center gap-1.5 md:gap-2 mt-0.5 md:mt-1">
-                      <Calendar className="w-2.5 h-2.5 md:w-3 md:h-3 text-slate-300" />
-                      <p className="text-[7px] md:text-[8px] text-slate-400 font-bold uppercase tracking-tighter">
-                        {new Date(txn?.createdAt || Date.now()).toLocaleString()}
+            <AnimatePresence mode='popLayout'>
+              {filteredHistory.map((txn, idx) => (
+                <motion.div 
+                  key={txn.id || idx}
+                  layout
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                  className="bg-white border border-slate-200 p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group transition-all shadow-sm hover:shadow-md hover:border-cyan-200"
+                >
+                  <div className="flex items-center gap-3 md:gap-4">
+                    <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center shadow-sm ${
+                      txn.type === 'RECHARGE' ? 'bg-cyan-50 text-cyan-600' : 
+                      txn.type === 'CASHBACK' ? 'bg-emerald-50 text-emerald-600' :
+                      txn.type === 'REFUND' ? 'bg-rose-50 text-rose-600' :
+                      'bg-purple-50 text-purple-600'
+                    }`}>
+                      {txn.type === 'RECHARGE' ? <Smartphone className="w-5 h-5 md:w-6 md:h-6" /> : <Wallet className="w-5 h-5 md:w-6 md:h-6" />}
+                    </div>
+                    <div>
+                      <p className="text-xs md:text-sm font-black text-slate-900 uppercase tracking-tight">
+                        {safeValue(txn.operator, 'Wallet')} {txn.mobile && <span className="text-slate-400 font-mono ml-1 md:ml-2">[{txn.mobile}]</span>}
                       </p>
+                      <div className="flex items-center gap-1.5 md:gap-2 mt-0.5 md:mt-1">
+                        <Calendar className="w-2.5 h-2.5 md:w-3 md:h-3 text-slate-300" />
+                        <p className="text-[7px] md:text-[8px] text-slate-400 font-bold uppercase tracking-tighter">
+                          {new Date(txn?.createdAt || Date.now()).toLocaleString()}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end">
-                  <div className="text-right hidden sm:block">
-                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Reference</p>
-                    <p className="text-[10px] font-mono text-slate-300">#{safeValue(txn.id, 'N/A').toString().slice(-8).toUpperCase()}</p>
+                  <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end">
+                    <div className="text-right hidden sm:block">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Status</p>
+                      <span className={`text-[9px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-lg mt-1 inline-block ${
+                        txn.status === 'SUCCESS' ? 'bg-emerald-50 text-emerald-600' : 
+                        txn.status === 'PENDING' ? 'bg-cyan-50 text-cyan-600' : 
+                        'bg-rose-50 text-rose-600'
+                      }`}>
+                        {txn.status}
+                      </span>
+                    </div>
+                    
+                    <div className="text-right flex items-center gap-4">
+                      <div>
+                        <p className={`text-lg font-black tracking-tighter ${txn.direction === 'DEBIT' ? 'text-slate-900' : 'text-emerald-600'}`}>
+                          {txn.direction === 'DEBIT' ? '-' : '+'}₹{formatAmount(txn.amount)}
+                        </p>
+                        <p className="text-[8px] font-mono text-slate-300 text-right">#{safeValue(txn.id, 'N/A').toString().toUpperCase()}</p>
+                      </div>
+                      <div className="flex gap-1">
+                        <button className="p-2 hover:bg-slate-50 rounded-lg transition-colors text-slate-400 hover:text-cyan-600" title="View Invoice">
+                          <FileText className="w-4 h-4" />
+                        </button>
+                        <button className="p-2 hover:bg-slate-50 rounded-lg transition-colors text-slate-400 hover:text-rose-600" title="Raise Dispute">
+                          <AlertCircle className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  
-                  <div className="text-right">
-                    <p className={`text-lg font-black tracking-tighter ${txn.direction === 'DEBIT' ? 'text-slate-900' : 'text-emerald-600'}`}>
-                      {txn.direction === 'DEBIT' ? '-' : '+'}₹{formatAmount(txn.amount)}
-                    </p>
-                    <span className={`text-[9px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-lg mt-1 inline-block ${
-                      txn.status === 'SUCCESS' ? 'bg-emerald-50 text-emerald-600' : 
-                      txn.status === 'PENDING' ? 'bg-cyan-50 text-cyan-600' : 
-                      'bg-rose-50 text-rose-600'
-                    }`}>
-                      {safeValue(txn.status)}
-                    </span>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
         ) : (
           <div className="py-20 text-center bg-white border border-slate-200 rounded-3xl border-dashed">

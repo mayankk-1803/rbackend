@@ -14,10 +14,17 @@ export const addRechargeJob = async (data) => {
     }
   }
   
+  const retryCount = data.retryCount || 0;
+  const jobId = data.txnId 
+    ? `recharge_${data.txnId}_retry_${retryCount}_${Date.now()}` 
+    : `recharge_${data.idempotencyKey}_${Date.now()}`;
+
+  console.log(`[QUEUE][ADD] → Txn: ${data.txnId} | JobID: ${jobId} | Delay: ${delayMs}ms`);
+
   return rechargeQueue.add("recharge", data, {
-    jobId: data.txnId ? `recharge_${data.txnId}` : `recharge_${data.idempotencyKey}`,
+    jobId,
     delay: delayMs,
-    attempts: 3, // Set to 3 as per requirement
+    attempts: 3, 
     backoff: {
       type: "exponential",
       delay: 5000

@@ -17,19 +17,24 @@ export const Login = () => {
     
     setLoading(true);
     try {
+      console.log(`[AUTH][LOGIN_REQUEST] → Admin email login for: ${email}`);
       const res = await api.post('/auth/login-email', { email, password }, {
         headers: { 'x-admin-request': 'true' }
       });
       
-      console.log("LOGIN RESPONSE:", res.data);
+      console.log("[AUTH][LOGIN_RESPONSE] → Received:", res.data);
       
-      if (res.data.success && res.data.token) {
-        const { token, user } = res.data;
+      const success = res.data?.success;
+      const apiData = res.data?.data || res.data; // Bridge for both formats
 
-        localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(user));
+      if (success && apiData?.token) {
+        console.log("[AUTH][JWT_GENERATED] → Token exists in response.");
         
-        console.log("TOKEN SAVED:", localStorage.getItem("token"));
+        localStorage.setItem('dizipay_admin_token', apiData.token);
+        localStorage.setItem('dizipay_admin_data', JSON.stringify(apiData.user));
+        
+        console.log("[AUTH][TOKEN_STORED] → Admin token saved.");
+        console.log("[AUTH][REDIRECT_SUCCESS] → Redirecting to Admin Dashboard...");
 
         toast.success('Admin authenticated', {
           className: 'hot-toast-cyber'
@@ -37,10 +42,12 @@ export const Login = () => {
         
         window.location.href = "/admin/";
       } else {
-        throw new Error(res.data.message || "Admin authentication failed");
+        console.error("[AUTH][LOGIN_FAILED] → Response success was false or token missing.");
+        throw new Error(res.data?.message || "Admin authentication failed");
       }
     } catch(err) {
-      toast.error(err.response?.data?.message || 'Authentication failed', {
+      console.error("[AUTH][FRONTEND_STATE_FAILED] → Fatal error during admin login:", err);
+      toast.error(err.response?.data?.message || err.message || 'Authentication failed', {
         className: 'hot-toast-cyber'
       });
     } finally {

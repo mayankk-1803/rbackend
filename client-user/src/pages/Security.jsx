@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 
 export default function Security() {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('user')) || { phone: '+91 XXXXX XXXXX' };
+  const user = JSON.parse(localStorage.getItem('dizipay_user_data')) || { phone: '+91 XXXXX XXXXX' };
 
   return (
     <motion.div 

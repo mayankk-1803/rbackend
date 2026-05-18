@@ -49,7 +49,7 @@ export default function PaymentModal({ isOpen, onClose, amount, onPaymentSuccess
                     UPI
                   </div>
                   <div>
-                    <p className="text-sm font-black text-slate-900 uppercase tracking-tight">Dizipay Vault Secure</p>
+                    <p className="text-sm font-black text-slate-900 uppercase tracking-tight">Dizipay Wallet Secure</p>
                     <p className="text-[8px] text-cyan-600/60 font-black uppercase tracking-widest">Spectral Encryption Active</p>
                   </div>
                   <CheckCircle2 className="w-5 h-5 text-emerald-600 ml-auto" />

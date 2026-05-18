@@ -1,7 +1,7 @@
 import express from "express";
 import { auth } from "../middlewares/auth.js";
 import { createOrder, verifyPayment, confirmPayment, paymentWebhook, getPaymentStatus } from "../controllers/paymentController.js";
-import { idempotencyMiddleware } from "../middlewares/idempotency.js";
+import { idempotency } from "../middlewares/idempotency.js";
 import { validatePaymentInput } from "../middlewares/validateInput.js";
 import { paymentStatusLimiter } from "../middlewares/rateLimiter.js";
 
@@ -75,7 +75,7 @@ router.use(auth);
  *       200:
  *         description: Order created
  */
-router.post("/create-order", validatePaymentInput, idempotencyMiddleware, createOrder);
+router.post("/create-order", validatePaymentInput, idempotency, createOrder);
 
 /**
  * @swagger

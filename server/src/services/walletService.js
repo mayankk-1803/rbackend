@@ -1,16 +1,14 @@
 import prisma from "../config/prisma.js";
 import { Prisma } from "@prisma/client";
+import { recordFinancialEntry } from "./ledgerService.js";
+import AppError from "../utils/AppError.js";
 
 /**
- * Fintech-safe balance update with row-level locking
- * @param {number} userId 
- * @param {number} amountChange - Positive for credit, negative for debit
- * @param {string} type - TransactionType (e.g., RECHARGE, TOPUP)
- * @param {object} metadata - Extra fields for the transaction record
+ * Fintech-safe balance update using the unified ledger architecture.
  */
 export const updateWalletBalance = async (userId, amountChange, type, metadata = {}) => {
   return await prisma.$transaction(async (tx) => {
-    // 1. Check idempotency if key provided
+    // 1. Idempotency Check
     if (metadata.idempotencyKey) {
       const existingTxn = await tx.transaction.findUnique({
         where: { idempotencyKey: metadata.idempotencyKey }
@@ -21,65 +19,55 @@ export const updateWalletBalance = async (userId, amountChange, type, metadata =
       }
     }
 
-    // 2. Fetch wallet (Prisma ORM replaces raw SQL, Serializable handles locking)
+    // 2. Map transaction type to ledger type
+    const ledgerTypeMap = {
+      'RECHARGE': 'RECHARGE_DEBIT',
+      'TOPUP': 'TOPUP_CREDIT',
+      'REFUND': 'REFUND_CREDIT',
+      'CASHBACK': 'CASHBACK_CREDIT',
+      'REDEMPTION': 'REDEMPTION_DEBIT'
+    };
 
-    const wallet = await tx.wallet.findUnique({
-      where: { userId }
-    });
+    const ledgerType = ledgerTypeMap[type] || 'ADMIN_ADJUSTMENT';
 
-    if (!wallet) throw new Error("WALLET_NOT_FOUND");
-
-    const changeDecimal = new Prisma.Decimal(amountChange);
-    const newBalance = wallet.balance.plus(changeDecimal);
-
-    // 3. Check for insufficient balance if debiting
-    if (amountChange < 0 && newBalance.isNegative()) {
-      throw new Error("INSUFFICIENT_BALANCE");
-    }
-
-    // 4. Update Wallet
-    const updatedWallet = await tx.wallet.update({
-      where: { userId },
-      data: { balance: newBalance }
-    });
-
-    // 5. Create Transaction Record
+    // 3. Create Transaction Record (Financial Shell)
     const transaction = await tx.transaction.create({
       data: {
         userId,
-        amount: changeDecimal.abs(),
-        type: type || metadata.type || "WALLET",
+        amount: new Prisma.Decimal(Math.abs(amountChange)),
+        type: type || "WALLET",
         status: metadata.status || "SUCCESS",
-        balanceAfter: newBalance,
         direction: amountChange >= 0 ? "CREDIT" : "DEBIT",
-        providerTxnId: metadata.providerTxnId || metadata.gatewayTxnId || `TXN_${Date.now()}`,
+        providerTxnId: metadata.providerTxnId || `TXN_${Date.now()}`,
         idempotencyKey: metadata.idempotencyKey || null,
         mobile: metadata.mobile || null,
-        operator: metadata.operator || null
+        operator: metadata.operator || null,
+        description: metadata.description || null
       }
     });
 
-    return { wallet: updatedWallet, transaction };
+    // 4. Record Financial Entry (Wallet Update + Ledger)
+    const { balanceAfter } = await recordFinancialEntry({
+      userId,
+      amount: amountChange,
+      type: ledgerType,
+      transactionId: transaction.id,
+      description: metadata.description,
+      tx
+    });
+
+    // 5. Update transaction with final balance
+    const updatedTransaction = await tx.transaction.update({
+      where: { id: transaction.id },
+      data: { balanceAfter }
+    });
+
+    const updatedWallet = await tx.wallet.findUnique({ where: { userId } });
+
+    return { wallet: updatedWallet, transaction: updatedTransaction };
   }, {
     isolationLevel: Prisma.TransactionIsolationLevel.Serializable
   });
-};
-
-export const createPaymentLink = async (userId, amount) => {
-  const orderId = "ORD_" + Date.now();
-
-  await prisma.transaction.create({
-    data: {
-      userId,
-      amount: new Prisma.Decimal(amount),
-      type: "TOPUP",
-      status: "PENDING",
-      providerTxnId: orderId,
-      direction: "CREDIT"
-    }
-  });
-
-  return `https://fake-payment.com/pay/${orderId}`;
 };
 
 export const getWallet = async (userId) => {

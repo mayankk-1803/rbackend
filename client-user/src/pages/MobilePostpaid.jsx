@@ -175,7 +175,7 @@ export default function MobilePostpaid() {
                       </div>
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-tight text-white">Secure Connection</p>
-                        <p className="text-[8px] font-medium text-slate-400">BBPS Protocol Active</p>
+                        <p className="text-[8px] font-medium text-slate-400">BBPS Search Active</p>
                       </div>
                     </div>
 

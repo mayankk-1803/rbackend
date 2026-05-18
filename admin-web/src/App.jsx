@@ -6,13 +6,20 @@ import { Dashboard } from './pages/Dashboard';
 import { Tester } from './pages/Tester';
 import { Transactions } from './pages/Transactions';
 import { Alerts } from './pages/Alerts';
-import { Providers } from './pages/Providers';
+import { Operators } from './pages/Operators';
 import { ApiDocs } from './pages/ApiDocs';
 import { Login } from './pages/Login';
 import { Wallet } from './pages/Wallet';
+import AdminTransactionHistory from './pages/reports/TransactionHistory';
+import CommissionReport from './pages/reports/CommissionReport';
+import DisputeManagement from './pages/reports/DisputeManagement';
+import { CashbackSettings } from './pages/CashbackSettings';
+import ErrorBoundary from './components/ErrorBoundary';
+
+
 
 const ProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("dizipay_admin_token");
   if (import.meta.env.DEV) {
     console.log(" [Auth Guard] Token Check:", token ? "Exists" : "MISSING");
   }
@@ -29,7 +36,7 @@ function App() {
 
   useEffect(() => {
     // Initial mount check
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("dizipay_admin_token");
     if (import.meta.env.DEV) {
       console.log(" [App Mount] Initial Token Check:", token ? "Authenticated" : "Not Authenticated");
     }
@@ -39,35 +46,28 @@ function App() {
   if (loading) return null;
 
   return (
-    <>
+    <ErrorBoundary>
       <Toaster 
         position="bottom-right" 
-        toastOptions={{ 
-          style: { 
-            background: "rgba(255, 255, 255, 0.9)", 
-            backdropFilter: "blur(8px)",
-            color: "#0F172A", 
-            fontSize: "13px", 
-            fontWeight: "600",
-            borderRadius: "12px",
-            border: "1px solid rgba(226, 232, 240, 1)",
-            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)"
-          } 
-        }} 
+        style={{ zIndex: 9999 }}
       />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
-          <Route path="tester" element={<Tester />} />
+          <Route path="recharge" element={<Tester />} />
+          <Route path="settings/cashback" element={<CashbackSettings />} />
           <Route path="transactions" element={<Transactions />} />
           <Route path="alerts" element={<Alerts />} />
-          <Route path="providers" element={<Providers />} />
+          <Route path="providers" element={<Operators />} />
           <Route path="wallet" element={<Wallet />} />
+          <Route path="reports/transactions" element={<AdminTransactionHistory />} />
+          <Route path="reports/commissions" element={<CommissionReport />} />
+          <Route path="reports/disputes" element={<DisputeManagement />} />
           <Route path="api-docs" element={<ApiDocs />} />
         </Route>
       </Routes>
-    </>
+    </ErrorBoundary>
   );
 }
 

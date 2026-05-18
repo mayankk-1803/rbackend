@@ -4,24 +4,24 @@ import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, ShieldCheck, Globe, CheckCircle2, AlertCircle, XCircle, Settings, ChevronRight } from 'lucide-react';
 
-export const Providers = () => {
-  const [providers, setProviders] = useState([]);
+export const Operators = () => {
+  const [providers, setOperators] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedProviders, setSelectedProviders] = useState([]);
-  const [primaryProvider, setPrimaryProvider] = useState(null);
+  const [selectedOperators, setSelectedOperators] = useState([]);
+  const [primaryOperator, setPrimaryOperator] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  const fetchProviders = async () => {
+  const fetchOperators = async () => {
     try {
       setLoading(true);
       const { data } = await api.get('/admin/providers');
-      const fetchedProviders = Array.isArray(data?.data) ? data.data : [];
-      setProviders(fetchedProviders);
+      const fetchedOperators = Array.isArray(data?.data) ? data.data : [];
+      setOperators(fetchedOperators);
       
-      const active = fetchedProviders.filter(p => p.isActive).sort((a, b) => a.priority - b.priority);
-      setSelectedProviders(active.map(p => p.code));
+      const active = fetchedOperators.filter(p => p.isActive).sort((a, b) => a.priority - b.priority);
+      setSelectedOperators(active.map(p => p.code));
       if (active.length > 0) {
-        setPrimaryProvider(active[0].code);
+        setPrimaryOperator(active[0].code);
       }
     } catch (err) {
       console.error(err);
@@ -32,41 +32,41 @@ export const Providers = () => {
   };
 
   useEffect(() => {
-    fetchProviders();
+    fetchOperators();
   }, []);
 
   const handleToggleSelect = (code) => {
-    let newSelected = [...selectedProviders];
+    let newSelected = [...selectedOperators];
     if (newSelected.includes(code)) {
       newSelected = newSelected.filter(c => c !== code);
-      if (primaryProvider === code) {
-        setPrimaryProvider(newSelected.length > 0 ? newSelected[0] : null);
+      if (primaryOperator === code) {
+        setPrimaryOperator(newSelected.length > 0 ? newSelected[0] : null);
       }
     } else {
       newSelected.push(code);
-      if (!primaryProvider) setPrimaryProvider(code);
+      if (!primaryOperator) setPrimaryOperator(code);
     }
-    setSelectedProviders(newSelected);
+    setSelectedOperators(newSelected);
   };
 
   const handleSetPrimary = (e, code) => {
     e.stopPropagation();
-    if (!selectedProviders.includes(code)) {
-      setSelectedProviders([...selectedProviders, code]);
+    if (!selectedOperators.includes(code)) {
+      setSelectedOperators([...selectedOperators, code]);
     }
-    setPrimaryProvider(code);
+    setPrimaryOperator(code);
   };
 
   const handleSaveSelection = async () => {
-    if (selectedProviders.length === 0) return toast.error("At least one provider must be selected");
-    if (!primaryProvider) return toast.error("A Primary provider must be set");
+    if (selectedOperators.length === 0) return toast.error("At least one provider must be selected");
+    if (!primaryOperator) return toast.error("A Primary provider must be set");
 
     setSaving(true);
     const loadingToast = toast.loading("Deploying routing configuration...");
     try {
-      await api.post('/admin/providers/set-active', { selectedProviders, primaryProvider });
+      await api.post('/admin/providers/set-active', { selectedOperators, primaryOperator });
       toast.success("Active cluster updated!", { id: loadingToast });
-      fetchProviders();
+      fetchOperators();
     } catch (err) {
       toast.error(err.response?.data?.message || "Deployment failed", { id: loadingToast });
     } finally {
@@ -100,7 +100,7 @@ export const Providers = () => {
         </div>
         <button 
           onClick={handleSaveSelection}
-          disabled={saving || loading || selectedProviders.length === 0}
+          disabled={saving || loading || selectedOperators.length === 0}
           className="relative z-10 w-full lg:w-auto bg-purple-600 hover:bg-purple-700 text-white shadow-sm hover:shadow-md transition-all px-8 py-4 rounded-xl md:rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest disabled:opacity-30"
         >
           {saving ? 'Syncing...' : 'Save Configuration'}
@@ -114,8 +114,8 @@ export const Providers = () => {
           ))
         ) : (
           providers.map((prov) => {
-            const isSelected = selectedProviders.includes(prov.code);
-            const isPrimary = primaryProvider === prov.code;
+            const isSelected = selectedOperators.includes(prov.code);
+            const isPrimary = primaryOperator === prov.code;
 
             return (
               <motion.div 

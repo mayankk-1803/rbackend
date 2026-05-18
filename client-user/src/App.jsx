@@ -4,9 +4,11 @@
   import Navbar from './components/Navbar';
   import BottomNav from './components/BottomNav';
   import ErrorBoundary from './components/ErrorBoundary';
+  import RewardPopup from './components/RewardPopup';
   import { connectSocket, disconnectSocket } from './services/socket';
 
   // Lazy load pages for performance
+  const HomePage = lazy(() => import('./pages/HomePage'));
   const Home = lazy(() => import('./pages/Home'));
   const Login = lazy(() => import('./pages/Login'));
   const Register = lazy(() => import('./pages/Register'));
@@ -28,6 +30,9 @@
   const Support = lazy(() => import('./pages/Support'));
   const PaymentSuccess = lazy(() => import('./pages/PaymentSuccess'));
   const DeveloperPortal = lazy(() => import('./pages/DeveloperPortal'));
+  const TransactionHistory = lazy(() => import('./pages/reports/TransactionHistory'));
+  const WalletLedger = lazy(() => import('./pages/reports/WalletLedger'));
+
 
   import { domAnimation, LazyMotion, motion, AnimatePresence } from 'framer-motion';
 
@@ -47,18 +52,19 @@
   const Layout = ({ children }) => {
     const location = useLocation();
 
-    const hideNavbarRoutes = ['/login', '/register'];
+    // Do not show the app's internal navbar/bottomnav on public pages
+    const hideNavbarRoutes = ['/', '/login', '/register'];
     const showNavbar = !hideNavbarRoutes.includes(location.pathname);
 
     return (
       <LazyMotion features={domAnimation}>
         {showNavbar && <Navbar />}
-        <main className="max-w-7xl mx-auto px-4 py-6 pb-28 md:pb-6">
+        <main className={showNavbar ? "max-w-7xl mx-auto px-4 py-6 pb-28 md:pb-6" : ""}>
           <Suspense fallback={<PageLoader />}>
             {children}
           </Suspense>
         </main>
-        <BottomNav />
+        {showNavbar && <BottomNav />}
       </LazyMotion>
     );
   };
@@ -68,8 +74,8 @@
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-      const token = localStorage.getItem("token");
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const token = localStorage.getItem("dizipay_user_token");
+      const user = JSON.parse(localStorage.getItem("dizipay_user_data") || "{}");
       
       if (token && user.id) {
         setIsAuth(true);
@@ -94,16 +100,20 @@
             </div>
             <div className="relative z-10">
             <Toaster position="top-right" />
+            {isAuth && <RewardPopup />}
 
             <Layout>
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
 
-                <Route path="/" element={<PrivateRoute isAuth={isAuth}><Home /></PrivateRoute>} />
-                <Route path="/dashboard" element={<PrivateRoute isAuth={isAuth}><Dashboard /></PrivateRoute>} />
+                <Route path="/" element={<HomePage />} />
+                <Route path="/dashboard" element={<PrivateRoute isAuth={isAuth}><Home /></PrivateRoute>} />
                 <Route path="/history" element={<PrivateRoute isAuth={isAuth}><History /></PrivateRoute>} />
+                <Route path="/reports/transactions" element={<PrivateRoute isAuth={isAuth}><TransactionHistory /></PrivateRoute>} />
+                <Route path="/reports/ledger" element={<PrivateRoute isAuth={isAuth}><WalletLedger /></PrivateRoute>} />
                 <Route path="/recharge" element={<PrivateRoute isAuth={isAuth}><Recharge /></PrivateRoute>} />
+
                 <Route path="/recharge/mobile-prepaid" element={<PrivateRoute isAuth={isAuth}><MobilePrepaid /></PrivateRoute>} />
                 <Route path="/recharge/mobile-postpaid" element={<PrivateRoute isAuth={isAuth}><MobilePostpaid /></PrivateRoute>} />
                 <Route path="/recharge/dth" element={<PrivateRoute isAuth={isAuth}><DTHRecharge /></PrivateRoute>} />

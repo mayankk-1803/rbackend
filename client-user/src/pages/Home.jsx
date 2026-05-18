@@ -111,7 +111,7 @@ export default function Home() {
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [qrPreview, setQrPreview] = useState(null);
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = JSON.parse(localStorage.getItem('dizipay_user_data') || '{}');
 
   const fetchTransactions = useCallback(async () => {
     try {
@@ -229,7 +229,7 @@ export default function Home() {
               <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em]">Authorized Access</span>
             </div>
             <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tighter uppercase italic">
-              Digital <span className="text-cyan-600">Vault</span>
+              Digital <span className="text-cyan-600">Wallet</span>
             </h1>
             <p className="text-slate-400 text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em]">{user.name || 'Spectral User'}</p>
           </div>
@@ -273,7 +273,7 @@ export default function Home() {
             Signal History
           </h2>
           <Link to="/history" className="text-[9px] font-black text-cyan-600 uppercase tracking-widest flex items-center gap-2">
-            Archive <ArrowUpRight className="w-4 h-4" />
+            View All <ArrowUpRight className="w-4 h-4" />
           </Link>
         </div>
         <div className="p-4 space-y-3">

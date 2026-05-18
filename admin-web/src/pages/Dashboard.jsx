@@ -102,8 +102,8 @@ export const Dashboard = () => {
         <StatCard index={1} title="Revenue" value={loading ? '...' : `₹${stats.totalRevenue.toLocaleString()}`} />
         <StatCard index={2} title="Total Transactions" value={loading ? '...' : stats.totalTransactions} />
         <StatCard index={3} title="Success Rate" value={loading ? '...' : `${stats.successRate}%`} />
-        <StatCard index={4} title="Earned Coins Issued" value={loading ? '...' : stats.totalCoinsIssued} />
-        <StatCard index={5} title="Earned Coins Redeemed" value={loading ? '...' : stats.totalCoinsRedeemed} />
+        <StatCard index={4} title="Cashback Distributed" value={loading ? '...' : `₹${stats.totalCashback?.toLocaleString() || 0}`} />
+        <StatCard index={5} title="Total Added" value={loading ? '...' : `₹${stats.totalAdded?.toLocaleString() || 0}`} />
         <StatCard index={6} title="Pending" value={loading ? '...' : stats.pendingCount} />
         <StatCard index={7} title="Fraud Alerts" value={loading ? '...' : stats.fraudAlerts} />
       </div>

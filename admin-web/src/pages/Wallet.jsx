@@ -108,7 +108,7 @@ export const Wallet = () => {
             <span className="text-[10px] font-black uppercase tracking-widest">Admin Wallet Terminal</span>
           </div>
           <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter italic">
-            Capital <span className="text-purple-600">Vault</span>
+            Capital <span className="text-purple-600">Wallet</span>
           </h1>
           <p className="text-slate-500 text-xs font-medium max-w-md">
             Manage administrative liquidity, settle provider balances, and track internal settlements in real-time.
@@ -157,7 +157,7 @@ export const Wallet = () => {
                   <ArrowUpCircle className="w-6 h-6 text-purple-600" />
                </div>
                <div>
-                  <h3 className="text-xl font-black text-slate-900 uppercase italic tracking-tight">Replenish <span className="text-purple-600">Vault</span></h3>
+                  <h3 className="text-xl font-black text-slate-900 uppercase italic tracking-tight">Replenish <span className="text-purple-600">Wallet</span></h3>
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Add funds via Nextgate payment gateway</p>
                </div>
             </div>
@@ -194,7 +194,7 @@ export const Wallet = () => {
                    <Clock className="w-4 h-4" />
                 </div>
                 <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed">
-                  Settlements are processed instantly via Nextgate. Ensure your <span className="text-purple-600">Merchant Token</span> is active.
+                  Payments are processed instantly via Nextgate. Ensure your <span className="text-purple-600">Merchant Token</span> is active.
                 </p>
               </div>
             </form>

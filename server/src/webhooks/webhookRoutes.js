@@ -2,7 +2,6 @@ import express from "express";
 import eventBus from "../config/eventBus.js";
 import prisma from "../config/prisma.js";
 import { handleApiboxCallback } from "./rechargeWebhookController.js";
-import { rechargeQueue } from "../services/rechargeService.js";
 import { paymentWebhook } from "../controllers/paymentController.js";
 import { webhookLimiter } from "../middlewares/rateLimiter.js";
 

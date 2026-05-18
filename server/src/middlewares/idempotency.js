@@ -1,38 +1,59 @@
 import { redisClient } from "../config/redis.js";
+import AppError from "../utils/AppError.js";
 
-const IDEMPOTENCY_TTL = 86400; // 24 hours
+/**
+ * Middleware to prevent duplicate requests using Idempotency-Key header.
+ * Stores keys in Redis for a limited time (e.g., 24 hours).
+ */
+export const idempotency = async (req, res, next) => {
+  const key = req.headers['x-idempotency-key'];
 
-export const idempotencyMiddleware = async (req, res, next) => {
-    const idempotencyKey = req.headers['x-idempotency-key'];
-    
-    // Only apply to POST requests containing the key
-    if (req.method !== 'POST' || !idempotencyKey) {
-        return next();
+  if (!key) {
+    // If key is missing, we proceed, but critical routes should enforce it separately
+    return next();
+  }
+
+  const userId = req.user?.id || 'anonymous';
+  const redisKey = `idempotency:${userId}:${key}`;
+
+  try {
+    const existingResult = await redisClient.get(redisKey);
+
+    if (existingResult) {
+      const parsed = JSON.parse(existingResult);
+      console.log(`[Idempotency] Duplicate request detected: ${redisKey}`);
+      return res.status(200).json(parsed);
     }
-    
-    try {
-        const redisKey = `idempotency:${idempotencyKey}`;
-        const cachedResponse = await redisClient.get(redisKey);
-        
-        if (cachedResponse) {
-            console.log(`[IDEMPOTENCY] Returning cached response for key: ${idempotencyKey}`);
-            return res.status(200).json(JSON.parse(cachedResponse));
+
+    // Capture the original res.json to store the result
+    const originalJson = res.json;
+    res.json = async function (data) {
+      // Only cache successful or specific operational responses
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        try {
+          await redisClient.set(redisKey, JSON.stringify(data), {
+            EX: 86400, // 24 hours
+          });
+        } catch (err) {
+          console.error("[Idempotency Cache Error]:", err);
         }
-        
-        // Intercept res.json to cache the output after processing
-        const originalJson = res.json;
-        res.json = function(body) {
-            if (res.statusCode >= 200 && res.statusCode < 300) {
-                // Background caching
-                redisClient.set(redisKey, JSON.stringify(body), "EX", IDEMPOTENCY_TTL)
-                    .catch(e => console.error("Redis Idempotency Set Error:", e));
-            }
-            return originalJson.call(this, body);
-        };
-        
-        next();
-    } catch (err) {
-        console.error("Idempotency Middleware Error:", err);
-        next(); // Fallback to normal processing if Redis is completely down
-    }
+      }
+      return originalJson.call(this, data);
+    };
+
+    next();
+  } catch (err) {
+    console.error("[Idempotency Error]:", err);
+    next(); // Fallback: allow request if Redis fails
+  }
+};
+
+/**
+ * Higher-order function to enforce idempotency on specific routes.
+ */
+export const requireIdempotency = (req, res, next) => {
+  if (!req.headers['x-idempotency-key']) {
+    return next(new AppError("Idempotency-Key header is required for this operation", 400, "IDEMPOTENCY_KEY_REQUIRED"));
+  }
+  next();
 };

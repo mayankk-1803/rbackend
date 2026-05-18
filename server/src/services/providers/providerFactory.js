@@ -31,6 +31,10 @@ export const getProvider = (code) => {
   return provider;
 };
 
+export const isSupported = (code) => {
+  return !!providers[code.toUpperCase()];
+};
+
 /**
  * Backward compatibility for existing worker/controllers
  */

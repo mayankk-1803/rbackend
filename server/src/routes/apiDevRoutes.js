@@ -3,7 +3,7 @@ import { apiAuth } from "../middlewares/apiAuth.js";
 import { getOperator } from "../controllers/operatorController.js";
 import { getPlans, recharge } from "../controllers/rechargeController.js";
 import { validateRechargeInput } from "../middlewares/validateInput.js";
-import { idempotencyMiddleware } from "../middlewares/idempotency.js";
+import { idempotency } from "../middlewares/idempotency.js";
 import { fraudDetectionMiddleware } from "../middlewares/fraudDetection.js";
 import prisma from "../config/prisma.js";
 
@@ -85,6 +85,6 @@ router.get("/status/:id", async (req, res) => {
  * @route POST /api/v1/recharge
  * @desc Execute SYNC recharge (Apibox)
  */
-router.post("/recharge", validateRechargeInput, idempotencyMiddleware, fraudDetectionMiddleware, recharge);
+router.post("/recharge", validateRechargeInput, idempotency, fraudDetectionMiddleware, recharge);
 
 export default router;

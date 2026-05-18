@@ -18,14 +18,22 @@ export default function Register() {
   const [confirmationResult, setConfirmationResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(0);
+  const navigate = useNavigate();
 
   useEffect(() => {
+    // Check if already authenticated
+    const token = localStorage.getItem('dizipay_user_token');
+    const user = JSON.parse(localStorage.getItem('dizipay_user_data') || '{}');
+    if (token && user.id) {
+      navigate('/dashboard', { replace: true });
+    }
+
     let interval;
     if (timer > 0) {
       interval = setInterval(() => setTimer(t => t - 1), 1000);
     }
     return () => clearInterval(interval);
-  }, [timer]);
+  }, [timer, navigate]);
 
   const sendOTP = async () => {
     if (phone.length < 10) return toast.error("Enter valid phone number");
@@ -89,10 +97,10 @@ export default function Register() {
 
   const handleAuthSuccess = (apiData) => {
     if (apiData?.token) {
-      localStorage.setItem('token', apiData.token);
-      localStorage.setItem('user', JSON.stringify(apiData.user));
+      localStorage.setItem('dizipay_user_token', apiData.token);
+      localStorage.setItem('dizipay_user_data', JSON.stringify(apiData.user));
       toast.success('Account created successfully!');
-      window.location.href = '/';
+      window.location.href = '/dashboard';
     }
   };
 

@@ -6,77 +6,87 @@ import prisma from "../config/prisma.js";
 import { Prisma } from "@prisma/client";
 import { getProviderService } from "../services/providers/providerFactory.js";
 import { getProviderOperatorCode, normalizeOperator } from "../config/operators.js";
+import { normalizeTransactionStatus } from "../utils/statusHelper.js";
+import { logTransactionEvent, TXN_EVENTS } from "../services/transactionEventService.js";
+import { issueReward } from "../services/rewardEngine.js";
+import { recordFinancialEntry } from "../services/ledgerService.js";
 
 dotenv.config();
 
-console.log("Recharge Worker starting...");
-
-const COIN_REWARD_CHANCE = 0.30;
-const MIN_EARNED_COINS = 1;
-const MAX_EARNED_COINS = 2;
+console.log("DiziPay V3 Recharge Worker starting...");
 
 export const dlqQueue = new Queue("recharge_dlq", { connection: redis });
 
-const worker = new Worker("rechargeQueue", async (job) => {
-    const { txnId, userId, amount, mobile, operator: frontendOperator } = job.data;
-    console.log(`[RECHARGE START] Job: ${job.id} | Txn: ${txnId} | Mobile: ${mobile}`);
+const worker = new Worker("recharge", async (job) => {
+    const { txnId, userId, amount, mobile, operator: frontendOperator, retryCount = 0 } = job.data;
+    console.log(`[WORKER][JOB_RECEIVED] → Job: ${job.id} | Txn: ${txnId} | Retry: ${retryCount}`);
     
     let attempts = [];
     let successfulProvider = null;
-    let finalProviderStatus = "FAILED";
+    let finalStatus = "pending";
     let operatorTxnId = null;
-    let rechargeSuccessful = false; // CRITICAL STATUS LOCK
+    let rechargeSuccessful = false; 
 
     try {
+        console.log(`[WORKER][PROCESSING] → Executing Txn #${txnId} | Attempt ${retryCount}`);
+        await logTransactionEvent(txnId, TXN_EVENTS.PROVIDER_PENDING, { mobile, operator: frontendOperator, retryCount });
+
         // 1. FETCH TRANSACTION & ACTIVE PROVIDERS
         const activeProviders = await prisma.provider.findMany({
           where: { isActive: true },
           orderBy: { priority: "desc" } 
         });
 
-        if (activeProviders.length === 0) throw new Error("No active recharge providers available.");
+        if (activeProviders.length === 0) {
+          console.error(`[WORKER][FAILED] → No active providers for Txn #${txnId}`);
+          throw new Error("No active recharge providers available.");
+        }
 
         const txn = await prisma.transaction.findUnique({ where: { id: txnId } });
-        if (!txn || txn.status !== "PENDING") {
-          console.log(`[JOB] Txn ${txnId} already processed or not found.`);
+        if (!txn) {
+          console.error(`[WORKER][FAILED] → Txn #${txnId} not found in database`);
           return;
         }
 
-        // 2. FAILOVER LOOP (OUTSIDE TRANSACTION)
+        // Only block if status is already SUCCESS or if it's NOT pending and NOT a manual retry
+        const normalizedStatus = normalizeTransactionStatus(txn.status);
+        if (normalizedStatus === "success") {
+          console.log(`[WORKER][SKIPPED] → Txn #${txnId} is already SUCCESS`);
+          return;
+        }
+
+        // 2. FAILOVER LOOP
         for (const provider of activeProviders) {
+          console.log(`[WORKER][PROVIDER_EXECUTION] → Attempting with ${provider.code} for Txn #${txnId}`);
           const startTime = Date.now();
           const normalizedOperator = normalizeOperator(frontendOperator);
           const providerOperatorCode = getProviderOperatorCode(normalizedOperator);
           
           if (!providerOperatorCode) {
-             console.error(`[Recharge] UNKNOWN OPERATOR: ${frontendOperator}`);
-             throw new Error("Unsupported operator");
+             console.error(`[WORKER][ERROR] → Unsupported operator ${frontendOperator} for provider ${provider.code}`);
+             throw new Error(`Unsupported operator: ${frontendOperator}`);
           }
 
-          console.log(`[PROVIDER REQUEST] ${provider.code} | Txn: ${txnId} | Mobile: ${mobile}`);
-
           try {
-            const requestParams = {
-              mobile: mobile || "9999999999",
-              amount: amount,
+            console.log(`[WORKER][PROVIDER_CALL] → Attempting with ${provider.code} for Txn #${txnId}`);
+            const providerService = getProviderService(provider.code);
+            const providerResponse = await providerService.recharge({
+              mobile,
+              amount,
               operator: providerOperatorCode,
-              txnId: txnId
-            };
-            console.log(`[PROVIDER REQUEST] ${provider.code} params:`, JSON.stringify(requestParams));
+              txnId
+            });
 
-            const providerRegistry = getProvider(provider.code);
-            const providerResponse = await providerRegistry.recharge(requestParams);
+            console.log(`[WORKER][PROVIDER_RESPONSE] → Provider: ${provider.code} | Status: ${providerResponse.status} | Txn: ${txnId}`);
 
-            console.log(`[PROVIDER RESPONSE] ${provider.code}:`, JSON.stringify(providerResponse));
-
-            const currentStatus = (providerResponse.status || "FAILED").toUpperCase();
-            const providerMessage = providerResponse.message || "";
+            const currentStatus = normalizeTransactionStatus(providerResponse.status);
             operatorTxnId = providerResponse.operatorTxnId || providerResponse.providerTxnId;
 
-            if (currentStatus === "SUCCESS" || currentStatus === "PENDING") {
-              rechargeSuccessful = true; // LOCK STATUS
+            if (currentStatus === "success" || currentStatus === "pending") {
+              rechargeSuccessful = true;
               successfulProvider = provider.code;
-              finalProviderStatus = currentStatus;
+              // CRITICAL: NEVER auto-success pending txns from worker. Callback is primary source of truth.
+              finalStatus = "pending"; 
 
               attempts.push({ 
                 provider: provider.name, 
@@ -84,64 +94,64 @@ const worker = new Worker("rechargeQueue", async (job) => {
                 status: currentStatus, 
                 latency: Date.now() - startTime 
               });
-              
-              console.log(`[PROVIDER SUCCESS] ${provider.code} | Txn: ${txnId} | Status: ${currentStatus}`);
               break; 
             } else {
-              const isTerminal = /operator|mobile|amount|invalid|missing/i.test(providerMessage);
-              if (isTerminal) {
-                console.error(`[PROVIDER FAILURE] Terminal Error from ${provider.code}: ${providerMessage}`);
-                throw new Error(providerMessage); 
-              }
-              throw new Error(providerMessage || "Provider returned FAILED status"); 
+              throw new Error(providerResponse.message || "Provider returned FAILED status"); 
             }
           } catch (err) {
-            const isTerminal = /operator|mobile|amount|invalid|missing/i.test(err.message);
+            console.warn(`[WORKER][FAILED] → Provider ${provider.code} failed for Txn #${txnId}: ${err.message}`);
             attempts.push({ 
               provider: provider.name, 
               code: provider.code, 
-              status: "FAILED", 
+              status: "failed", 
               reason: err.message,
               latency: Date.now() - startTime 
             });
-
-            if (isTerminal) {
-              console.warn(`[RECHARGE] Stopping retries due to terminal failure: ${err.message}`);
-              break; 
-            }
-            console.error(`[PROVIDER FAILURE] ${provider.code} failed: ${err.message}`);
+            const isTerminal = /operator|mobile|amount|invalid|missing/i.test(err.message);
+            if (isTerminal) break;
             continue;
           }
         }
 
-        if (!rechargeSuccessful) throw new Error("All active recharge providers failed.");
+        if (!rechargeSuccessful) {
+          console.error(`[WORKER][FAILED] → All providers failed for Txn #${txnId}`);
+          throw new Error("All active recharge providers failed.");
+        }
 
-        // 3. PERSIST FINAL SUCCESS (Isolated Status Update)
-        const normalizedOperatorName = normalizeOperator(frontendOperator);
+        // 3. PERSIST FINAL SUCCESS & SNAPSHOT
+        const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true, phone: true, email: true } });
         
+        const invoiceSnapshot = {
+          customer: { name: user?.name, phone: user?.phone, email: user?.email },
+          operator: normalizeOperator(frontendOperator),
+          mobile,
+          amount,
+          timestamp: new Date().toISOString(),
+          providerRef: operatorTxnId
+        };
+
         await prisma.transaction.update({
           where: { id: txnId },
           data: { 
-            status: finalProviderStatus, 
+            status: "PENDING", // Always PENDING initially, let callback finalize
             provider: successfulProvider,
             providerTxnId: operatorTxnId,
-            operator: normalizedOperatorName // UPDATE OPERATOR NAME
+            operator: normalizeOperator(frontendOperator),
+            invoiceSnapshot: invoiceSnapshot
           }
         });
-        console.log(`[TXN SUCCESS] Txn ${txnId} marked ${finalProviderStatus} via ${successfulProvider}`);
 
-        // 4. ISOLATED POST-SUCCESS LOGIC (Optional rewards/events)
-        try {
-            await processPostSuccessLogic({ txnId, userId, amount, finalProviderStatus, successfulProvider, operatorTxnId, attempts });
-        } catch (postErr) {
-            console.error("[POST SUCCESS ERROR] Optional logic failed but recharge remains SUCCESS:", postErr.message);
-        }
+        console.log(`[WORKER][PENDING] → Txn #${txnId} saved as PENDING. Awaiting callback.`);
 
+        await logTransactionEvent(txnId, TXN_EVENTS.PROVIDER_PENDING, { provider: successfulProvider });
+        eventBus.emit(`recharge_pending`, { txnId, userId, status: "pending", provider: successfulProvider, attempts });
+
+        console.log(`[WORKER][COMPLETED] → Worker finished job for Txn #${txnId}`);
         return { success: true, providerUsed: successfulProvider, attempts };
 
     } catch (error) {
       if (rechargeSuccessful) {
-        console.warn(`[RECHARGE SAFETY] Error occurred after successful recharge. Skipping refund. Error: ${error.message}`);
+        console.warn(`[RECHARGE SAFETY] Post-success error. Skipping refund: ${error.message}`);
         return { success: true, providerUsed: successfulProvider, attempts };
       }
 
@@ -150,105 +160,48 @@ const worker = new Worker("rechargeQueue", async (job) => {
       throw error;
     }
   },
-  { 
-    connection: redis,
-    concurrency: 10,
-    removeOnComplete: { count: 500 },
-    removeOnFail: { count: 1000 }
-  }
+  { connection: redis, concurrency: 10, removeOnComplete: { count: 500 }, removeOnFail: { count: 1000 } }
 );
 
-/**
- * Handles rewards, commissions, and frontend notifications
- * Isolated to prevent affecting main recharge status
- */
-async function processPostSuccessLogic({ txnId, userId, amount, finalProviderStatus, successfulProvider, operatorTxnId, attempts }) {
-    await prisma.$transaction(async (tx) => {
-        if (finalProviderStatus === "SUCCESS") {
-            // Rewards Logic
-            const existingReward = await tx.coinTransaction.findFirst({
-                where: { rechargeTxnId: txnId, type: "EARNED" }
-            });
+worker.on("completed", (job) => {
+  console.log(`[WORKER][JOB_SUCCESS] → Job ${job.id} completed successfully.`);
+});
 
-            if (!existingReward && Math.random() < COIN_REWARD_CHANCE) {
-                const coinsRewarded = Math.floor(Math.random() * (MAX_EARNED_COINS - MIN_EARNED_COINS + 1)) + MIN_EARNED_COINS;
-                await tx.wallet.update({
-                    where: { userId },
-                    data: { coinBalance: { increment: coinsRewarded } }
-                });
-                await tx.coinTransaction.create({
-                    data: {
-                        userId,
-                        amount: coinsRewarded,
-                        type: "EARNED",
-                        description: "Earned Coins - Recharge Reward",
-                        rechargeTxnId: txnId
-                    }
-                });
-                console.log(`[REWARD SUCCESS] User ${userId} earned ${coinsRewarded} coins`);
-            }
-        }
-    }, { timeout: 10000 });
+worker.on("failed", (job, err) => {
+  console.error(`[WORKER][JOB_FAILED] → Job ${job?.id} failed: ${err.message}`);
+});
 
-    // Emit Events
-    const emittedStatus = finalProviderStatus.toLowerCase();
-    eventBus.emit(`recharge_${emittedStatus}`, {
-        txnId,
-        status: emittedStatus,
-        transaction: { 
-            transactionId: txnId, 
-            status: finalProviderStatus, 
-            provider: successfulProvider,
-            providerTxnId: operatorTxnId,
-            attempts 
-        }
-    });
-}
+worker.on("error", (err) => {
+  console.error(`[WORKER][CRITICAL_ERROR] → Worker error: ${err.message}`);
+});
 
-/**
- * Centralized failure and refund handler
- */
 async function processFailureRefund({ txnId, userId, amount, attempts, reason }) {
     try {
         await prisma.$transaction(async (tx) => {
             const txn = await tx.transaction.findUnique({ where: { id: txnId } });
             
-            // SECURITY: Never refund if already successful
-            if (!txn || txn.status === "SUCCESS" || txn.refundStatus === "refunded") {
-                console.warn(`[REFUND SAFETY] Skipping refund for Txn ${txnId}. Status: ${txn?.status}`);
-                return;
-            }
+            if (!txn || txn.status === "SUCCESS" || txn.refundStatus === "refunded") return;
 
             await tx.transaction.update({
                 where: { id: txnId },
                 data: { status: "FAILED", refundStatus: "refunded", refundedAt: new Date() }
             });
 
-            await tx.wallet.update({
-                where: { userId },
-                data: { balance: { increment: amount } }
+            // Use Ledger Service for Refund
+            await recordFinancialEntry({
+                userId,
+                amount,
+                type: 'REFUND_CREDIT',
+                transactionId: txnId,
+                description: `Refund: ${reason.slice(0, 50)}`,
+                tx
             });
 
-            await tx.transaction.create({
-                data: { 
-                    userId, 
-                    amount, 
-                    type: "REFUND", 
-                    status: "SUCCESS", 
-                    direction: "CREDIT",
-                    description: `Refund for recharge ${txnId}: ${reason.slice(0, 50)}`
-                }
-            });
+            await logTransactionEvent(txnId, TXN_EVENTS.FAILED, { reason });
+            await logTransactionEvent(txnId, TXN_EVENTS.REFUNDED, { amount });
         }, { timeout: 10000 });
         
-        console.log(`[REFUND] Txn ${txnId} processed successfully.`);
-
-        eventBus.emit("recharge_failed", {
-            txnId,
-            status: "failed",
-            transaction: { transactionId: txnId, status: "FAILED", attempts },
-            reason
-        });
+        eventBus.emit("recharge_failed", { txnId, status: "failed", reason });
     } catch (refundErr) {
         console.error(`[CRITICAL REFUND ERROR] Txn ${txnId}:`, refundErr.message);
     }

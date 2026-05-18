@@ -18,12 +18,19 @@ export default function Login() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Check if already authenticated
+    const token = localStorage.getItem('dizipay_user_token');
+    const user = JSON.parse(localStorage.getItem('dizipay_user_data') || '{}');
+    if (token && user.id) {
+      navigate('/dashboard', { replace: true });
+    }
+
     let interval;
     if (timer > 0) {
       interval = setInterval(() => setTimer(t => t - 1), 1000);
     }
     return () => clearInterval(interval);
-  }, [timer]);
+  }, [timer, navigate]);
 
   const handleSendOTP = async () => {
     if (phone.length < 10) return toast.error("Enter valid phone number");
@@ -49,10 +56,19 @@ export default function Login() {
     setLoading(true);
     try {
       const formatPhone = phone.startsWith('+') ? phone : `+91${phone}`;
+      console.log(`[AUTH][LOGIN_REQUEST] → Verifying OTP for: ${formatPhone}`);
       const res = await api.post('/auth/verify-otp', { code: otpCode, phone: formatPhone });
-      handleAuthSuccess(res.data.data);
+      
+      if (res.data?.success) {
+        console.log("[AUTH][OTP_VERIFIED] → Response success: true");
+        handleAuthSuccess(res.data.data);
+      } else {
+        console.warn("[AUTH][OTP_FAILED] → Response success: false", res.data?.message);
+        throw new Error(res.data?.message || "Invalid OTP");
+      }
     } catch (err) {
-      toast.error(err.response?.data?.message || "Invalid OTP");
+      console.error("[AUTH][FRONTEND_STATE_FAILED] → Error during OTP verification:", err);
+      toast.error(err.response?.data?.message || err.message || "Invalid OTP");
     } finally {
       setLoading(false);
     }
@@ -64,10 +80,19 @@ export default function Login() {
 
     setLoading(true);
     try {
+      console.log(`[AUTH][LOGIN_REQUEST] → Email login for: ${email}`);
       const res = await api.post('/auth/login-email', { email, password });
-      handleAuthSuccess(res.data.data);
+      
+      if (res.data?.success) {
+        console.log("[AUTH][PASSWORD_MATCH] → Response success: true");
+        handleAuthSuccess(res.data.data);
+      } else {
+        console.warn("[AUTH][PASSWORD_MATCH_FAILED] → Response success: false", res.data?.message);
+        throw new Error(res.data?.message || "Invalid credentials");
+      }
     } catch (err) {
-      toast.error(err.response?.data?.message || "Invalid email or password");
+      console.error("[AUTH][FRONTEND_STATE_FAILED] → Error during email login:", err);
+      toast.error(err.response?.data?.message || err.message || "Invalid email or password");
     } finally {
       setLoading(false);
     }
@@ -75,10 +100,18 @@ export default function Login() {
 
   const handleAuthSuccess = (apiData) => {
     if (apiData?.token) {
-      localStorage.setItem('token', apiData.token);
-      localStorage.setItem('user', JSON.stringify(apiData.user));
+      console.log("[AUTH][TOKEN_STORED] → Saving token to localStorage...");
+      localStorage.setItem('dizipay_user_token', apiData.token);
+      localStorage.setItem('dizipay_user_data', JSON.stringify(apiData.user));
+      
+      console.log("[AUTH][AUTH_STATE_UPDATED] → User data stored:", apiData.user.id);
+      console.log("[AUTH][REDIRECT_SUCCESS] → Navigating to Home...");
+      
       toast.success('Welcome back!');
-      window.location.href = '/';
+      window.location.href = '/dashboard';
+    } else {
+      console.error("[AUTH][TOKEN_MISSING] → apiData was received but token is missing!");
+      toast.error("Authentication failed. Invalid token received.");
     }
   };
 
