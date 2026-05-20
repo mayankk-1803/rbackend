@@ -23,7 +23,7 @@ export default function Profile() {
         .then(res => setWallet(res.data.wallet))
         .catch(err => {
           if (import.meta.env.DEV) {
-            console.error(err);
+            if (import.meta.env.DEV) console.error(err);
           }
         });
     };
@@ -96,7 +96,7 @@ export default function Profile() {
       toast.success("Profile image updated");
     } catch (e) {
       if (import.meta.env.DEV) {
-        console.error(e);
+        if (import.meta.env.DEV) console.error(e);
       }
       toast.error("Image upload failed");
     } finally {

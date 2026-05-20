@@ -6,7 +6,9 @@ import { getOperator } from "../controllers/operatorController.js";
 import { getWallet } from "../controllers/walletController.js";
 import { getPlans, recharge, payPostpaidBill, initPrepaidRecharge, initPostpaidRecharge } from "../controllers/rechargeController.js";
 import { validateRechargeInput } from "../middlewares/validateInput.js";
+import { rechargeInitLimiter } from "../middlewares/rateLimiter.js";
 import prisma from "../config/prisma.js";
+import { requireNoHardFreeze } from "../middlewares/freezeCheck.js";
 
 const router = express.Router();
 
@@ -23,23 +25,23 @@ router.get("/recharge/plans", getPlans);
 /**
  * @route POST /api/recharge/prepaid/init
  */
-router.post("/recharge/prepaid/init", initPrepaidRecharge);
+router.post("/recharge/prepaid/init", requireNoHardFreeze, rechargeInitLimiter, initPrepaidRecharge);
 
 /**
  * @route POST /api/recharge/postpaid/init
  */
-router.post("/recharge/postpaid/init", initPostpaidRecharge);
+router.post("/recharge/postpaid/init", requireNoHardFreeze, rechargeInitLimiter, initPostpaidRecharge);
 
 /**
  * @route POST /api/recharge/pay-postpaid-bill
  */
-router.post("/recharge/pay-postpaid-bill", auth, payPostpaidBill);
+router.post("/recharge/pay-postpaid-bill", auth, requireNoHardFreeze, rechargeInitLimiter, payPostpaidBill);
 
 /**
  * @route POST /api/recharge
  * @description SYNC Recharge Execution with Apibox via rechargeController
  */
-router.post("/recharge", auth, validateRechargeInput, idempotency, fraudDetectionMiddleware, recharge);
+router.post("/recharge", auth, requireNoHardFreeze, validateRechargeInput, idempotency, fraudDetectionMiddleware, recharge);
 
 /**
  * Debug Transaction Status

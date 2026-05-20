@@ -1,5 +1,7 @@
 import prisma from "../config/prisma.js";
 import nextgate from "../services/payments/nextgate/index.js";
+import { recordFinancialEntry } from "../services/ledgerService.js";
+import { Prisma } from "@prisma/client";
 
 /**
  * Get Admin Wallet Stats
@@ -92,28 +94,45 @@ export const verifyAdminTopup = async (req, res) => {
       });
 
       if (payment && payment.status === "PENDING") {
-         await prisma.$transaction(async (tx) => {
-            await tx.payment.update({
-              where: { id: payment.id },
-              data: { status: "SUCCESS", gatewayTxnId: verification.gatewayTxnId }
-            });
+          await prisma.$transaction(async (tx) => {
+             await tx.payment.update({
+               where: { id: payment.id },
+               data: { status: "SUCCESS", gatewayTxnId: verification.gatewayTxnId }
+             });
 
-            await tx.wallet.update({
-              where: { userId: payment.userId },
-              data: { balance: { increment: payment.amount } }
-            });
+             const idempotencyKey = `topup:${payment.id}`;
+             const existingTxn = await tx.transaction.findUnique({
+               where: { idempotencyKey }
+             });
+             if (existingTxn) return;
 
-            await tx.transaction.create({
-              data: {
-                userId: payment.userId,
-                amount: payment.amount,
-                type: "TOPUP",
-                status: "SUCCESS",
-                direction: "CREDIT",
-                description: "Admin Wallet Topup via Nextgate"
-              }
-            });
-         });
+             const { balanceAfter, ledgerEntry } = await recordFinancialEntry({
+               userId: payment.userId,
+               amount: payment.amount,
+               type: 'TOPUP_CREDIT',
+               transactionId: null,
+               description: "Admin Wallet Topup via Nextgate",
+               tx
+             });
+
+             const transaction = await tx.transaction.create({
+               data: {
+                 userId: payment.userId,
+                 amount: payment.amount,
+                 type: "TOPUP",
+                 status: "SUCCESS",
+                 direction: "CREDIT",
+                 balanceAfter,
+                 idempotencyKey,
+                 description: "Admin Wallet Topup via Nextgate"
+               }
+             });
+
+             await tx.ledgerEntry.update({
+               where: { id: ledgerEntry.id },
+               data: { transactionId: transaction.id }
+             });
+          }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
          return res.json({ success: true, message: "Payment verified and wallet credited" });
       }
     }

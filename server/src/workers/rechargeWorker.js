@@ -19,7 +19,7 @@ export const dlqQueue = new Queue("recharge_dlq", { connection: redis });
 
 const worker = new Worker("recharge", async (job) => {
     const { txnId, userId, amount, mobile, operator: frontendOperator, retryCount = 0 } = job.data;
-    console.log(`[WORKER][JOB_RECEIVED] → Job: ${job.id} | Txn: ${txnId} | Retry: ${retryCount}`);
+    console.log(`[QUEUE][JOB_RECEIVED] → Job: ${job.id} | Txn: ${txnId} | Retry: ${retryCount}`);
     
     let attempts = [];
     let successfulProvider = null;
@@ -57,7 +57,7 @@ const worker = new Worker("recharge", async (job) => {
 
         // 2. FAILOVER LOOP
         for (const provider of activeProviders) {
-          console.log(`[WORKER][PROVIDER_EXECUTION] → Attempting with ${provider.code} for Txn #${txnId}`);
+          console.log(`[PROVIDER_SELECTED] Provider: ${provider.code} for Txn #${txnId}`);
           const startTime = Date.now();
           const normalizedOperator = normalizeOperator(frontendOperator);
           const providerOperatorCode = getProviderOperatorCode(normalizedOperator);
@@ -68,8 +68,11 @@ const worker = new Worker("recharge", async (job) => {
           }
 
           try {
-            console.log(`[WORKER][PROVIDER_CALL] → Attempting with ${provider.code} for Txn #${txnId}`);
             const providerService = getProviderService(provider.code);
+            console.log(`[PROVIDER_RESOLVED] Provider: ${provider.code} | Name: ${provider.name} | BaseURL: ${provider.baseUrl} | AuthKey: ***${provider.apiKey?.slice(-4)}`);
+            
+            console.log(`[RECHARGE_REQUEST] TxnId: ${txnId} | Mobile: ${mobile} | Amount: ${amount} | OperatorCode: ${providerOperatorCode}`);
+            console.log(`[PROVIDER_REQUEST] Provider: ${provider.code} | TxnId: ${txnId} | Mobile: ${mobile} | Amount: ${amount}`);
             const providerResponse = await providerService.recharge({
               mobile,
               amount,
@@ -77,7 +80,8 @@ const worker = new Worker("recharge", async (job) => {
               txnId
             });
 
-            console.log(`[WORKER][PROVIDER_RESPONSE] → Provider: ${provider.code} | Status: ${providerResponse.status} | Txn: ${txnId}`);
+            console.log(`[RECHARGE_RESPONSE] Provider: ${provider.code} | Status: ${providerResponse.status} | TxnId: ${txnId} | ProviderTxnId: ${providerResponse.providerTxnId || providerResponse.operatorTxnId}`);
+            console.log(`[PROVIDER_RESPONSE] Provider: ${provider.code} | TxnId: ${txnId} | Status: ${providerResponse.status} | Msg: ${providerResponse.message}`);
 
             const currentStatus = normalizeTransactionStatus(providerResponse.status);
             operatorTxnId = providerResponse.operatorTxnId || providerResponse.providerTxnId;

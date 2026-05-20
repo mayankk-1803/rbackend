@@ -2,15 +2,10 @@ import express from "express";
 import { auth } from "../middlewares/auth.js";
 import { getWallet, redeemCoins, getCoinsHistory } from "../controllers/walletController.js";
 import { updateWalletBalance } from "../services/walletService.js";
-import rateLimit from "express-rate-limit";
+import { redeemLimiter, topupLimiter } from "../middlewares/rateLimiter.js";
+import { requireNoSoftFreeze, requireNoHardFreeze } from "../middlewares/freezeCheck.js";
 
 const router = express.Router();
-
-const redeemRateLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute window
-  max: 5, // Limit each IP to 5 redemption requests per window
-  message: { success: false, message: "Too many redemption requests. Please try again later." }
-});
 
 router.get("/", auth, getWallet);
 router.get("/coins-history", auth, getCoinsHistory);
@@ -31,9 +26,9 @@ router.get("/coins-history", auth, getCoinsHistory);
  *       429:
  *         description: Too many requests
  */
-router.post("/redeem-coins", auth, redeemRateLimiter, redeemCoins);
+router.post("/redeem-coins", auth, requireNoSoftFreeze, redeemLimiter, redeemCoins);
 
-router.post("/top-up", auth, async (req, res) => {
+router.post("/top-up", auth, requireNoHardFreeze, topupLimiter, async (req, res) => {
   try {
     const { amount } = req.body;
     const userId = req.user.id;

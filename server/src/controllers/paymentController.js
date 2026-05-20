@@ -3,6 +3,11 @@ import prisma from "../config/prisma.js";
 import eventBus from "../config/eventBus.js";
 import crypto from "crypto";
 import { Prisma } from "@prisma/client";
+import { recordFinancialEntry } from "../services/ledgerService.js";
+import { claimIdempotencyKey } from "../utils/idempotency.js";
+import { redisClient } from "../config/redis.js";
+import { acquireLock, releaseLock } from "../utils/redisLock.js";
+import { pushToDLQ } from "../services/dlqService.js";
 
 export const createOrder = async (req, res) => {
   try {
@@ -79,15 +84,26 @@ export const confirmPayment = async (req, res) => {
       return res.status(404).json({ success: false, message: "Payment not found" });
     }
 
-    // Call paymentWebhook logic internally to simulate success
+    const expectedSecret = process.env.WEBHOOK_SECRET || "internal_secret";
+    const timestamp = Date.now().toString();
+    const nonce = crypto.randomBytes(16).toString('hex');
+    const payload = {
+      paymentId: payment.id,
+      status: "SUCCESS",
+      gatewayTxnId: `MOCK_TXN_${Date.now()}`,
+      errorMessage: ""
+    };
+    
+    const payloadString = timestamp + "." + nonce + "." + JSON.stringify(payload);
+    const signature = crypto.createHmac("sha256", expectedSecret).update(payloadString).digest("hex");
+
     const webhookReq = {
-      headers: { "x-webhook-secret": process.env.WEBHOOK_SECRET || "internal_secret" },
-      body: {
-        paymentId: payment.id,
-        status: "SUCCESS",
-        gatewayTxnId: `MOCK_TXN_${Date.now()}`,
-        errorMessage: ""
-      }
+      headers: { 
+        "x-webhook-signature": signature,
+        "x-webhook-timestamp": timestamp,
+        "x-webhook-nonce": nonce
+      },
+      body: payload
     };
 
     const webhookRes = {
@@ -154,11 +170,54 @@ export const getPaymentStatus = async (req, res) => {
 };
 
 export const paymentWebhook = async (req, res) => {
+  let lockToken = null;
+  const correlationId = crypto.randomBytes(8).toString('hex');
+  const body = req.body;
+
   try {
-    // correlationId for observability
-    const correlationId = crypto.randomBytes(8).toString('hex');
-    const body = req.body;
     console.log(`[WEBHOOK][${correlationId}] RECEIVED:`, JSON.stringify(body));
+
+    // Webhook Security Validation
+    const incomingSignature = req.headers["x-webhook-signature"];
+    const incomingTimestamp = req.headers["x-webhook-timestamp"];
+    const incomingNonce = req.headers["x-webhook-nonce"];
+    const expectedSecret = process.env.WEBHOOK_SECRET || "internal_secret";
+
+    if (!incomingSignature || !incomingTimestamp || !incomingNonce) {
+      console.warn(`[WEBHOOK][${correlationId}] REJECTED: Missing security headers.`);
+      return res.status(401).json({ success: false, message: "Missing security headers" });
+    }
+
+    // Timestamp Freshness Validation (5 minutes = 300000ms)
+    const now = Date.now();
+    const timestampMs = Number(incomingTimestamp);
+    if (isNaN(timestampMs)) {
+      return res.status(400).json({ success: false, message: "Invalid timestamp format" });
+    }
+    if (now - timestampMs > 300000) {
+      console.warn(`[WEBHOOK][${correlationId}] REJECTED: Timestamp expired.`);
+      return res.status(400).json({ success: false, message: "Webhook timestamp expired" });
+    }
+    if (timestampMs - now > 5000) { // 5s tolerance for clock drift
+      console.warn(`[WEBHOOK][${correlationId}] REJECTED: Timestamp in future.`);
+      return res.status(400).json({ success: false, message: "Webhook timestamp in future" });
+    }
+
+    // HMAC Signature Validation
+    const payloadString = incomingTimestamp + "." + incomingNonce + "." + JSON.stringify(body);
+    const expectedHmac = crypto.createHmac("sha256", expectedSecret).update(payloadString).digest("hex");
+    if (incomingSignature !== expectedHmac) {
+      console.warn(`[WEBHOOK][${correlationId}] REJECTED: Invalid HMAC signature.`);
+      return res.status(401).json({ success: false, message: "Invalid HMAC signature" });
+    }
+
+    // Nonce Replay Protection
+    const nonceKey = `nonce:${incomingNonce}`;
+    const nonceClaimed = await redisClient.set(nonceKey, "1", "NX", "EX", 300); // 5 min TTL
+    if (!nonceClaimed) {
+      console.warn(`[WEBHOOK][${correlationId}] REJECTED: Duplicate webhook nonce.`);
+      return res.status(429).json({ success: false, message: "Duplicate webhook nonce" });
+    }
 
     // NexGate uses order_id for our payment ID
     const rawPaymentId = body.order_id || body.paymentId;
@@ -174,12 +233,19 @@ export const paymentWebhook = async (req, res) => {
 
     const paymentId = parseInt(rawPaymentId);
 
+    // Acquire lock to prevent race conditions during concurrent webhook callbacks
+    lockToken = await acquireLock(`payment_webhook:${paymentId}`, 15000);
+    if (!lockToken) {
+      console.warn(`[WEBHOOK][${correlationId}] Could not acquire lock for payment ${paymentId}. Concurrency blocked.`);
+      return res.status(429).json({ success: false, message: "Concurrent webhook processing" });
+    }
+
     // Atomic Transaction with Serializable Isolation for maximum consistency
     const result = await prisma.$transaction(async (tx) => {
       // 1. Fetch and Lock payment record
-      const payment = await tx.payment.findUnique({
-        where: { id: paymentId }
-      });
+      const payments = await tx.$queryRaw`SELECT * FROM payment WHERE id = ${paymentId} FOR UPDATE`;
+      if (!payments || payments.length === 0) throw new Error(`Payment ${paymentId} not found`);
+      const payment = payments[0];
 
       if (!payment) throw new Error(`Payment ${paymentId} not found`);
       
@@ -214,15 +280,28 @@ export const paymentWebhook = async (req, res) => {
       });
 
       if (isSuccess) {
-        // 5. Credit Wallet Atomically & Create Immutable Ledger
-        const oldWallet = await tx.wallet.findUnique({ where: { userId: payment.userId } });
-        
-        const wallet = await tx.wallet.update({
-          where: { userId: payment.userId },
-          data: { balance: { increment: payment.amount } }
+        // Claim global idempotency key: topup:{paymentId}
+        const idempotencyKey = `topup:${payment.id}`;
+        // Use new idempotency hash format
+        const canClaim = await claimIdempotencyKey(idempotencyKey, body, tx);
+        if (!canClaim) {
+          console.log(`[WEBHOOK][${correlationId}] Topup key ${idempotencyKey} already claimed.`);
+          return { alreadyProcessed: true, payment };
+        }
+
+        // 5. Credit Wallet Atomically & Create Immutable Ledger using recordFinancialEntry
+        // REMOVED direct tx.wallet.update to ensure ledger/wallet balance consistency
+        const resWallet = await recordFinancialEntry({
+          userId: payment.userId,
+          amount: payment.amount,
+          type: 'TOPUP_CREDIT',
+          transactionId: null,
+          description: `Wallet topup | Order: ${payment.id}`,
+          context: { correlationId, ipAddress: req.ip },
+          tx
         });
 
-        // 6. Detailed Transaction Record (Ledger)
+        // 6. Detailed Transaction Record
         await tx.transaction.create({
           data: {
             userId: payment.userId,
@@ -231,8 +310,10 @@ export const paymentWebhook = async (req, res) => {
             status: "SUCCESS",
             direction: "CREDIT",
             gatewayTxnId: gatewayTxnId,
-            balanceAfter: wallet.balance,
-            description: `Wallet topup | Order: ${payment.id} | Before: ${oldWallet?.balance || 0}`
+            balanceAfter: resWallet.balanceAfter,
+            description: `Wallet topup | Order: ${payment.id} | Before: ${resWallet.balanceBefore}`,
+            idempotencyKey,
+            financialSequenceId: correlationId
           }
         });
 
@@ -257,6 +338,11 @@ export const paymentWebhook = async (req, res) => {
     return res.json({ success: true, message: "Webhook processed successfully", correlationId });
   } catch (error) {
     console.error(`[WEBHOOK] EXCEPTION:`, error);
-    return res.status(500).json({ success: false, message: error.message });
+    await pushToDLQ("PAYMENT_WEBHOOK_FAILURE", body, error);
+    return res.status(500).json({ success: false, message: "Internal server error during webhook processing" });
+  } finally {
+    if (lockToken) {
+      await releaseLock(`payment_webhook:${parseInt(rawPaymentId || 0)}`, lockToken);
+    }
   }
 };

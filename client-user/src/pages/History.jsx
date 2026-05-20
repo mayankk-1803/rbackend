@@ -18,7 +18,7 @@ export default function TransactionHistory() {
       setTransactions(safeArray(res.data.data));
     } catch (err) {
       if (import.meta.env.DEV) {
-        console.error(err);
+        if (import.meta.env.DEV) console.error(err);
       }
     } finally {
       setLoading(false);
@@ -58,7 +58,6 @@ export default function TransactionHistory() {
     return (
       safeValue(txn.mobile, "").includes(term) ||
       safeValue(txn.operator, "").toLowerCase().includes(term) ||
-      safeValue(txn.providerTxnId, "").toLowerCase().includes(term) ||
       safeValue(txn.id, "").toString().includes(term)
     );
   });

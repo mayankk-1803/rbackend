@@ -121,7 +121,7 @@ export const InvoiceModal = ({ isOpen, onClose, transaction }) => {
   const displayOperator = snapshot.operator || transaction.operator;
   const displayMobile = snapshot.mobile || transaction.mobile;
   const displayAmount = snapshot.amount || transaction.amount;
-  const displayRef = snapshot.providerRef || transaction.providerRef || 'PENDING_RECONCILIATION';
+  const displayRef = snapshot.providerRef || transaction.providerRef || 'PENDING';
   const displayDate = snapshot.timestamp || transaction.createdAt;
 
   const handleDownload = async () => {
@@ -153,7 +153,7 @@ export const InvoiceModal = ({ isOpen, onClose, transaction }) => {
       toast.success("Receipt downloaded", { id: toastId });
     } catch (error) {
       if (import.meta.env.DEV) {
-        console.error("PDF ERROR:", error);
+        if (import.meta.env.DEV) console.error("PDF ERROR:", error);
       }
       toast.error("Failed to generate PDF");
     } finally {

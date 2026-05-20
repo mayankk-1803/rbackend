@@ -30,7 +30,7 @@ export const DisputeModal = ({ isOpen, onClose, transaction }) => {
         onClose();
       }, 2000);
     } catch (err) {
-      toast.error(err.safeMessage || "Failed to raise dispute");
+      toast.error(err?.safeMessage || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }

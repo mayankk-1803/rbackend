@@ -158,7 +158,7 @@ export const Wallet = () => {
                </div>
                <div>
                   <h3 className="text-xl font-black text-slate-900 uppercase italic tracking-tight">Replenish <span className="text-purple-600">Wallet</span></h3>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Add funds via Nextgate payment gateway</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Add funds via secure gateway</p>
                </div>
             </div>
 
@@ -194,7 +194,7 @@ export const Wallet = () => {
                    <Clock className="w-4 h-4" />
                 </div>
                 <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed">
-                  Payments are processed instantly via Nextgate. Ensure your <span className="text-purple-600">Merchant Token</span> is active.
+                  Payments are processed instantly via our secure gateway. Ensure your <span className="text-purple-600">Merchant Token</span> is active.
                 </p>
               </div>
             </form>

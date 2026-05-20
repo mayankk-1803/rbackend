@@ -28,7 +28,7 @@ export default function EarnedCoins() {
         setPagination(historyRes.data.pagination);
       }
     } catch (err) {
-      console.error("Failed to fetch data:", err);
+      if (import.meta.env.DEV) console.error("Failed to fetch data:", err);
     } finally {
       setLoading(false);
     }
@@ -51,7 +51,7 @@ export default function EarnedCoins() {
     try {
       const { data } = await api.post('/user/wallet/redeem-coins');
       if (data.success) {
-        toast.success(data.message, { id: redeemToast });
+        toast.success("Coins redeemed successfully", { id: redeemToast });
         fetchData(1);
       }
     } catch (err) {

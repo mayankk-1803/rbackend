@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import { setupSwagger } from "./config/swagger.js";
-import { apiLimiter } from "./middlewares/rateLimiter.js";
+import { apiLimiter, webhookLimiter } from "./middlewares/rateLimiter.js";
 import { apiLogger } from "./middlewares/apiLogger.js";
 
 import authRoutes from "./routes/authRoutes.js";
@@ -80,6 +80,16 @@ app.use(cookieParser(process.env.COOKIE_SECRET || "dizipay_secret"));
 
 /**
  * =========================================================
+ * BODY PARSERS
+ * =========================================================
+ */
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(apiLogger);
+
+/**
+ * =========================================================
  * RAW LOGGER & WEBHOOKS
  * =========================================================
  */
@@ -92,16 +102,6 @@ app.use((req, res, next) => {
 });
 
 app.use("/api/webhook", webhookRoutes);
-
-/**
- * =========================================================
- * BODY PARSERS
- * =========================================================
- */
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(apiLogger);
 
 /**
  * =========================================================
@@ -173,8 +173,8 @@ app.use("/api", apiRoutes);
 
 
 // Universal Webhook
-app.post("/api/webhooks/:providerCode", handleProviderWebhook);
-app.get("/api/webhooks/:providerCode", handleProviderWebhook);
+app.post("/api/webhooks/:providerCode", webhookLimiter, handleProviderWebhook);
+app.get("/api/webhooks/:providerCode", webhookLimiter, handleProviderWebhook);
 
 /**
  * =========================================================

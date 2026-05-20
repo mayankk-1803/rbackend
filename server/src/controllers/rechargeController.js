@@ -1,4 +1,6 @@
 import prisma from "../config/prisma.js";
+import crypto from "crypto";
+import { claimIdempotencyKey } from "../utils/idempotency.js";
 import { addRechargeJob } from "../services/queueService.js";
 import { APIBOX_OPERATORS } from "../config/operators.js";
 import eventBus from "../config/eventBus.js";
@@ -8,6 +10,7 @@ import { getCommissionDetails } from "../services/commissionEngine.js";
 import { detectEzytmHLR } from "../services/hlr/ezytmHlrService.js";
 import { mapEzytmToMplan } from "../config/mplanMappings.js";
 import { fetchMPlanPlans } from "../services/mplan/mplanService.js";
+import { recordFinancialEntry } from "../services/ledgerService.js";
 
 /**
  * Fetch recharge plans for an operator
@@ -37,6 +40,11 @@ export const recharge = async (req, res) => {
     const isAdmin = req.user?.role === 'admin';
 
     if (!userId) return res.status(401).json({ success: false, message: "Unauthorized" });
+
+    const correlationId = crypto.randomBytes(8).toString('hex');
+    const idempotencyKey = req.headers["x-idempotency-key"] || `recharge_${userId}_${mobile}_${Date.now()}`;
+
+    console.log(`[RECHARGE_INIT][${correlationId}] User: ${userId} | Mobile: ${mobile} | Amount: ${amount} | OperatorCode: ${operatorCode}`);
 
     // 0. VALIDATE OPERATOR
     const operatorName = APIBOX_OPERATORS[String(operatorCode)];
@@ -76,12 +84,21 @@ export const recharge = async (req, res) => {
 
     // 3. ATOMIC WALLET DEDUCTION & PENDING TXN
     const initResult = await prisma.$transaction(async (tx) => {
-      const wallet = await tx.wallet.findUnique({ where: { userId } });
-      if (!wallet || (!isAdmin && wallet.balance.lessThan(amount))) return null;
+      // Claim idempotency securely inside tx
+      const canClaim = await claimIdempotencyKey(idempotencyKey, req.body, tx);
+      if (!canClaim) {
+        throw new Error("Duplicate recharge request. Request is already being processed.");
+      }
 
-      const updatedWallet = await tx.wallet.update({
-        where: { userId },
-        data: { balance: { decrement: amount } }
+      const { balanceAfter, ledgerEntry } = await recordFinancialEntry({
+        userId,
+        amount: -amount,
+        type: 'RECHARGE_DEBIT',
+        transactionId: null,
+        description: `Recharge for mobile: ${mobile}`,
+        allowNegative: isAdmin,
+        context: { correlationId, ipAddress: req.ip },
+        tx
       });
 
       const transaction = await tx.transaction.create({
@@ -94,16 +111,22 @@ export const recharge = async (req, res) => {
           mobile,
           operator: operatorName,
           provider: "APIBOX",
-          idempotencyKey: req.headers["x-idempotency-key"] || `txn_${Date.now()}`,
-          balanceAfter: updatedWallet.balance,
+          idempotencyKey,
+          financialSequenceId: correlationId,
+          balanceAfter: balanceAfter,
           commission: commDetails.commission,
           cashback: commDetails.cashback,
           profit: commDetails.profit
         }
       });
 
-      return { transaction, updatedWallet };
-    }, { timeout: 10000 });
+      await tx.ledgerEntry.update({
+        where: { id: ledgerEntry.id },
+        data: { transactionId: transaction.id }
+      });
+
+      return { transaction, updatedWallet: { balance: balanceAfter } };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 10000 });
 
     if (!initResult) {
       return res.status(400).json({ success: false, message: "Insufficient wallet balance" });
@@ -150,6 +173,9 @@ export const payPostpaidBill = async (req, res) => {
 
     if (!userId) return res.status(401).json({ success: false, message: "Unauthorized" });
 
+    const correlationId = crypto.randomBytes(8).toString('hex');
+    const idempotencyKey = req.headers["x-idempotency-key"] || `postpaid_${userId}_${mobile}_${Date.now()}`;
+
     // Validate Input
     if (!mobile || !amount || !operatorCode) {
       return res.status(400).json({ success: false, message: "Invalid payment details" });
@@ -163,12 +189,20 @@ export const payPostpaidBill = async (req, res) => {
 
     // Atomic Wallet Deduction & Transaction Creation
     const initResult = await prisma.$transaction(async (tx) => {
-      const wallet = await tx.wallet.findUnique({ where: { userId } });
-      if (!wallet || wallet.balance.lessThan(amount)) return null;
+      // Claim idempotency securely inside tx
+      const canClaim = await claimIdempotencyKey(idempotencyKey, req.body, tx);
+      if (!canClaim) {
+        throw new Error("Duplicate postpaid payment request. Request is already being processed.");
+      }
 
-      const updatedWallet = await tx.wallet.update({
-        where: { userId },
-        data: { balance: { decrement: amount } }
+      const { balanceAfter, ledgerEntry } = await recordFinancialEntry({
+        userId,
+        amount: -amount,
+        type: 'RECHARGE_DEBIT',
+        transactionId: null,
+        description: `Postpaid Bill Payment for ${mobile}`,
+        context: { correlationId, ipAddress: req.ip },
+        tx
       });
 
       const transaction = await tx.transaction.create({
@@ -181,8 +215,9 @@ export const payPostpaidBill = async (req, res) => {
           mobile,
           operator: operatorName || `OpCode: ${operatorCode}`,
           provider: "APIBOX",
-          idempotencyKey: `postpaid_${Date.now()}_${mobile}`,
-          balanceAfter: updatedWallet.balance,
+          idempotencyKey,
+          financialSequenceId: correlationId,
+          balanceAfter: balanceAfter,
           description: `Postpaid Bill Payment for ${mobile}`,
           commission: commDetails.commission,
           cashback: commDetails.cashback,
@@ -190,8 +225,13 @@ export const payPostpaidBill = async (req, res) => {
         }
       });
 
-      return { transaction, updatedWallet };
-    });
+      await tx.ledgerEntry.update({
+        where: { id: ledgerEntry.id },
+        data: { transactionId: transaction.id }
+      });
+
+      return { transaction, updatedWallet: { balance: balanceAfter } };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
     if (!initResult) {
       return res.status(400).json({ success: false, message: "Insufficient wallet balance" });

@@ -2,12 +2,14 @@ import prisma from "../config/prisma.js";
 import eventBus from "../config/eventBus.js";
 import { Prisma } from "@prisma/client";
 import { issueReward } from "../services/rewardEngine.js";
+import { recordFinancialEntry } from "../services/ledgerService.js";
+import { claimIdempotencyKey } from "../utils/idempotency.js";
 
 export const handleApiboxCallback = async (req, res) => {
   // Support both GET and POST
   const params = req.method === "POST" ? req.body : req.query;
 
-  console.log("[APIBOX] Webhook HIT:", params);
+  console.log(`[WEBHOOK_RECEIVED] APIBOX Webhook HIT | Method: ${req.method} | Params:`, JSON.stringify(params));
 
   // Apibox uses flexible naming. We support:
   // Status/STATUS, RefTxnId/OurTxnId, OPTXNID/OPtxnId
@@ -60,34 +62,57 @@ export const handleApiboxCallback = async (req, res) => {
       return res.status(200).send("OK");
     }
 
+    console.log(`[DB_UPDATED] Updating Txn: ${txn.id} status to: ${finalStatus}`);
     const result = await prisma.$transaction(async (tx) => {
+      // Lock and check transaction status inside transaction block to prevent concurrent processing
+      const lockedTxns = await tx.$queryRaw`SELECT * FROM transaction WHERE id = ${txn.id} FOR UPDATE`;
+      const lockedTxn = lockedTxns && lockedTxns.length > 0 ? lockedTxns[0] : null;
+
+      if (!lockedTxn || lockedTxn.status !== "PENDING") {
+        console.log(`[APIBOX] Transaction ${RefTxnId} is already ${lockedTxn?.status || 'UNKNOWN'} inside lock. Skipping.`);
+        return { updatedTxn: lockedTxn, updatedWallet: null, alreadyProcessed: true };
+      }
+
+      // Claim webhook provider txn idempotency key if present to prevent replays
+      const providerTxId = OPTXNID || TXNID;
+      if (providerTxId) {
+        const canClaimWebhook = await claimIdempotencyKey(`webhook:${providerTxId}`, tx);
+        if (!canClaimWebhook) {
+          console.log(`[APIBOX] Webhook with provider txn ID webhook:${providerTxId} already claimed.`);
+          return { updatedTxn: lockedTxn, updatedWallet: null, alreadyProcessed: true };
+        }
+      }
+
       // 1. Update Transaction
       const updatedTxn = await tx.transaction.update({
         where: { id: txn.id },
         data: { 
           status: finalStatus,
-          providerTxnId: OPTXNID || TXNID || txn.providerTxnId,
+          providerTxnId: providerTxId || txn.providerTxnId,
           ...(isRefund ? { refundStatus: "refunded", refundedAt: new Date() } : {})
         }
       });
 
       let updatedWallet = null;
 
-      // 2. SUCCESS Logic: Credit Cashback Reward
-      if (finalStatus === "SUCCESS") {
-         try {
-           // We'll call this outside the transaction or via event bus if preferred,
-           // but for immediate consistency we can do it here if issueReward handles its own tx
-         } catch (e) {
-           console.error("[APIBOX] Reward Issue Error:", e.message);
-         }
-      }
-
-      // 3. FAILED Logic: Refund
+      // 2. FAILED Logic: Refund
       if (finalStatus === "FAILED" && isRefund) {
-        updatedWallet = await tx.wallet.update({
-          where: { userId: txn.userId },
-          data: { balance: { increment: txn.amount } }
+        console.log(`[WALLET_UPDATED] Refunding amount ${txn.amount} to User: ${txn.userId} for FAILED Txn: ${txn.id}`);
+        
+        const idempotencyKey = `refund:${txn.id}`;
+        const canClaimRefund = await claimIdempotencyKey(idempotencyKey, tx);
+        if (!canClaimRefund) {
+          console.log(`[APIBOX] Refund key ${idempotencyKey} already claimed.`);
+          return { updatedTxn: lockedTxn, updatedWallet: null, alreadyProcessed: true };
+        }
+
+        const res = await recordFinancialEntry({
+          userId: txn.userId,
+          amount: txn.amount,
+          type: 'REFUND_CREDIT',
+          transactionId: txn.id,
+          description: `Refund for failed recharge ${txn.id} via webhook`,
+          tx
         });
 
         await tx.transaction.create({
@@ -97,18 +122,26 @@ export const handleApiboxCallback = async (req, res) => {
             type: "REFUND", 
             status: "SUCCESS", 
             direction: "CREDIT",
-            description: `Refund for recharge ${txn.id}: ${MSG || 'Provider failed'}`
+            description: `Refund for recharge ${txn.id}: ${MSG || 'Provider failed'}`,
+            balanceAfter: res.balanceAfter,
+            idempotencyKey
           }
         });
+        
+        updatedWallet = await tx.wallet.findUnique({ where: { userId: txn.userId } });
         console.log(`[REFUND] Apibox Txn ${txn.id} refunded to user ${txn.userId}`);
       }
 
       if (!updatedWallet) {
-          updatedWallet = await tx.wallet.findUnique({ where: { userId: txn.userId } });
+        updatedWallet = await tx.wallet.findUnique({ where: { userId: txn.userId } });
       }
 
-      return { updatedTxn, updatedWallet };
+      return { updatedTxn, updatedWallet, alreadyProcessed: false };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+    if (result.alreadyProcessed) {
+      return res.status(200).send("OK");
+    }
 
     // [CRITICAL] Reward Issuance
     if (finalStatus === "SUCCESS") {

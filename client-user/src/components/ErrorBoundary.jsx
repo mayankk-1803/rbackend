@@ -13,7 +13,7 @@ class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     if (import.meta.env.DEV) {
-      console.error("Uncaught error:", error, errorInfo);
+      if (import.meta.env.DEV) console.error("Uncaught error:", error, errorInfo);
     }
   }
 
@@ -26,7 +26,7 @@ class ErrorBoundary extends React.Component {
           </div>
           <h2 className="text-xl font-black text-slate-900 uppercase italic tracking-tight mb-2">Something went wrong</h2>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest max-w-xs mb-8">
-            Something went wrong. Please try again.
+            Something went wrong. Please refresh and try again.
           </p>
           <button
             onClick={() => window.location.reload()}

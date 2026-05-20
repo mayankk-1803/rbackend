@@ -82,7 +82,7 @@ const response = await axios({
   ${method === 'POST' ? `data: ${JSON.stringify(body || {}, null, 2)}` : ''}
 });
 
-console.log(response.data);`;
+if (import.meta.env.DEV) console.log(response.data);`;
 
     case 'php':
       return `<?php
@@ -142,7 +142,7 @@ export default function ApiDocs({ searchQuery }) {
       }
     } catch (err) {
       if (import.meta.env.DEV) {
-        console.error("[Manifest Fetch Error]:", err);
+        if (import.meta.env.DEV) console.error("[Manifest Fetch Error]:", err);
       }
       setError("Failed to load API documentation. Please try again.");
       toast.error("Documentation fetch failed");

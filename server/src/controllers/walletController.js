@@ -1,5 +1,7 @@
 import prisma from "../config/prisma.js";
 import { Prisma } from "@prisma/client";
+import crypto from "crypto";
+import { claimIdempotencyKey } from "../utils/idempotency.js";
 
 export const getWallet = async (req, res) => {
   if (!req.user || !req.user.id) {
@@ -61,50 +63,93 @@ export const getWallet = async (req, res) => {
 export const redeemCoins = async (req, res) => {
   try {
     const userId = Number(req.user.id);
+    const correlationId = crypto.randomBytes(8).toString('hex');
+    let coinsToRedeem = 0;
+    let redeemAmount = 0;
+    
+    const idempotencyKey = req.headers["x-idempotency-key"] || `redeem:${userId}:${correlationId}`;
 
     await prisma.$transaction(async (tx) => {
-      const wallet = await tx.wallet.findUnique({ where: { userId } });
-      
-      if (!wallet || wallet.coinBalance < 50) {
-        throw new Error("Insufficient Earned Coins. Minimum 50 coins required.");
+      // 0. Enforce idempotency
+      const canClaim = await claimIdempotencyKey(idempotencyKey, req.body, tx);
+      if (!canClaim) {
+        throw new Error("Duplicate redemption request detected. Request already processed.");
       }
 
-      const newBalance = Number(wallet.balance) + 1;
+      // 1. Lock wallet row during redemption
+      const wallets = await tx.$queryRaw`SELECT * FROM wallet WHERE userId = ${userId} FOR UPDATE`;
+      if (!wallets || wallets.length === 0) {
+        throw new Error("Wallet not found");
+      }
+      const wallet = wallets[0];
+      const coinBalance = Number(wallet.coinBalance);
 
-      // Deduct 50 coins and add 1 INR to balance
-      await tx.wallet.update({
-        where: { userId },
-        data: {
-          coinBalance: { decrement: 50 },
-          balance: { increment: 1 }
-        }
+      // Check conversion rate from settings, default to 100
+      const settings = await tx.cashbackSettings.findFirst();
+      const rate = settings?.coinConversionRate || 100;
+
+      if (coinBalance < rate) {
+        throw new Error(`Minimum ${rate} coins required for redemption`);
+      }
+
+      redeemAmount = Math.floor(coinBalance / rate);
+      coinsToRedeem = redeemAmount * rate;
+
+      if (redeemAmount <= 0) {
+        throw new Error(`Insufficient coins for redemption at the current rate of ${rate} coins = ₹1`);
+      }
+
+      // 2. Deduct coins and create coin transaction via central service
+      const { recordCoinEntry, recordFinancialEntry } = await import("../services/ledgerService.js");
+      await recordCoinEntry({
+        userId,
+        amount: coinsToRedeem,
+        type: 'REDEEMED',
+        description: `Redeemed for wallet balance`,
+        context: { correlationId, ipAddress: req.ip },
+        tx
       });
 
-      // Log coin redemption
-      await tx.coinTransaction.create({
-        data: {
-          userId,
-          amount: 50,
-          type: "REDEEMED",
-          description: "Redeemed 50 Earned Coins for ₹1"
-        }
+      // 3. Add wallet balance via ledger
+      const { balanceAfter, ledgerEntry } = await recordFinancialEntry({
+        userId,
+        amount: redeemAmount,
+        type: 'REDEMPTION_CREDIT',
+        transactionId: null,
+        description: `Redeemed ${coinsToRedeem} coins for ₹${redeemAmount}`,
+        context: { correlationId, ipAddress: req.ip },
+        tx
       });
 
-      // Log wallet transaction for the 1 INR
-      await tx.transaction.create({
+      // Create transaction record
+      const transaction = await tx.transaction.create({
         data: {
           userId,
-          amount: 1,
+          amount: new Prisma.Decimal(redeemAmount),
           type: "WALLET",
           status: "SUCCESS",
           direction: "CREDIT",
-          balanceAfter: newBalance,
-          providerTxnId: `COIN_REDEEM_${Date.now()}`
+          balanceAfter,
+          idempotencyKey,
+          financialSequenceId: correlationId,
+          description: `Redeemed ${coinsToRedeem} coins for ₹${redeemAmount}`
         }
       });
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
-    res.json({ success: true, message: "Successfully redeemed 50 Earned Coins for ₹1" });
+      await tx.ledgerEntry.update({
+        where: { id: ledgerEntry.id },
+        data: { transactionId: transaction.id }
+      });
+
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+    });
+
+    // Emit event bus notification after transaction commit
+    const { default: eventBus } = await import("../config/eventBus.js");
+    eventBus.emit("wallet_updated", { userId: userId.toString() });
+
+    res.json({ success: true, message: `Successfully redeemed ${coinsToRedeem} coins for ₹${redeemAmount}` });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }

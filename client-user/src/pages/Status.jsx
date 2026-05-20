@@ -16,7 +16,7 @@ export default function Status() {
   useEffect(() => {
     const handleUpdate = (data) => {
       if (import.meta.env.DEV) {
-        console.log('[Status Update Received]:', data);
+        if (import.meta.env.DEV) console.log('[Status Update Received]:', data);
       }
       
       setTxn((prev) => {

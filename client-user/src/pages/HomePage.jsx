@@ -244,7 +244,7 @@ const HowItWorksSection = () => {
   const steps = [
     { num: "1", title: "Submit Request", desc: "User initiates recharge. Wallet is atomically deducted and transaction marked PENDING safely." },
     { num: "2", title: "Queue Processing", desc: "Worker picks up job, calls provider API resiliently, and logs initial provider response." },
-    { num: "3", title: "Live Sync", desc: "Webhook callback finalizes status. WebSocket instantly pushes live patch update to client UI." }
+    { num: "3", title: "Live Sync", desc: "Automated verification finalizes status. Instant sync pushes live update to client UI." }
   ];
 
   return (
@@ -301,8 +301,8 @@ const SecuritySection = () => (
           <p className="text-xs text-slate-400">Safe retry mechanism</p>
         </div>
         <div className="p-4 border border-white/10 rounded-2xl bg-white/5 backdrop-blur-sm">
-          <p className="font-semibold mb-1 text-sm">Webhook Sync</p>
-          <p className="text-xs text-slate-400">Immutable callbacks</p>
+          <p className="font-semibold mb-1 text-sm">Instant Sync</p>
+          <p className="text-xs text-slate-400">Realtime verification</p>
         </div>
       </div>
     </div>

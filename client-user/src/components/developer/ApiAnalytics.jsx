@@ -46,7 +46,7 @@ export default function ApiAnalytics() {
         setData(res.data.data);
       } catch (err) {
         if (import.meta.env.DEV) {
-          console.error("Failed to fetch analytics");
+          if (import.meta.env.DEV) console.error("Failed to fetch analytics");
         }
       } finally {
         setLoading(false);

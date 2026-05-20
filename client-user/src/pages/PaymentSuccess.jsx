@@ -28,7 +28,7 @@ export default function PaymentSuccess() {
   const fetchStatus = useCallback(async () => {
     if (!orderId) {
       if (import.meta.env.DEV) {
-        console.error("[Status] Missing orderId");
+        if (import.meta.env.DEV) console.error("[Status] Missing orderId");
       }
       setState(STATUS_STATES.FAILED);
       return;
@@ -56,13 +56,13 @@ export default function PaymentSuccess() {
         }
       } else {
         if (import.meta.env.DEV) {
-          console.warn("[Status] Backend reported failure or missing payload:", data?.message);
+          if (import.meta.env.DEV) console.warn("[Status] Backend reported failure or missing payload:", data?.message);
         }
         if (status === 'FAILED') setState(STATUS_STATES.FAILED);
       }
     } catch (err) {
       if (import.meta.env.DEV) {
-        console.error("[Status Fetch Error]:", err.message);
+        if (import.meta.env.DEV) console.error("[Status Fetch Error]:", err.message);
       }
       // We don't fail immediately on network error, we let polling continue
     }
@@ -195,7 +195,7 @@ export default function PaymentSuccess() {
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed px-10">
                 {state === STATUS_STATES.EXPIRED 
                   ? "Verification timed out. If money was debited, it will be added to your wallet within 30 minutes automatically."
-                  : "The transaction was declined by your bank or the gateway. Please try again."}
+                  : "The transaction was declined by your bank. Please try again."}
               </p>
             </div>
 

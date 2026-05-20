@@ -75,7 +75,7 @@ export default function Dashboard() {
       });
     } catch (err) {
       if (import.meta.env.DEV) {
-        console.error("Dashboard data error:", err);
+        if (import.meta.env.DEV) console.error("Dashboard data error:", err);
       }
     } finally {
       setLoading(false);

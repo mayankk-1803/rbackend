@@ -22,9 +22,9 @@ class ErrorBoundary extends React.Component {
           <div className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center mb-6">
             <AlertTriangle className="w-8 h-8 text-rose-600" />
           </div>
-          <h2 className="text-xl font-black text-slate-900 uppercase italic tracking-tight mb-2">Interface Failure</h2>
+          <h2 className="text-xl font-black text-slate-900 uppercase italic tracking-tight mb-2">Something went wrong</h2>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest max-w-xs mb-8">
-            The administrative console encountered a critical runtime exception.
+            Something went wrong. Please refresh and try again.
           </p>
           <button
             onClick={() => window.location.reload()}

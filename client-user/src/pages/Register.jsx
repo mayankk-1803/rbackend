@@ -45,7 +45,7 @@ export default function Register() {
       setTimer(60);
       toast.success("OTP sent successfully");
     } catch (err) {
-      toast.error(err.safeMessage || "Failed to send OTP");
+      toast.error(err?.safeMessage || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }

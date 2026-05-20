@@ -1,5 +1,37 @@
 import { Server } from "socket.io";
 import eventBus from "./eventBus.js";
+import crypto from "crypto";
+import { redisClient } from "./redis.js";
+
+export const safeTransactionPayloadV1 = (data) => {
+  if (!data) return data;
+  const safeData = { ...data };
+  
+  // Strip sensitive backend/provider fields
+  delete safeData.providerTxnId;
+  delete safeData.gatewayTxnId;
+  delete safeData.idempotencyKey;
+  delete safeData.financialSequenceId;
+  delete safeData.cost;
+  delete safeData.profit;
+  delete safeData.commission;
+  
+  if (safeData.transaction) {
+    const t = { ...safeData.transaction };
+    delete t.providerTxnId;
+    delete t.idempotencyKey;
+    delete t.financialSequenceId;
+    delete t.profit;
+    delete t.cost;
+    delete t.commission;
+    safeData.transaction = t;
+  }
+  
+  // Add deduplication and timestamp for frontend
+  safeData.emitId = crypto.randomBytes(8).toString('hex');
+  safeData.timestamp = Date.now();
+  return safeData;
+};
 
 let io;
 
@@ -25,6 +57,31 @@ export const initSocket = (server) => {
       console.log(`[Socket] User ${userId} joined their private room: ${socket.id}`);
     }
     
+    // Strict Socket Rate Limiting: 5 events per second per socket
+    socket.use(async (packet, next) => {
+      const limitKey = `socket_limit:${socket.id}`;
+      try {
+        const multi = redisClient.multi();
+        multi.incr(limitKey);
+        multi.ttl(limitKey);
+        const [incrResult, ttlResult] = await multi.exec();
+        const requestCount = incrResult[1];
+        const ttl = ttlResult[1];
+        
+        if (ttl < 0) {
+          await redisClient.expire(limitKey, 1);
+        }
+        
+        if (requestCount > 5) {
+          console.warn(`[SOCKET RATE LIMIT] Blocked socket ${socket.id}`);
+          return next(new Error("TOO_MANY_REQUESTS"));
+        }
+        next();
+      } catch (err) {
+        next();
+      }
+    });
+
     socket.on("disconnect", () => {
       console.log(`[Socket] User disconnected: ${socket.id}`);
     });
@@ -41,40 +98,84 @@ export const initSocket = (server) => {
 
   // Realtime Lifecycle Broadcaster
   eventBus.on("recharge_pending", (data) => {
+    const updateData = {
+      transactionId: data.txnId || data.transactionId,
+      status: data.status,
+      transaction: data.transaction,
+      ...data
+    };
+    console.log(`[SOCKET_EVENT] Emitting recharge_pending & recharge_update for Txn: ${updateData.transactionId}`);
     if (data.userId) {
-      io.to(data.userId.toString()).emit("recharge_pending", data);
+      io.to(data.userId.toString()).emit("recharge_pending", safeTransactionPayloadV1(data));
+      io.to(data.userId.toString()).emit("recharge_update", safeTransactionPayloadV1(updateData));
     }
     adminNamespace.emit("recharge_pending", data);
+    adminNamespace.emit("recharge_update", updateData);
   });
 
   eventBus.on("recharge_success", (data) => {
+    const updateData = {
+      transactionId: data.transactionId || data.txnId,
+      status: data.status,
+      transaction: data.transaction,
+      ...data
+    };
+    console.log(`[SOCKET_EVENT] Emitting recharge_success & recharge_update for Txn: ${updateData.transactionId}`);
     if (data.userId) {
-      io.to(data.userId.toString()).emit("recharge_success", data);
+      io.to(data.userId.toString()).emit("recharge_success", safeTransactionPayloadV1(data));
+      io.to(data.userId.toString()).emit("recharge_update", safeTransactionPayloadV1(updateData));
     }
     adminNamespace.emit("recharge_success", data);
+    adminNamespace.emit("recharge_update", updateData);
   });
   
   eventBus.on("recharge_failed", (data) => {
+    const updateData = {
+      transactionId: data.transactionId || data.txnId,
+      status: data.status,
+      transaction: data.transaction,
+      ...data
+    };
+    console.log(`[SOCKET_EVENT] Emitting recharge_failed & recharge_update for Txn: ${updateData.transactionId}`);
     if (data.userId) {
-      io.to(data.userId.toString()).emit("recharge_failed", data);
+      io.to(data.userId.toString()).emit("recharge_failed", safeTransactionPayloadV1(data));
+      io.to(data.userId.toString()).emit("recharge_update", safeTransactionPayloadV1(updateData));
     }
     adminNamespace.emit("recharge_failed", data);
+    adminNamespace.emit("recharge_update", updateData);
   });
 
   eventBus.on("wallet_updated", (data) => {
     if (data.userId) {
-      io.to(data.userId.toString()).emit("wallet_updated", data);
+      io.to(data.userId.toString()).emit("wallet_updated", safeTransactionPayloadV1(data));
+    }
+  });
+
+  eventBus.on("earned_coins_awarded", (data) => {
+    console.log(`[SOCKET_EVENT] Emitting earned_coins_awarded to User: ${data.userId}`);
+    if (data.userId) {
+      io.to(data.userId.toString()).emit("earned_coins_awarded", safeTransactionPayloadV1(data));
     }
   });
 
   // Legacy/Global fallback
   eventBus.on("transaction_updated", (data) => {
+    const updateData = {
+      transactionId: data.transactionId || data.txnId,
+      status: data.status?.toLowerCase(),
+      transaction: data.transaction,
+      ...data
+    };
+    console.log(`[SOCKET_EVENT] Emitting transaction_updated & recharge_update for Txn: ${updateData.transactionId}`);
     if (data.userId) {
-      io.to(data.userId.toString()).emit("transaction_updated", data);
+      io.to(data.userId.toString()).emit("transaction_updated", safeTransactionPayloadV1(data));
+      io.to(data.userId.toString()).emit("recharge_update", safeTransactionPayloadV1(updateData));
     } else {
-      io.emit("transaction_updated", data);
+      io.emit("transaction_updated", safeTransactionPayloadV1(data));
+      io.emit("recharge_update", safeTransactionPayloadV1(updateData));
     }
     adminNamespace.emit("transaction_updated", data);
+    adminNamespace.emit("recharge_update", updateData);
   });
 
   eventBus.on("provider_status", (data) => adminNamespace.emit("provider_status", data));

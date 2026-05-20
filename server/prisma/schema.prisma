@@ -109,11 +109,13 @@ model transaction {
   direction       transaction_direction?
   balanceAfter    Decimal?               @db.Decimal(10, 2)
   mobile          String?
-  operator        String?
-  cashback        Decimal                @default(0) @db.Decimal(10, 2)
-  cashbackCoins   Int                    @default(0)
-  rewardClaimed   Boolean                @default(false)
-  commission      Decimal                @default(0) @db.Decimal(10, 2)
+  operator          String?
+  cashback          Decimal                @default(0) @db.Decimal(10, 2)
+  cashbackCoins     Int                    @default(0)
+  rewardClaimed     Boolean                @default(false)
+  rewardProcessed   Boolean                @default(false)
+  rewardProcessedAt DateTime?
+  commission        Decimal                @default(0) @db.Decimal(10, 2)
   profit          Decimal                @default(0) @db.Decimal(10, 2)
   provider        String?
   providerTxnId   String?
@@ -130,6 +132,7 @@ model transaction {
   description     String?                @db.VarChar(255)
   invoiceSnapshot Json?
   apiResponse     Json?
+  financialSequenceId String?            @unique
   createdAt       DateTime               @default(now())
   updatedAt       DateTime               @updatedAt
 
@@ -144,6 +147,7 @@ model transaction {
   @@index([userId])
   @@index([createdAt])
   @@index([mobile])
+  @@index([financialSequenceId])
 }
 
 model ledgerEntry {
@@ -155,8 +159,11 @@ model ledgerEntry {
   type             ledgerEntry_type
   transactionId    Int?
   referenceEntryId Int?
+  referenceId      Int?
+  referenceType    String?
   description      String?            @db.VarChar(255)
   metadata         Json?
+  financialSequenceId String?         @unique
   createdAt        DateTime           @default(now())
 
   user        user         @relation(fields: [userId], references: [id])
@@ -166,6 +173,7 @@ model ledgerEntry {
   @@index([createdAt])
   @@index([transactionId])
   @@index([type])
+  @@index([financialSequenceId])
 }
 
 model cashbackSettings {
@@ -365,17 +373,21 @@ model coinTransaction {
   id            Int                  @id @default(autoincrement())
   userId        Int
   amount        Int
-  type          coinTransaction_type
-  description   String?
-  rechargeTxnId Int?
-  rechargeTxn   transaction?         @relation(fields: [rechargeTxnId], references: [id])
-  createdAt     DateTime             @default(now())
+  type                coinTransaction_type
+  description         String?
+  rechargeTxnId       Int?
+  rechargeTxn         transaction?         @relation(fields: [rechargeTxnId], references: [id])
+  sourceTransactionId Int?
+  createdAt           DateTime             @default(now())
+  metadata            Json?
+  financialSequenceId String?              @unique
 
   user user @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([userId, createdAt])
   @@unique([rechargeTxnId, type])
+  @@index([financialSequenceId])
 }
 
 enum payment_status {
@@ -456,4 +468,25 @@ enum provider_healthStatus {
 enum coinTransaction_type {
   EARNED
   REDEEMED
+}
+
+model idempotencyRecord {
+  key         String   @id
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+  requestHash String   @db.VarChar(64)
+  status      String   @default("PENDING") // PENDING, SUCCESS, FAILED
+}
+
+model dlqEntry {
+  id            Int      @id @default(autoincrement())
+  eventType     String
+  payload       Json
+  error         String?  @db.Text
+  retryCount    Int      @default(0)
+  nextRetryAt   DateTime @default(now())
+  status        String   @default("FAILED") // FAILED, RETRYING, RESOLVED
+  failureReason String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

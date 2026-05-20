@@ -17,9 +17,10 @@ export const TXN_EVENTS = {
  * Appends an event to the transaction's lifecycle timeline.
  * Stores events in the description or a dedicated metadata field.
  */
-export const logTransactionEvent = async (transactionId, event, details = {}) => {
+export const logTransactionEvent = async (transactionId, event, details = {}, tx = null) => {
   try {
-    const txn = await prisma.transaction.findUnique({
+    const client = tx || prisma;
+    const txn = await client.transaction.findUnique({
       where: { id: transactionId },
       select: { invoiceSnapshot: true }
     });
@@ -33,7 +34,7 @@ export const logTransactionEvent = async (transactionId, event, details = {}) =>
 
     const updatedTimeline = [...timeline, newEvent];
 
-    await prisma.transaction.update({
+    await client.transaction.update({
       where: { id: transactionId },
       data: {
         invoiceSnapshot: {

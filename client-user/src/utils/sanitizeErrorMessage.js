@@ -5,9 +5,17 @@
  * @param {any} error - The caught error object, message string, or event.
  * @returns {string} - A sanitized, user-friendly error message.
  */
-export function sanitizeErrorMessage(error) {
+/**
+ * Sanitizes technical, database, provider, or network errors into clean,
+ * consumer-friendly messages. Prevents brand leaks and stack trace exposure.
+ *
+ * @param {any} error - The caught error object, message string, or event.
+ * @param {boolean} [isSuccess=false] - Whether this is a success message.
+ * @returns {string} - A sanitized, user-friendly error message.
+ */
+export function sanitizeErrorMessage(error, isSuccess = false) {
   if (!error) {
-    return "Something went wrong. Please try again.";
+    return isSuccess ? "Action completed successfully" : "Something went wrong. Please try again.";
   }
 
   let message = "";
@@ -16,7 +24,6 @@ export function sanitizeErrorMessage(error) {
   if (typeof error === "string") {
     message = error;
   } else if (typeof error === "object") {
-    // Check common Axios / Fetch error structures
     if (error.response?.data?.message && typeof error.response.data.message === "string") {
       message = error.response.data.message;
     } else if (error.message && typeof error.message === "string") {
@@ -26,55 +33,68 @@ export function sanitizeErrorMessage(error) {
     }
   }
 
-  // Trim and convert message, if none resolved, fallback immediately
   message = message ? String(message).trim() : "";
-  if (!message) {
-    return "Something went wrong. Please try again.";
-  }
-
   const lowerMsg = message.toLowerCase();
 
-  // 1. Whitelist safe, non-technical validation messages (Case Insensitive)
-  const whitelist = [
-    "please enter a valid mobile number",
-    "please enter a valid 10-digit mobile number",
-    "please select an operator",
-    "please select operator",
-    "amount is required",
-    "please enter a valid amount",
-    "please enter a valid bill amount",
-    "insufficient wallet balance",
-    "duplicate recharge attempt. please wait 5 minutes.",
-    "automatic detection unavailable.",
-    "please select operator manually.",
-    "unable to load recharge plans.",
-    "payment could not be completed.",
-    "transaction failed. please retry.",
-    "recharge could not be processed.",
-    "please check your internet connection.",
-    "unable to connect right now."
+  // Approved success messages
+  const approvedSuccess = [
+    "recharge successful",
+    "recharge completed successfully",
+    "payment successful",
+    "wallet updated successfully",
+    "coins redeemed successfully",
+    "cashback received",
+    "action completed successfully"
   ];
 
-  if (whitelist.includes(lowerMsg)) {
-    return message;
+  // Approved error messages
+  const approvedErrors = [
+    "please check your internet connection.",
+    "unable to connect right now.",
+    "recharge could not be processed.",
+    "recharge failed. please try again.",
+    "automatic detection unavailable.",
+    "please select operator manually.",
+    "payment could not be completed.",
+    "transaction failed. please retry.",
+    "unable to process rewards.",
+    "unable to redeem coins.",
+    "something went wrong. please try again."
+  ];
+
+  // Determine if it matches an approved success message pattern
+  const isSuccessMatch = isSuccess || approvedSuccess.some(s => lowerMsg.includes(s));
+
+  if (isSuccessMatch) {
+    const match = approvedSuccess.find(s => lowerMsg.includes(s));
+    if (match) {
+      if (match === "recharge successful") return "Recharge successful";
+      if (match === "recharge completed successfully") return "Recharge completed successfully";
+      if (match === "payment successful") return "Payment successful";
+      if (match === "wallet updated successfully") return "Wallet updated successfully";
+      if (match === "coins redeemed successfully") return "Coins redeemed successfully";
+      if (match === "cashback received") return "Cashback received";
+    }
+    return "Action completed successfully";
   }
 
-  // 2. Regex checks for technical details, stack traces, database terms, tokens, and HTML/JSON structure
-  const hasUrl = /http[s]?:\/\/[^\s]+/i.test(message);
-  const hasIp = /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/.test(message);
-  const hasBearerToken = /bearer\s+[a-z0-9\-._~+/]+=*/i.test(message);
-  const hasJwtToken = /ey[a-zA-Z0-9-_]+\.ey[a-zA-Z0-9-_]+\.[a-zA-Z0-9-_]+/i.test(message);
-  const hasSql = /(?:select|insert|update|delete|create|drop|alter|where|from|join|prisma|dbClient)/i.test(message);
-  const hasHtml = /<[a-z][\s\S]*>/i.test(message);
-  const hasJsonBlob = /\{[\s\S]*\}/.test(message);
-  const hasStackOrTrace = /(?:stack|at\s+[\w\d_]+\.js|line\s+\d+|axioserror|exception|unhandled|referenceerror|typeerror)/i.test(message);
-
-  if (hasUrl || hasIp || hasBearerToken || hasJwtToken || hasSql || hasHtml || hasJsonBlob || hasStackOrTrace) {
+  // Exact check for already approved error messages
+  const exactErrorMatch = approvedErrors.find(e => lowerMsg === e || lowerMsg === e.replace(/\.$/, ""));
+  if (exactErrorMatch) {
+    if (exactErrorMatch.includes("internet")) return "Please check your internet connection.";
+    if (exactErrorMatch.includes("connect right now")) return "Unable to connect right now.";
+    if (exactErrorMatch.includes("could not be processed")) return "Recharge could not be processed.";
+    if (exactErrorMatch.includes("failed. please try again")) return "Recharge failed. Please try again.";
+    if (exactErrorMatch.includes("automatic detection")) return "Automatic detection unavailable.";
+    if (exactErrorMatch.includes("select operator manually")) return "Please select operator manually.";
+    if (exactErrorMatch.includes("payment could not")) return "Payment could not be completed.";
+    if (exactErrorMatch.includes("transaction failed")) return "Transaction failed. Please retry.";
+    if (exactErrorMatch.includes("process rewards")) return "Unable to process rewards.";
+    if (exactErrorMatch.includes("redeem coins")) return "Unable to redeem coins.";
     return "Something went wrong. Please try again.";
   }
 
-  // 3. Category Mapping & Stripping for Provider names/Gateway details
-  // HLR / Operator Detection Failures
+  // Broad categorization of raw inputs
   if (
     lowerMsg.includes("hlr") ||
     lowerMsg.includes("detect") ||
@@ -84,7 +104,6 @@ export function sanitizeErrorMessage(error) {
     return "Automatic detection unavailable.";
   }
 
-  // Network / Connection Issues
   if (
     lowerMsg.includes("network") ||
     lowerMsg.includes("conn") ||
@@ -102,52 +121,44 @@ export function sanitizeErrorMessage(error) {
     return "Unable to connect right now.";
   }
 
-  // Plan loading failures
-  if (
-    lowerMsg.includes("plan") ||
-    lowerMsg.includes("mplan")
-  ) {
-    return "Unable to load recharge plans.";
-  }
-
-  // Payment / Gateway / Bank failures
   if (
     lowerMsg.includes("payment") ||
     lowerMsg.includes("order") ||
     lowerMsg.includes("pay-postpaid") ||
     lowerMsg.includes("gateway") ||
     lowerMsg.includes("nextgate") ||
-    lowerMsg.includes("ip_mismatch") ||
+    lowerMsg.includes("nexgate") ||
     lowerMsg.includes("decline") ||
-    lowerMsg.includes("bank")
+    lowerMsg.includes("bank") ||
+    lowerMsg.includes("insufficient wallet balance") ||
+    lowerMsg.includes("insufficient")
   ) {
     return "Payment could not be completed.";
   }
 
-  // Recharge / Processing Failures
+  if (
+    lowerMsg.includes("reward") ||
+    lowerMsg.includes("cashback")
+  ) {
+    return "Unable to process rewards.";
+  }
+
+  if (
+    lowerMsg.includes("redeem") ||
+    lowerMsg.includes("coin")
+  ) {
+    return "Unable to redeem coins.";
+  }
+
   if (
     lowerMsg.includes("recharge") ||
     lowerMsg.includes("apibox") ||
     lowerMsg.includes("ezytm") ||
-    lowerMsg.includes("process")
+    lowerMsg.includes("process") ||
+    lowerMsg.includes("fail") ||
+    lowerMsg.includes("error")
   ) {
-    return "Recharge could not be processed.";
-  }
-
-  // 4. Confidential Brand/Word Protection (Final filter check)
-  const confidentialBrands = ["mplan", "ezytm", "hlr", "nextgate", "apibox", "redis", "prisma", "gateway", "vendor", "provider"];
-  for (const brand of confidentialBrands) {
-    if (lowerMsg.includes(brand)) {
-      return "Something went wrong. Please try again.";
-    }
-  }
-
-  // If the error message is generic, consumer-safe (short, no tech keywords), we can show it
-  const isTooLong = message.length > 80;
-  const hasTechKeywords = /(?:error|fail|reject|abort|invalid|bad|status|code|db|sql|redis|unauthorized|jwt)/i.test(message);
-
-  if (!isTooLong && !hasTechKeywords) {
-    return message;
+    return "Recharge failed. Please try again.";
   }
 
   return "Something went wrong. Please try again.";

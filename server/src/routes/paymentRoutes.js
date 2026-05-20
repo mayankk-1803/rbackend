@@ -3,7 +3,8 @@ import { auth } from "../middlewares/auth.js";
 import { createOrder, verifyPayment, confirmPayment, paymentWebhook, getPaymentStatus } from "../controllers/paymentController.js";
 import { idempotency } from "../middlewares/idempotency.js";
 import { validatePaymentInput } from "../middlewares/validateInput.js";
-import { paymentStatusLimiter } from "../middlewares/rateLimiter.js";
+import { paymentStatusLimiter, webhookLimiter } from "../middlewares/rateLimiter.js";
+import { requireNoHardFreeze } from "../middlewares/freezeCheck.js";
 
 const router = express.Router();
 
@@ -39,7 +40,7 @@ const router = express.Router();
  *       200:
  *         description: Webhook processed
  */
-router.post("/webhook", paymentWebhook);
+router.post("/webhook", webhookLimiter, paymentWebhook);
 
 // Payment Status API for Success Page
 router.get("/status/:orderId", auth, paymentStatusLimiter, getPaymentStatus);
@@ -75,7 +76,7 @@ router.use(auth);
  *       200:
  *         description: Order created
  */
-router.post("/create-order", validatePaymentInput, idempotency, createOrder);
+router.post("/create-order", requireNoHardFreeze, validatePaymentInput, idempotency, createOrder);
 
 /**
  * @swagger
@@ -96,7 +97,7 @@ router.post("/create-order", validatePaymentInput, idempotency, createOrder);
  *       200:
  *         description: Payment confirmed and wallet updated
  */
-router.post("/confirm", confirmPayment);
+router.post("/confirm", requireNoHardFreeze, confirmPayment);
 
 /**
  * @swagger

@@ -1,21 +1,25 @@
 import apibox from "./apibox/index.js";
-import { executeNexgateRecharge } from "./nexgateService.js";
+import { executeNexgateRecharge, checkNexgateStatus } from "./nexgateService.js";
 
 const providers = {
   APIBOX: {
     recharge: apibox.recharge,
     status: apibox.status,
+    checkStatus: apibox.status,
     balance: apibox.balance,
     webhook: apibox.webhook
   },
   P1: {
     recharge: apibox.recharge,
     status: apibox.status,
+    checkStatus: apibox.status,
     balance: apibox.balance,
     webhook: apibox.webhook
   },
   NEXGATE: {
-    recharge: executeNexgateRecharge
+    recharge: executeNexgateRecharge,
+    status: checkNexgateStatus,
+    checkStatus: checkNexgateStatus
   }
 };
 
@@ -36,9 +40,9 @@ export const isSupported = (code) => {
 };
 
 /**
- * Backward compatibility for existing worker/controllers
+ * Backward compatibility for existing worker/controllers.
+ * Now returns the full provider service object for interface consistency.
  */
 export const getProviderService = (code) => {
-  const provider = getProvider(code);
-  return provider.recharge;
+  return getProvider(code);
 };
