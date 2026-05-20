@@ -55,7 +55,7 @@ export default function EarnedCoins() {
         fetchData(1);
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Redemption failed', { id: redeemToast });
+      toast.error(err.safeMessage || 'Redemption failed', { id: redeemToast });
     } finally {
       setRedeeming(false);
     }
@@ -162,7 +162,7 @@ export default function EarnedCoins() {
                 </div>
               ) : (
                 <div className="py-20 text-center bg-slate-50/30 rounded-3xl border border-dashed border-slate-200">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No spectral coin trails found</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No coin trails found</p>
                 </div>
               )}
             </div>

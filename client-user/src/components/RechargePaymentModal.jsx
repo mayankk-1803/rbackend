@@ -21,9 +21,7 @@ export default function RechargePaymentModal({
 
   const handleConfirm = async () => {
     setStep('loading');
-    // 2-3 sec fake loading as requested
-    await new Promise(resolve => setTimeout(resolve, 2500));
-    onConfirm();
+    await onConfirm();
   };
 
   const getOperatorLogo = (op) => {
@@ -119,8 +117,8 @@ export default function RechargePaymentModal({
                     <Zap className="w-6 h-6 text-cyan-600 absolute inset-0 m-auto animate-pulse" />
                   </div>
                   <div>
-                    <h4 className="text-xl font-black text-slate-900 uppercase italic tracking-tighter">Processing <span className="text-cyan-600">Signal</span></h4>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-2">Communicating with {operator} gateway...</p>
+                    <h4 className="text-xl font-black text-slate-900 uppercase italic tracking-tighter">Secure <span className="text-cyan-600">Payment</span></h4>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-2">Processing Payment</p>
                   </div>
                 </motion.div>
               )}

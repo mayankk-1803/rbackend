@@ -193,7 +193,7 @@ export default function MobileRecharge() {
       } else throw new Error(data.message || "Failed");
     } catch(err) {
       setRechargeStatus('FAILED');
-      toast.error(err.response?.data?.message || err.message, { id: lt });
+      toast.error(err.safeMessage || "Recharge could not be processed.", { id: lt });
       if (err.response?.status === 400 && err.response?.data?.message?.includes("balance")) setShowPayment(true);
     } finally { setLoading(false); }
   };
@@ -231,7 +231,7 @@ export default function MobileRecharge() {
               </div>
 
               <div>
-                <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-1">Operator Gateway</label>
+                <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-1">Operator Network</label>
                 <OperatorDropdown selected={operator} onSelect={setOperator} />
               </div>
             </div>
@@ -249,7 +249,7 @@ export default function MobileRecharge() {
               </div>
               <div className="p-6 bg-slate-900 rounded-[2rem] text-center space-y-2">
                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em]">Authorized Operator</p>
-                <p className="text-white text-xs font-black uppercase italic tracking-tighter">Apibox Direct <span className="text-cyan-400">Sync</span></p>
+                <p className="text-white text-xs font-black uppercase italic tracking-tighter">Secure <span className="text-cyan-400">Payment</span></p>
               </div>
             </div>
           </div>

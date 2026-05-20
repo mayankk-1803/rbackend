@@ -43,7 +43,7 @@ export default function Login() {
       setTimer(60);
       toast.success("OTP sent successfully");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to send OTP");
+      toast.error(err.safeMessage || "Failed to send OTP");
     } finally {
       setLoading(false);
     }
@@ -56,19 +56,27 @@ export default function Login() {
     setLoading(true);
     try {
       const formatPhone = phone.startsWith('+') ? phone : `+91${phone}`;
-      console.log(`[AUTH][LOGIN_REQUEST] → Verifying OTP for: ${formatPhone}`);
+      if (import.meta.env.DEV) {
+        console.log(`[AUTH][LOGIN_REQUEST] → Verifying OTP for: ${formatPhone}`);
+      }
       const res = await api.post('/auth/verify-otp', { code: otpCode, phone: formatPhone });
       
       if (res.data?.success) {
-        console.log("[AUTH][OTP_VERIFIED] → Response success: true");
+        if (import.meta.env.DEV) {
+          console.log("[AUTH][OTP_VERIFIED] → Response success: true");
+        }
         handleAuthSuccess(res.data.data);
       } else {
-        console.warn("[AUTH][OTP_FAILED] → Response success: false", res.data?.message);
+        if (import.meta.env.DEV) {
+          console.warn("[AUTH][OTP_FAILED] → Response success: false", res.data?.message);
+        }
         throw new Error(res.data?.message || "Invalid OTP");
       }
     } catch (err) {
-      console.error("[AUTH][FRONTEND_STATE_FAILED] → Error during OTP verification:", err);
-      toast.error(err.response?.data?.message || err.message || "Invalid OTP");
+      if (import.meta.env.DEV) {
+        console.error("[AUTH][FRONTEND_STATE_FAILED] → Error during OTP verification:", err);
+      }
+      toast.error(err.safeMessage || "Invalid OTP");
     } finally {
       setLoading(false);
     }
@@ -80,19 +88,27 @@ export default function Login() {
 
     setLoading(true);
     try {
-      console.log(`[AUTH][LOGIN_REQUEST] → Email login for: ${email}`);
+      if (import.meta.env.DEV) {
+        console.log(`[AUTH][LOGIN_REQUEST] → Email login for: ${email}`);
+      }
       const res = await api.post('/auth/login-email', { email, password });
       
       if (res.data?.success) {
-        console.log("[AUTH][PASSWORD_MATCH] → Response success: true");
+        if (import.meta.env.DEV) {
+          console.log("[AUTH][PASSWORD_MATCH] → Response success: true");
+        }
         handleAuthSuccess(res.data.data);
       } else {
-        console.warn("[AUTH][PASSWORD_MATCH_FAILED] → Response success: false", res.data?.message);
+        if (import.meta.env.DEV) {
+          console.warn("[AUTH][PASSWORD_MATCH_FAILED] → Response success: false", res.data?.message);
+        }
         throw new Error(res.data?.message || "Invalid credentials");
       }
     } catch (err) {
-      console.error("[AUTH][FRONTEND_STATE_FAILED] → Error during email login:", err);
-      toast.error(err.response?.data?.message || err.message || "Invalid email or password");
+      if (import.meta.env.DEV) {
+        console.error("[AUTH][FRONTEND_STATE_FAILED] → Error during email login:", err);
+      }
+      toast.error(err.safeMessage || "Invalid email or password");
     } finally {
       setLoading(false);
     }
@@ -100,18 +116,24 @@ export default function Login() {
 
   const handleAuthSuccess = (apiData) => {
     if (apiData?.token) {
-      console.log("[AUTH][TOKEN_STORED] → Saving token to localStorage...");
+      if (import.meta.env.DEV) {
+        console.log("[AUTH][TOKEN_STORED] → Saving token to localStorage...");
+      }
       localStorage.setItem('dizipay_user_token', apiData.token);
       localStorage.setItem('dizipay_user_data', JSON.stringify(apiData.user));
       
-      console.log("[AUTH][AUTH_STATE_UPDATED] → User data stored:", apiData.user.id);
-      console.log("[AUTH][REDIRECT_SUCCESS] → Navigating to Home...");
+      if (import.meta.env.DEV) {
+        console.log("[AUTH][AUTH_STATE_UPDATED] → User data stored:", apiData.user.id);
+        console.log("[AUTH][REDIRECT_SUCCESS] → Navigating to Home...");
+      }
       
       toast.success('Welcome back!');
       window.location.href = '/dashboard';
     } else {
-      console.error("[AUTH][TOKEN_MISSING] → apiData was received but token is missing!");
-      toast.error("Authentication failed. Invalid token received.");
+      if (import.meta.env.DEV) {
+        console.error("[AUTH][TOKEN_MISSING] → apiData was received but token is missing!");
+      }
+      toast.error("Something went wrong. Please try again.");
     }
   };
 

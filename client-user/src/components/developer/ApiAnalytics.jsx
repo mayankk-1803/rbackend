@@ -45,7 +45,9 @@ export default function ApiAnalytics() {
         const res = await api.get('/developer/analytics');
         setData(res.data.data);
       } catch (err) {
-        console.error("Failed to fetch analytics");
+        if (import.meta.env.DEV) {
+          console.error("Failed to fetch analytics");
+        }
       } finally {
         setLoading(false);
       }

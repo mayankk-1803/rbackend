@@ -74,7 +74,9 @@ export default function Dashboard() {
         recentActivity: transactions.slice(0, 5)
       });
     } catch (err) {
-      console.error("Dashboard data error:", err);
+      if (import.meta.env.DEV) {
+        console.error("Dashboard data error:", err);
+      }
     } finally {
       setLoading(false);
     }

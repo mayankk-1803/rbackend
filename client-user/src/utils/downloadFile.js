@@ -29,7 +29,9 @@ export const downloadFile = async (api, url, filename, params = {}) => {
     
     return true;
   } catch (error) {
-    console.error("[Download Helper Error]:", error);
+    if (import.meta.env.DEV) {
+      console.error("[Download Helper Error]:", error);
+    }
     throw error;
   } finally {
     if (objectUrl) {

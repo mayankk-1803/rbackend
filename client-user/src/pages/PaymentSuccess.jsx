@@ -27,7 +27,9 @@ export default function PaymentSuccess() {
 
   const fetchStatus = useCallback(async () => {
     if (!orderId) {
-      console.error("[Status] Missing orderId");
+      if (import.meta.env.DEV) {
+        console.error("[Status] Missing orderId");
+      }
       setState(STATUS_STATES.FAILED);
       return;
     }
@@ -53,11 +55,15 @@ export default function PaymentSuccess() {
           setState(STATUS_STATES.PENDING);
         }
       } else {
-        console.warn("[Status] Backend reported failure or missing payload:", data?.message);
+        if (import.meta.env.DEV) {
+          console.warn("[Status] Backend reported failure or missing payload:", data?.message);
+        }
         if (status === 'FAILED') setState(STATUS_STATES.FAILED);
       }
     } catch (err) {
-      console.error("[Status Fetch Error]:", err.message);
+      if (import.meta.env.DEV) {
+        console.error("[Status Fetch Error]:", err.message);
+      }
       // We don't fail immediately on network error, we let polling continue
     }
   }, [orderId]);

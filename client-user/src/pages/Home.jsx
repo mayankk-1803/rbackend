@@ -164,15 +164,11 @@ export default function Home() {
         setShowAddMoney(false); // Close modal to show QR
         setQrPreview(qrImage);
       } else {
-        toast.error("Gateway unavailable");
+        toast.error("Payment could not be completed.");
       }
 
     } catch (err) {
-      if (err.response?.data?.gatewayError === "IP_MISMATCH") {
-        toast.error("Server IP not whitelisted.");
-        return;
-      }
-      toast.error("Failed to initiate payment");
+      toast.error(err.safeMessage || "Payment could not be completed.");
     } finally {
       setLoading(false);
     }
@@ -231,7 +227,7 @@ export default function Home() {
             <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tighter uppercase italic">
               Digital <span className="text-cyan-600">Wallet</span>
             </h1>
-            <p className="text-slate-400 text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em]">{user.name || 'Spectral User'}</p>
+            <p className="text-slate-400 text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em]">{user.name || 'User'}</p>
           </div>
         </div>
 
@@ -281,7 +277,7 @@ export default function Home() {
             <TransactionItem key={txn.id || idx} txn={txn} idx={idx} />
           )) : (
             <div className="py-20 text-center bg-slate-50 rounded-3xl border border-slate-200 border-dashed">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No spectral traces</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No activity found</p>
             </div>
           )}
         </div>

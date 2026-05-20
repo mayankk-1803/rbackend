@@ -31,9 +31,8 @@ export const idempotency = async (req, res, next) => {
       // Only cache successful or specific operational responses
       if (res.statusCode >= 200 && res.statusCode < 300) {
         try {
-          await redisClient.set(redisKey, JSON.stringify(data), {
-            EX: 86400, // 24 hours
-          });
+          await redisClient.set(redisKey, JSON.stringify(data), 'EX', 86400); // 24 hours
+
         } catch (err) {
           console.error("[Idempotency Cache Error]:", err);
         }

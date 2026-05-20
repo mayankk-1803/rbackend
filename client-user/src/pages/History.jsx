@@ -17,7 +17,9 @@ export default function TransactionHistory() {
       const res = await api.get(API_ROUTES.USER.TRANSACTIONS);
       setTransactions(safeArray(res.data.data));
     } catch (err) {
-      console.error(res);
+      if (import.meta.env.DEV) {
+        console.error(err);
+      }
     } finally {
       setLoading(false);
     }

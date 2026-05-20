@@ -5,6 +5,8 @@ import { motion } from 'framer-motion';
 import socket from '../services/socket';
 import { toast } from 'react-hot-toast';
 
+import { sanitizeErrorMessage } from '../utils/sanitizeErrorMessage';
+
 export default function Status() {
   const [txnId, setTxnId] = useState('');
   const [txn, setTxn] = useState(null);
@@ -13,7 +15,9 @@ export default function Status() {
 
   useEffect(() => {
     const handleUpdate = (data) => {
-      console.log('[Status Update Received]:', data);
+      if (import.meta.env.DEV) {
+        console.log('[Status Update Received]:', data);
+      }
       
       setTxn((prev) => {
         if (prev && prev.id === data.txnId) {
@@ -22,7 +26,7 @@ export default function Status() {
           if (data.status === "success") {
             toast.success("Recharge Successful");
           } else if (data.status === "failed") {
-            toast.error(`Recharge Failed: ${data.reason || 'Unknown error'}`);
+            toast.error(sanitizeErrorMessage(data.reason));
           }
           
           return updated;
@@ -51,10 +55,10 @@ export default function Status() {
       if (res?.data?.success) {
         setTxn(res?.data?.data);
       } else {
-        setError(res?.data?.message || 'Transaction not found');
+        setError(sanitizeErrorMessage(res?.data?.message || 'Transaction not found'));
       }
     } catch(err) {
-      setError(err.response?.data?.message || 'Transaction not found');
+      setError(err.safeMessage || sanitizeErrorMessage(err));
     } finally {
       setLoading(false);
     }

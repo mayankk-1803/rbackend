@@ -4,7 +4,7 @@ import { idempotency, requireIdempotency } from "../middlewares/idempotency.js";
 import { fraudDetectionMiddleware } from "../middlewares/fraudDetection.js";
 import { getOperator } from "../controllers/operatorController.js";
 import { getWallet } from "../controllers/walletController.js";
-import { getPlans, recharge, payPostpaidBill } from "../controllers/rechargeController.js";
+import { getPlans, recharge, payPostpaidBill, initPrepaidRecharge, initPostpaidRecharge } from "../controllers/rechargeController.js";
 import { validateRechargeInput } from "../middlewares/validateInput.js";
 import prisma from "../config/prisma.js";
 
@@ -19,6 +19,16 @@ router.get("/operator-detect/:mobile", getOperator);
  * @route GET /api/recharge/plans
  */
 router.get("/recharge/plans", getPlans);
+
+/**
+ * @route POST /api/recharge/prepaid/init
+ */
+router.post("/recharge/prepaid/init", initPrepaidRecharge);
+
+/**
+ * @route POST /api/recharge/postpaid/init
+ */
+router.post("/recharge/postpaid/init", initPostpaidRecharge);
 
 /**
  * @route POST /api/recharge/pay-postpaid-bill

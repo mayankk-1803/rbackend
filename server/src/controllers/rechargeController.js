@@ -5,6 +5,9 @@ import eventBus from "../config/eventBus.js";
 import { Prisma } from "@prisma/client";
 import { getProvider } from "../services/providers/providerFactory.js";
 import { getCommissionDetails } from "../services/commissionEngine.js";
+import { detectEzytmHLR } from "../services/hlr/ezytmHlrService.js";
+import { mapEzytmToMplan } from "../config/mplanMappings.js";
+import { fetchMPlanPlans } from "../services/mplan/mplanService.js";
 
 /**
  * Fetch recharge plans for an operator
@@ -219,5 +222,135 @@ export const payPostpaidBill = async (req, res) => {
   } catch (error) {
     console.error("[Pay Postpaid Bill Error]:", error);
     res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+/**
+ * INIT Prepaid Recharge Flow (HLR + Plans + Normalizer)
+ * POST /api/recharge/prepaid/init
+ */
+export const initPrepaidRecharge = async (req, res) => {
+  try {
+    const { mobile } = req.body;
+
+    if (!mobile || !/^[6-9]\d{9}$/.test(mobile)) {
+      return res.status(400).json({ success: false, message: "Invalid 10-digit mobile number" });
+    }
+
+    // 1. Detect HLR via EzyTM (Operator + Circle)
+    const hlrResult = await detectEzytmHLR(mobile);
+
+    if (!hlrResult || !hlrResult.success) {
+      return res.status(400).json({ 
+        success: false, 
+        message: hlrResult?.message || "Unable to detect network currently. Please retry in a few seconds.",
+        fallbackFlags: { revealDropdown: true, revealAmount: true }
+      });
+    }
+
+    const { operator, circle, source: hlrSource } = hlrResult;
+
+    // 2. Map EzyTM names to MPlan codes
+    const mapResult = mapEzytmToMplan(operator, circle);
+    if (!mapResult.success) {
+      return res.status(400).json({
+        success: false,
+        message: mapResult.message,
+        fallbackFlags: { revealDropdown: true, revealAmount: true }
+      });
+    }
+
+    const operatorObj = { name: operator, code: Number(mapResult.operatorCode) };
+    const circleObj = { name: circle, code: Number(mapResult.circleCode) };
+
+    // 3. Fetch Live Plans from MPlan & Normalize
+    const mplanResponse = await fetchMPlanPlans(operatorObj, circleObj);
+
+    // 4. Attach Frontend Source Badge
+    mplanResponse.source = {
+      hlr: hlrSource || "ezytm-live",
+      plans: mplanResponse.source || "mplan-live"
+    };
+
+    return res.json(mplanResponse);
+
+  } catch (error) {
+    console.error("[INIT Prepaid Error]:", error.message || error);
+    // NEVER expose raw errors to UI
+    return res.status(500).json({ 
+      success: false, 
+      message: "Unable to detect network currently. Please retry in a few seconds.",
+      fallbackFlags: { revealDropdown: true, revealAmount: true }
+    });
+  }
+};
+
+/**
+ * INIT Postpaid Recharge Flow (HLR + Bill Fetch)
+ * POST /api/recharge/postpaid/init
+ */
+export const initPostpaidRecharge = async (req, res) => {
+  try {
+    const { mobile } = req.body;
+
+    if (!mobile || !/^[6-9]\d{9}$/.test(mobile)) {
+      return res.status(400).json({ success: false, message: "Invalid 10-digit mobile number" });
+    }
+
+    // 1. Detect HLR via EzyTM (Operator + Circle)
+    const hlrResult = await detectEzytmHLR(mobile);
+
+    if (!hlrResult || !hlrResult.success) {
+      return res.status(400).json({ 
+        success: false, 
+        message: hlrResult?.message || "Unable to detect network currently. Please retry in a few seconds.", 
+        fallbackFlags: { revealDropdown: true, revealAmount: true } 
+      });
+    }
+
+    const { operator, circle, source: hlrSource } = hlrResult;
+
+    // Map EzyTM names to MPlan codes for consistent frontend rendering
+    const mapResult = mapEzytmToMplan(operator, circle);
+    const operatorObj = mapResult.success ? { name: operator, code: Number(mapResult.operatorCode) } : { name: operator, code: 5 };
+    const circleObj = mapResult.success ? { name: circle, code: Number(mapResult.circleCode) } : { name: circle, code: 5 };
+
+    // 2. Simulate BBPS Bill Fetch Attempt
+    const isBillFound = Math.random() > 0.4;
+
+    if (isBillFound) {
+      const mockBillAmount = Math.floor(Math.random() * 500) + 399;
+      const dueDate = new Date(Date.now() + 10 * 86400000).toLocaleDateString("en-IN");
+      return res.json({
+        success: true,
+        operator: operatorObj,
+        circle: circleObj,
+        source: { hlr: hlrSource || "ezytm-live" },
+        billDetails: {
+          customerName: "Dizipay User",
+          billAmount: mockBillAmount,
+          dueDate,
+          billNumber: `BP_${Date.now().toString().slice(-6)}`
+        }
+      });
+    } else {
+      return res.json({
+        success: true,
+        operator: operatorObj,
+        circle: circleObj,
+        source: { hlr: hlrSource || "ezytm-live" },
+        message: "No pending bill found or direct fetch unavailable",
+        fallbackFlags: { revealDropdown: true, revealAmount: true }
+      });
+    }
+
+  } catch (error) {
+    console.error("[INIT Postpaid Error]:", error.message || error);
+    // NEVER expose raw errors to UI
+    return res.status(500).json({ 
+      success: false, 
+      message: "Unable to detect network currently. Please retry in a few seconds.", 
+      fallbackFlags: { revealDropdown: true, revealAmount: true } 
+    });
   }
 };

@@ -267,7 +267,7 @@ export default function TransactionHistory() {
               ) : (
                 <tr>
                   <td colSpan={6} className="px-8 py-20 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    No spectral signatures found
+                    No transactions found
                   </td>
                 </tr>
               )}

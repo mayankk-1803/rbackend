@@ -152,7 +152,9 @@ export const InvoiceModal = ({ isOpen, onClose, transaction }) => {
       await html2pdf().set(opt).from(element).save();
       toast.success("Receipt downloaded", { id: toastId });
     } catch (error) {
-      console.error("PDF ERROR:", error);
+      if (import.meta.env.DEV) {
+        console.error("PDF ERROR:", error);
+      }
       toast.error("Failed to generate PDF");
     } finally {
       setIsGenerating(false);

@@ -45,7 +45,7 @@ export default function Register() {
       setTimer(60);
       toast.success("OTP sent successfully");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to send OTP");
+      toast.error(err.safeMessage || "Failed to send OTP");
     } finally {
       setLoading(false);
     }
@@ -66,7 +66,7 @@ export default function Register() {
       });
       handleAuthSuccess(res.data.data);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Verification failed");
+      toast.error(err.safeMessage || "Verification failed");
     } finally {
       setLoading(false);
     }
@@ -89,7 +89,7 @@ export default function Register() {
       });
       handleAuthSuccess(res.data.data);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Registration failed");
+      toast.error(err.safeMessage || "Registration failed");
     } finally {
       setLoading(false);
     }

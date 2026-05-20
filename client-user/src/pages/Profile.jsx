@@ -19,7 +19,13 @@ export default function Profile() {
 
   React.useEffect(() => {
     const fetchWallet = () => {
-      api.get("/wallet").then(res => setWallet(res.data.wallet)).catch(console.error);
+      api.get("/wallet")
+        .then(res => setWallet(res.data.wallet))
+        .catch(err => {
+          if (import.meta.env.DEV) {
+            console.error(err);
+          }
+        });
     };
     fetchWallet();
 
@@ -89,7 +95,9 @@ export default function Profile() {
       localStorage.setItem('dizipay_user_data', JSON.stringify(updated));
       toast.success("Profile image updated");
     } catch (e) {
-      console.error(e);
+      if (import.meta.env.DEV) {
+        console.error(e);
+      }
       toast.error("Image upload failed");
     } finally {
       setUploading(false);

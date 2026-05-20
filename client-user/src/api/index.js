@@ -19,12 +19,26 @@ api.interceptors.request.use((config) => {
 });
 
 import toast from "react-hot-toast";
+import { sanitizeErrorMessage } from "../utils/sanitizeErrorMessage";
 
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const message = error.response?.data?.message || "Spectral signal lost. Retrying...";
+    const sanitizedMessage = sanitizeErrorMessage(error);
     
+    // Decorate the error object with safeMessage for backward-compatible error reads
+    if (error && typeof error === "object") {
+      try {
+        error.safeMessage = sanitizedMessage;
+      } catch (e) {
+        // Fallback decoration if the error object is frozen
+        error = { ...error, safeMessage: sanitizedMessage };
+      }
+    } else {
+      error = { safeMessage: sanitizedMessage };
+    }
+
+    // Keep auth redirect flow intact, but use safeMessage if displayed anywhere
     if (error.response?.status === 401) {
       localStorage.removeItem("dizipay_user_token");
       localStorage.removeItem("dizipay_user_data");
@@ -32,7 +46,7 @@ api.interceptors.response.use(
         window.location.href = "/login";
       }
     } else if (error.response?.status !== 404) {
-      toast.error(message);
+      toast.error(sanitizedMessage);
     }
     
     return Promise.reject(error);
@@ -40,3 +54,4 @@ api.interceptors.response.use(
 );
 
 export default api;
+

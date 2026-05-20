@@ -141,7 +141,9 @@ export default function ApiDocs({ searchQuery }) {
         throw new Error("No documentation data received");
       }
     } catch (err) {
-      console.error("[Manifest Fetch Error]:", err);
+      if (import.meta.env.DEV) {
+        console.error("[Manifest Fetch Error]:", err);
+      }
       setError("Failed to load API documentation. Please try again.");
       toast.error("Documentation fetch failed");
     } finally {
