@@ -89,14 +89,14 @@ export const Operators = () => {
       animate={{ opacity: 1 }}
       className="space-y-10"
     >
-      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-white/70 backdrop-blur-2xl p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-slate-200 shadow-xl relative overflow-hidden">
+      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 glass-card p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-[var(--glass-border)] shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-full bg-gradient-to-l from-purple-500/5 to-transparent"></div>
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-2">
             <Settings className="w-4 h-4 md:w-5 md:h-5 text-purple-600" />
-            <h1 className="text-xl md:text-3xl font-black text-slate-900 tracking-tighter uppercase italic">API Routing <span className="text-purple-600 text-shadow-glow">Engine</span></h1>
+            <h1 className="text-xl md:text-3xl font-black text-[var(--text-color)] tracking-tighter uppercase italic">API Routing <span className="text-purple-600 text-shadow-glow">Engine</span></h1>
           </div>
-          <p className="text-[8px] md:text-[10px] text-slate-500 font-black uppercase tracking-[0.2em]">Configuring active failover and primary execution sequence</p>
+          <p className="text-[8px] md:text-[10px] text-[var(--text-secondary)] font-black uppercase tracking-[0.2em]">Configuring active failover and primary execution sequence</p>
         </div>
         <button 
           onClick={handleSaveSelection}
@@ -110,7 +110,7 @@ export const Operators = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
         {loading ? (
           Array(3).fill(0).map((_, i) => (
-            <div key={i} className="h-64 bg-white/5 animate-pulse rounded-[2.5rem] border border-white/5"></div>
+            <div key={i} className="h-64 bg-[var(--bg-tertiary)] animate-pulse rounded-[2.5rem] border border-[var(--glass-border)]"></div>
           ))
         ) : (
           providers.map((prov) => {
@@ -124,24 +124,24 @@ export const Operators = () => {
                 onClick={() => handleToggleSelect(prov.code)}
                 className={`relative cursor-pointer rounded-[2.5rem] border backdrop-blur-3xl transition-all duration-500 overflow-hidden flex flex-col justify-between group ${
                   isSelected 
-                    ? 'bg-white border-purple-200 shadow-md' 
-                    : 'bg-slate-50 border-slate-200 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 hover:bg-white'
+                    ? 'bg-[var(--bg-primary)] border-purple-500/40 shadow-[var(--shadow-glow)]' 
+                    : 'bg-[var(--bg-tertiary)] border-[var(--glass-border)] grayscale opacity-50 hover:grayscale-0 hover:opacity-100 hover:bg-[var(--bg-primary)]'
                 }`}
               >
                 <div className="p-8">
                   <div className="flex justify-between items-start mb-8">
                     <div className="flex items-center gap-4">
                       <div className={`w-6 h-6 rounded-lg flex items-center justify-center border transition-all ${
-                        isSelected ? 'bg-purple-600 border-purple-500 shadow-sm' : 'bg-transparent border-slate-300'
+                        isSelected ? 'bg-purple-600 border-purple-500 shadow-sm' : 'bg-transparent border-[var(--glass-border)]'
                       }`}>
                         {isSelected && <CheckCircle2 className="w-4 h-4 text-white" />}
                       </div>
                       <div>
-                        <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2 group-hover:text-purple-600 transition-colors">
+                        <h3 className="text-lg font-black text-[var(--text-color)] tracking-tight flex items-center gap-2 group-hover:text-purple-600 transition-colors">
                           {prov.name}
                           {getStatusIcon(prov.healthStatus)}
                         </h3>
-                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">{prov.code}</p>
+                        <p className="text-[10px] text-[var(--text-muted)] font-black uppercase tracking-widest mt-1">{prov.code}</p>
                       </div>
                     </div>
                     {isSelected && !isPrimary && (
@@ -150,32 +150,32 @@ export const Operators = () => {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 group-hover:border-slate-200 transition-colors">
-                      <div className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <div className="bg-[var(--bg-tertiary)] rounded-2xl p-4 border border-[var(--glass-border)] group-hover:border-[var(--glass-border-hover)] transition-colors">
+                      <div className="text-[9px] text-[var(--text-muted)] font-black uppercase tracking-widest mb-2 flex items-center gap-2">
                         Success
                       </div>
-                      <div className="text-xl font-black text-slate-900">{Number(prov.successRate || 0).toFixed(1)}%</div>
+                      <div className="text-xl font-black text-[var(--text-color)]">{Number(prov.successRate || 0).toFixed(1)}%</div>
                     </div>
-                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 group-hover:border-slate-200 transition-colors">
-                      <div className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <div className="bg-[var(--bg-tertiary)] rounded-2xl p-4 border border-[var(--glass-border)] group-hover:border-[var(--glass-border-hover)] transition-colors">
+                      <div className="text-[9px] text-[var(--text-muted)] font-black uppercase tracking-widest mb-2 flex items-center gap-2">
                         Latency
                       </div>
-                      <div className="text-xl font-black text-slate-900">{prov.avgResponseTime || '120'}ms</div>
+                      <div className="text-xl font-black text-[var(--text-color)]">{prov.avgResponseTime || '120'}ms</div>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4 mb-8">
-                    <div className="bg-purple-50 rounded-2xl p-4 border border-purple-100 group-hover:border-purple-200 transition-colors">
+                    <div className="bg-purple-500/10 rounded-2xl p-4 border border-purple-500/20 group-hover:border-purple-500/30 transition-colors">
                       <div className="text-[9px] text-purple-400 font-black uppercase tracking-widest mb-2 flex items-center gap-2">
                         Balance
                       </div>
-                      <div className="text-xl font-black text-purple-900">₹{Number(prov.balance || 0).toLocaleString()}</div>
+                      <div className="text-xl font-black text-[var(--text-color)]">₹{Number(prov.balance || 0).toLocaleString()}</div>
                     </div>
-                    <div className="bg-rose-50 rounded-2xl p-4 border border-rose-100 group-hover:border-rose-200 transition-colors">
+                    <div className="bg-rose-500/10 rounded-2xl p-4 border border-rose-500/20 group-hover:border-rose-500/30 transition-colors">
                       <div className="text-[9px] text-rose-400 font-black uppercase tracking-widest mb-2 flex items-center gap-2">
                         Failures
                       </div>
-                      <div className="text-xl font-black text-rose-900">{prov.failureCount || 0}</div>
+                      <div className="text-xl font-black text-[var(--text-color)]">{prov.failureCount || 0}</div>
                     </div>
                   </div>
 
@@ -186,7 +186,7 @@ export const Operators = () => {
                 </div>
 
                 <div className={`px-8 py-6 border-t flex justify-between items-center transition-all ${
-                  isSelected ? 'bg-purple-50 border-purple-100' : 'bg-slate-50 border-slate-200'
+                  isSelected ? 'bg-purple-500/5 border-purple-500/20' : 'bg-[var(--bg-tertiary)] border-[var(--glass-border)]'
                 }`}>
                   {isSelected ? (
                     isPrimary ? (
@@ -200,13 +200,13 @@ export const Operators = () => {
                     ) : (
                       <button 
                         onClick={(e) => handleSetPrimary(e, prov.code)}
-                        className="w-full text-center py-3 bg-white border border-slate-200 text-slate-900 text-[9px] font-black tracking-[0.2em] uppercase rounded-xl hover:bg-slate-50 hover:border-purple-300 transition-all flex items-center justify-center gap-2"
+                        className="w-full text-center py-3 bg-[var(--bg-primary)] border border-[var(--glass-border)] text-[var(--text-color)] text-[9px] font-black tracking-[0.2em] uppercase rounded-xl hover:bg-[var(--glass-button-bg)] hover:border-purple-300 transition-all flex items-center justify-center gap-2"
                       >
                         Promote to Primary <ChevronRight className="w-3 h-3" />
                       </button>
                     )
                   ) : (
-                    <div className="w-full text-center py-3 text-slate-700 text-[9px] font-black tracking-[0.2em] uppercase">
+                    <div className="w-full text-center py-3 text-[var(--text-muted)] text-[9px] font-black tracking-[0.2em] uppercase">
                       Inactive Node
                     </div>
                   )}

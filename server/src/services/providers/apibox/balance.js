@@ -4,8 +4,8 @@ import { apiboxRequest } from "./client.js";
 /**
  * Fetches current wallet balance from Apibox with caching and resiliency
  */
-export const getBalance = async () => {
-  const CACHE_KEY = "provider:apibox:balance";
+export const getBalance = async (isP2A = false) => {
+  const CACHE_KEY = isP2A ? "provider:apibox:balance:p2a" : "provider:apibox:balance";
   const BREAKER_KEY = "provider:apibox:breaker";
 
   try {
@@ -22,7 +22,10 @@ export const getBalance = async () => {
       };
     }
 
-    const responseData = await apiboxRequest("/Balance", {}, false);
+    const params = {
+      P2A: "true"
+    };
+    const responseData = await apiboxRequest("/Balance", params, false);
 
     if (responseData && responseData.STATUS === 1) {
       const balance = Number(responseData.BALANCE || 0);

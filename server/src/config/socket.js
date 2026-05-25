@@ -97,6 +97,36 @@ export const initSocket = (server) => {
   });
 
   // Realtime Lifecycle Broadcaster
+  eventBus.on("recharge_queued", (data) => {
+    const updateData = {
+      transactionId: data.txnId || data.transactionId,
+      status: data.status || "PENDING_REVIEW",
+      transaction: data.transaction,
+      ...data
+    };
+    if (data.userId) {
+      io.to(data.userId.toString()).emit("recharge_queued", safeTransactionPayloadV1(data));
+      io.to(data.userId.toString()).emit("recharge_update", safeTransactionPayloadV1(updateData));
+    }
+    adminNamespace.emit("recharge_queued", safeTransactionPayloadV1(data));
+    adminNamespace.emit("recharge_update", safeTransactionPayloadV1(updateData));
+  });
+
+  eventBus.on("recharge_processing", (data) => {
+    const updateData = {
+      transactionId: data.txnId || data.transactionId,
+      status: data.status || "PROCESSING",
+      transaction: data.transaction,
+      ...data
+    };
+    if (data.userId) {
+      io.to(data.userId.toString()).emit("recharge_processing", safeTransactionPayloadV1(data));
+      io.to(data.userId.toString()).emit("recharge_update", safeTransactionPayloadV1(updateData));
+    }
+    adminNamespace.emit("recharge_processing", safeTransactionPayloadV1(data));
+    adminNamespace.emit("recharge_update", safeTransactionPayloadV1(updateData));
+  });
+
   eventBus.on("recharge_pending", (data) => {
     const updateData = {
       transactionId: data.txnId || data.transactionId,
@@ -143,6 +173,21 @@ export const initSocket = (server) => {
     }
     adminNamespace.emit("recharge_failed", data);
     adminNamespace.emit("recharge_update", updateData);
+  });
+
+  eventBus.on("refund_completed", (data) => {
+    const updateData = {
+      transactionId: data.txnId || data.transactionId,
+      status: data.status || "REFUNDED",
+      transaction: data.transaction,
+      ...data
+    };
+    if (data.userId) {
+      io.to(data.userId.toString()).emit("refund_completed", safeTransactionPayloadV1(data));
+      io.to(data.userId.toString()).emit("recharge_update", safeTransactionPayloadV1(updateData));
+    }
+    adminNamespace.emit("refund_completed", safeTransactionPayloadV1(data));
+    adminNamespace.emit("recharge_update", safeTransactionPayloadV1(updateData));
   });
 
   eventBus.on("wallet_updated", (data) => {

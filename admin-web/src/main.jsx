@@ -19,10 +19,14 @@ if (!import.meta.env.DEV) {
   }
 }
 
+import { ThemeProvider } from './context/ThemeContext';
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BrowserRouter basename="/admin">
-      <App />
-    </BrowserRouter>
+    <ThemeProvider>
+      <BrowserRouter basename="/admin">
+        <App />
+      </BrowserRouter>
+    </ThemeProvider>
   </React.StrictMode>,
 );

@@ -1,16 +1,19 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { motion } from "framer-motion";
-import { LogOut, Home, LayoutDashboard, Smartphone, History, Activity, User } from "lucide-react";
+import { motion as Motion } from "framer-motion";
+import { LogOut, LayoutDashboard, Smartphone, History, Activity, User, Zap, ShoppingBag } from "lucide-react";
+import ThemeSelector from "./ThemeSelector";
+import { useIsIOS } from "../utils/device";
 
 const Navbar = () => {
   const location = useLocation();
+  const isIOS = useIsIOS();
 
   const navItems = [
-    { path: "/", label: "Home", icon: Home },
     { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { path: "/recharge", label: "Recharge", icon: Smartphone },
-    { path: "/reports/transactions", label: "History", icon: History },
+    { path: "/imart", label: "IMART", icon: ShoppingBag },
+    { path: "/history", label: "History", icon: History },
     { path: "/reports/ledger", label: "Reports", icon: Activity },
     { path: "/profile", label: "Profile", icon: User },
   ];
@@ -18,57 +21,62 @@ const Navbar = () => {
   const handleLogout = () => {
     localStorage.removeItem("dizipay_user_token");
     localStorage.removeItem("dizipay_user_data");
-    window.location.href = "/login";
+    window.location.href = "/";
   };
 
   return (
-    <nav className="sticky top-0 z-50 bg-white/70 backdrop-blur-lg md:backdrop-blur-2xl border-b border-slate-200">
-      <div className="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
-        
-        {/* Logo */}
-        <div className="flex items-center gap-2 group cursor-pointer">
-          <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-all duration-500">
-            <Smartphone className="w-6 h-6 text-white" />
+    <div className="w-full max-w-7xl mx-auto px-4 mt-6 sticky top-6 z-50 ios-promote-layer">
+      <nav className="glass-navbar rounded-2xl md:rounded-3xl border border-[var(--glass-border)] shadow-[var(--glass-shadow)] ios-promote-layer">
+        <div className="px-6 h-20 flex justify-between items-center">
+          
+          {/* Logo */}
+          <Link to="/dashboard" className="flex items-center gap-2 group cursor-pointer navbar-logo-container">
+            <div className="w-8 h-8 bg-[var(--glass-button-bg)] rounded-lg flex items-center justify-center border border-[var(--glass-border)] group-hover:border-[var(--glass-border-hover)] transition-all duration-500">
+              <Zap className="w-4 h-4 text-[var(--color-primary)] fill-[var(--color-primary-glow)]" />
+            </div>
+            <span className="text-xl font-black text-[var(--text-color)] tracking-tight font-sans lowercase navbar-logo-text">irecharge</span>
+          </Link>
+
+          {/* Links */}
+          <div className="hidden md:flex gap-1 bg-[var(--bg-tertiary)]/50 p-1 rounded-2xl border border-[var(--glass-border)]">
+            {navItems.map((item) => {
+              const isActive = location.pathname === item.path;
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`relative px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
+                    isActive ? "text-[var(--color-accent)]" : "text-[var(--text-muted)] hover:text-[var(--text-color)]"
+                  }`}
+                >
+                  <item.icon className={`w-3.5 h-3.5 ${isActive ? 'text-[var(--color-accent)]' : 'text-[var(--text-muted)]'}`} />
+                  {item.label}
+                  {isActive && (
+                    <Motion.div 
+                      layoutId="nav-active"
+                      className="absolute inset-0 bg-[var(--color-accent-glow)] border border-[var(--color-accent)]/30 rounded-xl -z-10 shadow-[0_0_20px_var(--color-accent-glow)]"
+                      transition={isIOS ? { duration: 0.18 } : window.innerWidth > 768 ? { type: "spring", bounce: 0.15, duration: 0.55 } : { duration: 0.2 }}
+                    />
+                  )}
+                </Link>
+              );
+            })}
           </div>
-          <span className="text-xl font-black text-slate-900 tracking-tighter uppercase italic">Dizipay <span className="text-cyan-600">Wallet</span></span>
-        </div>
 
-        {/* Links */}
-        <div className="hidden md:flex gap-1 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`relative px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
-                  isActive ? "text-cyan-600" : "text-slate-500 hover:text-slate-900"
-                }`}
-              >
-                <item.icon className={`w-3.5 h-3.5 ${isActive ? 'text-cyan-600' : 'text-slate-400'}`} />
-                {item.label}
-                {isActive && (
-                  <motion.div 
-                    layoutId="nav-active"
-                    className="absolute inset-0 bg-cyan-500/10 border border-cyan-500/20 rounded-xl -z-10"
-                    transition={window.innerWidth > 768 ? { type: "spring", bounce: 0.2, duration: 0.6 } : { duration: 0.2 }}
-                  />
-                )}
-              </Link>
-            );
-          })}
+          {/* Actions: Theme and Logout */}
+          <div className="flex items-center gap-4">
+            <ThemeSelector />
+            <button
+              onClick={handleLogout}
+              className="hidden md:flex items-center gap-2 px-5 py-2.5 bg-transparent text-[#FF4D6D] hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest border border-[#FF4D6D]/30 hover:border-[#FF4D6D] transition-all duration-300 shadow-[0_0_15px_rgba(255,77,109,0.05)] hover:shadow-[0_0_20px_rgba(255,77,109,0.25)] hover:bg-[#FF4D6D]/15 group cursor-pointer"
+            >
+              <LogOut className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+              Logout
+            </button>
+          </div>
         </div>
-
-        {/* Logout */}
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-2 px-5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-rose-200 transition-all group"
-        >
-          <LogOut className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-          Logout
-        </button>
-      </div>
-    </nav>
+      </nav>
+    </div>
   );
 };
 

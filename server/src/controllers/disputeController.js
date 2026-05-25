@@ -112,7 +112,7 @@ export const getAllDisputes = async (req, res) => {
     const disputes = await prisma.dispute.findMany({
       include: {
         user: { select: { name: true, phone: true, email: true } },
-        transaction: { select: { mobile: true, operator: true, amount: true, status: true, providerRef: true } }
+        transaction: { select: { mobile: true, operator: true, amount: true, status: true, providerRef: true, providerRefId: true } }
       },
       orderBy: { createdAt: 'desc' }
     });

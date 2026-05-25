@@ -65,15 +65,15 @@ export default function EarnedCoins() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="max-w-4xl mx-auto space-y-8 py-6"
+      className="max-w-4xl mx-auto space-y-8 py-6 relative z-10"
     >
       <div className="flex items-center gap-4">
-        <button onClick={() => navigate(-1)} className="p-3 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-cyan-600 transition-all shadow-sm">
+        <button onClick={() => navigate(-1)} className="p-3 bg-[var(--glass-button-bg)] border border-[var(--glass-border)] rounded-2xl text-[var(--text-secondary)] hover:text-amber-400 transition-all shadow-sm cursor-pointer">
           <ChevronLeft className="w-5 h-5" />
         </button>
         <div>
-          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter uppercase italic">Reward <span className="text-amber-500">Inventory</span></h1>
-          <p className="text-slate-500 text-[8px] md:text-[10px] font-bold uppercase tracking-[0.2em]">Authorized Coin Repository</p>
+          <h1 className="text-2xl md:text-3xl font-black text-[var(--text-color)] tracking-tighter uppercase italic">Reward <span className="text-amber-400 amber-glow">Inventory</span></h1>
+          <p className="text-[var(--text-secondary)] text-[8px] md:text-[10px] font-bold uppercase tracking-[0.2em]">Authorized Coin Repository</p>
         </div>
       </div>
 
@@ -81,57 +81,56 @@ export default function EarnedCoins() {
         <div className="md:col-span-5">
           <motion.div 
             whileHover={{ y: -5 }}
-            className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm relative overflow-hidden group"
+            className="glass-card border border-[var(--glass-border)] rounded-[2.5rem] p-8 shadow-sm relative overflow-hidden group"
           >
             <div className="relative z-10">
-              <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mb-6 border border-amber-100">
-                <Zap className="w-8 h-8 text-amber-500 fill-amber-500" />
+              <div className="w-16 h-16 bg-[var(--bg-primary)] rounded-2xl flex items-center justify-center mb-6 border border-amber-500/20">
+                <Zap className="w-8 h-8 text-amber-400 fill-amber-400/20" />
               </div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Available Balance</p>
+              <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-2">Available Balance</p>
               <div className="flex items-baseline gap-2 mb-8">
-                <span className="text-5xl font-black text-slate-900 tracking-tighter">{wallet?.coinBalance || 0}</span>
-                <span className="text-xs font-black text-amber-500 uppercase tracking-widest">Coins</span>
+                <span className="text-5xl font-black text-[var(--text-color)] tracking-tighter">{wallet?.coinBalance || 0}</span>
+                <span className="text-xs font-black text-amber-400 uppercase tracking-widest">Coins</span>
               </div>
 
-              <div className="bg-slate-50 rounded-2xl p-6 mb-6 border border-slate-100">
+              <div className="bg-[var(--glass-button-bg)] rounded-2xl p-6 mb-6 border border-[var(--glass-border)]">
                 <div className="flex justify-between items-center mb-4">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Redemption Rate</span>
-                  <span className="text-xs font-black text-slate-900">100 : 1</span>
+                  <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Redemption Rate</span>
+                  <span className="text-xs font-black text-[var(--text-color)]">100 : 1</span>
                 </div>
-                <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                <div className="h-1.5 bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
                   <motion.div 
                     initial={{ width: 0 }}
                     animate={{ width: `${Math.min((wallet?.coinBalance || 0) / 100 * 100, 100)}%` }}
-                    className="h-full bg-amber-500 rounded-full"
+                    className="h-full bg-amber-400 rounded-full"
                   />
                 </div>
-                <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-3">Minimum 100 coins required for conversion</p>
+                <p className="text-[8px] font-bold text-[var(--text-muted)] uppercase tracking-tighter mt-3">Minimum 100 coins required for conversion</p>
               </div>
 
               <button
                 onClick={handleRedeem}
                 disabled={redeeming || (wallet?.coinBalance < 100)}
-                className="w-full bg-slate-900 text-white py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] shadow-xl hover:shadow-2xl transition-all disabled:opacity-20 relative group overflow-hidden"
+                className="w-full bg-amber-400 text-slate-950 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] shadow-xl hover:bg-amber-300 disabled:opacity-20 transition-all cursor-pointer"
               >
-                <span className="relative z-10">{redeeming ? "Syncing..." : "Redeem Now"}</span>
-                <div className="absolute inset-0 bg-gradient-to-r from-amber-500 to-amber-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                {redeeming ? "Syncing..." : "Redeem Now"}
               </button>
             </div>
           </motion.div>
         </div>
 
         <div className="md:col-span-7">
-          <div className="bg-white border border-slate-200 rounded-[2.5rem] overflow-hidden shadow-sm h-full flex flex-col">
-            <div className="px-8 py-6 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
-              <History className="w-5 h-5 text-amber-500" />
-              <h2 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Transaction Log</h2>
+          <div className="glass-card border border-[var(--glass-border)] rounded-[2.5rem] overflow-hidden shadow-sm h-full flex flex-col">
+            <div className="px-8 py-6 border-b border-[var(--glass-border)] flex items-center gap-3 bg-[var(--bg-tertiary)]">
+              <History className="w-5 h-5 text-amber-400" />
+              <h2 className="text-[10px] font-black text-[var(--text-color)] uppercase tracking-widest">Transaction Log</h2>
             </div>
 
             <div className="flex-1 p-4 overflow-y-auto max-h-[500px] no-scrollbar">
               {loading && history.length === 0 ? (
                 <div className="py-20 text-center space-y-4">
-                  <Loader className="w-8 h-8 text-amber-500 animate-spin mx-auto" />
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Accessing Ledger...</p>
+                  <Loader className="w-8 h-8 text-amber-400 animate-spin mx-auto" />
+                  <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Accessing Ledger...</p>
                 </div>
               ) : history.length > 0 ? (
                 <div className="space-y-3">
@@ -140,47 +139,47 @@ export default function EarnedCoins() {
                       key={tx.id || idx}
                       initial={{ opacity: 0, x: 10 }}
                       animate={{ opacity: 1, x: 0 }}
-                      className="px-6 py-4 bg-white border border-slate-100 rounded-2xl flex justify-between items-center group hover:border-amber-200 transition-all"
+                      className="px-6 py-4 bg-[var(--glass-button-bg)] border border-[var(--glass-border)] rounded-2xl flex justify-between items-center group hover:border-amber-500/20 transition-all"
                     >
                       <div className="flex items-center gap-4">
-                        <div className={`p-2 rounded-lg ${tx.type === 'EARNED' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                        <div className={`p-2 rounded-lg ${tx.type === 'EARNED' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
                           <Sparkles className="w-4 h-4" />
                         </div>
                         <div>
-                          <p className="text-xs font-black text-slate-900 uppercase tracking-tight">{tx.description}</p>
-                          <p className="text-[8px] text-slate-400 font-bold uppercase tracking-tighter mt-1">{new Date(tx.createdAt).toLocaleString()}</p>
+                          <p className="text-xs font-black text-[var(--text-color)] uppercase tracking-tight">{tx.description}</p>
+                          <p className="text-[8px] text-[var(--text-secondary)] font-bold uppercase tracking-tighter mt-1">{new Date(tx.createdAt).toLocaleString()}</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className={`text-base font-black tracking-tighter ${tx.type === 'EARNED' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        <p className={`text-base font-black tracking-tighter ${tx.type === 'EARNED' ? 'text-emerald-400' : 'text-rose-400'}`}>
                           {tx.type === 'EARNED' ? '+' : '-'}{tx.amount}
                         </p>
-                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Coins</p>
+                        <p className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-widest">Coins</p>
                       </div>
                     </motion.div>
                   ))}
                 </div>
               ) : (
-                <div className="py-20 text-center bg-slate-50/30 rounded-3xl border border-dashed border-slate-200">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No coin trails found</p>
+                <div className="py-20 text-center bg-[var(--bg-tertiary)] rounded-3xl border border-dashed border-[var(--glass-border)]">
+                  <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">No coin trails found</p>
                 </div>
               )}
             </div>
 
             {pagination.pages > 1 && (
-              <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-between items-center">
+              <div className="p-6 border-t border-[var(--glass-border)] bg-[var(--bg-tertiary)] flex justify-between items-center">
                 <button 
                   disabled={pagination.page === 1}
                   onClick={() => fetchData(pagination.page - 1)}
-                  className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 disabled:opacity-20 transition-colors"
+                  className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] hover:text-[var(--text-color)] disabled:opacity-20 transition-colors cursor-pointer"
                 >
                   Previous
                 </button>
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Page {pagination.page} / {pagination.pages}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Page {pagination.page} / {pagination.pages}</span>
                 <button 
                   disabled={pagination.page === pagination.pages}
                   onClick={() => fetchData(pagination.page + 1)}
-                  className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 disabled:opacity-20 transition-colors"
+                  className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] hover:text-[var(--text-color)] disabled:opacity-20 transition-colors cursor-pointer"
                 >
                   Next
                 </button>

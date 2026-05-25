@@ -9,6 +9,22 @@
     <!-- Speed up connections -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      (() => {
+        try {
+          const stored = localStorage.getItem("theme") || "system";
+          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          const resolved = stored === "system" ? (prefersDark ? "dark" : "light") : stored;
+          document.documentElement.classList.toggle("dark", resolved === "dark");
+          document.documentElement.classList.toggle("light", resolved !== "dark");
+          document.documentElement.style.colorScheme = resolved;
+        } catch (error) {
+          document.documentElement.classList.add("dark");
+          document.documentElement.style.colorScheme = "dark";
+        }
+      })();
+    </script>
     
     <!-- Preload critical assets -->
     <link rel="modulepreload" href="/src/main">

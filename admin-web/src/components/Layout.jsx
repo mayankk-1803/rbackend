@@ -14,7 +14,7 @@ export const Layout = () => {
   }, [location.pathname]);
 
   return (
-    <div className="flex h-screen bg-[#f8fafc] relative overflow-hidden">
+    <div className="admin-shell flex h-screen bg-[var(--bg-color)] text-[var(--text-color)] transition-colors duration-300 relative overflow-hidden">
       {/* Background Orbs */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
         <div className="absolute -top-40 -left-40 w-[600px] h-[600px] bg-purple-600/5 rounded-full blur-[140px]"></div>

@@ -51,8 +51,8 @@ export default function OTPInput({ value, onChange, length = 6, error = false, c
   };
 
   const focusClass = color === "cyan" 
-    ? "focus:border-cyan-500 focus:ring-cyan-500/10" 
-    : "focus:border-purple-500 focus:ring-purple-500/10";
+    ? "focus:border-cyan-500 focus:shadow-[0_0_15px_rgba(6,182,212,0.15)]" 
+    : "focus:border-purple-500 focus:shadow-[0_0_15px_rgba(123,97,255,0.15)]";
 
   return (
     <div className="flex gap-2 sm:gap-3 justify-between">
@@ -68,10 +68,10 @@ export default function OTPInput({ value, onChange, length = 6, error = false, c
           onChange={e => handleChange(e, i)}
           onKeyDown={e => handleKeyDown(e, i)}
           onPaste={handlePaste}
-          className={`w-full h-12 sm:h-14 bg-slate-50 border ${
+          className={`w-full h-12 sm:h-14 bg-slate-950/60 border ${
             error 
-              ? 'border-rose-300 ring-2 ring-rose-500/10 text-rose-600' 
-              : `border-slate-200 ${focusClass} text-slate-900`
+              ? 'border-rose-500/50 text-rose-400 focus:border-rose-500' 
+              : `border-white/10 ${focusClass} text-white`
           } rounded-xl sm:rounded-2xl text-center text-xl font-black transition-all outline-none shadow-sm`}
         />
       ))}

@@ -89,7 +89,13 @@ router.get("/transactions", async (req, res) => {
         mobile: true,
         operator: true,
         createdAt: true,
-        balanceAfter: true
+        balanceAfter: true,
+        lastRetryAt: true,
+        processingStartedAt: true,
+        processedAt: true,
+        retryCount: true,
+        reviewStatus: true,
+        invoiceSnapshot: true
       }
     });
 

@@ -42,63 +42,63 @@ export default function Support() {
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-4xl mx-auto space-y-6 md:space-y-8"
+      className="max-w-4xl mx-auto space-y-6 md:space-y-8 relative z-10"
     >
-      <div className="bg-white/70 backdrop-blur-2xl border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
-        <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+      <div className="glass-card border border-[var(--glass-border)] rounded-2xl shadow-xl overflow-hidden">
+        <div className="px-6 py-5 border-b border-[var(--glass-border)] bg-[var(--glass-button-bg)] flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
-              <HelpCircle className="w-5 h-5 text-indigo-600" /> Help & Support
+            <h2 className="text-xl font-black text-[var(--text-color)] uppercase tracking-tight flex items-center gap-2">
+              <HelpCircle className="w-5 h-5 text-indigo-400 indigo-glow" /> Help & Support
             </h2>
-            <p className="text-xs text-slate-400 mt-1 font-medium tracking-wide">We are here to assist you</p>
+            <p className="text-xs text-[var(--text-secondary)] mt-1 font-medium tracking-wide">We are here to assist you</p>
           </div>
-          <button onClick={() => navigate('/profile')} className="text-xs font-black text-indigo-600 uppercase tracking-widest hover:text-indigo-700 flex items-center gap-1">
+          <button onClick={() => navigate('/profile')} className="text-xs font-black text-indigo-400 uppercase tracking-widest hover:text-indigo-300 flex items-center gap-1 cursor-pointer">
             <ArrowLeft className="w-4 h-4" /> Back
           </button>
         </div>
 
         <div className="p-6 md:p-8 space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100 flex items-start gap-4">
-              <div className="p-3 bg-white rounded-xl shadow-sm border border-indigo-100">
-                <Mail className="w-6 h-6 text-indigo-600" />
+            <div className="bg-indigo-500/5 p-6 rounded-2xl border border-indigo-500/20 flex items-start gap-4">
+              <div className="p-3 bg-[var(--glass-input-bg)] rounded-xl shadow-sm border border-indigo-500/20">
+                <Mail className="w-6 h-6 text-indigo-400" />
               </div>
               <div>
-                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Email Support</p>
-                <a href="mailto:sales@dizipay.in" className="text-lg font-black text-indigo-900 hover:text-indigo-700 transition-colors">
+                <p className="text-[10px] font-black text-indigo-400/80 uppercase tracking-widest mb-1">Email Support</p>
+                <a href="mailto:sales@dizipay.in" className="text-lg font-black text-indigo-300 hover:text-indigo-200 transition-colors">
                   sales@dizipay.in
                 </a>
-                <p className="text-xs text-indigo-600/80 mt-1">Average response time: 2-4 hours</p>
+                <p className="text-xs text-indigo-400/70 mt-1">Average response time: 2-4 hours</p>
               </div>
             </div>
 
-            <div className="bg-amber-50/50 p-6 rounded-2xl border border-amber-100 flex items-start gap-4">
-              <div className="p-3 bg-white rounded-xl shadow-sm border border-amber-100">
-                <Clock className="w-6 h-6 text-amber-600" />
+            <div className="bg-amber-500/5 p-6 rounded-2xl border border-amber-500/20 flex items-start gap-4">
+              <div className="p-3 bg-[var(--glass-input-bg)] rounded-xl shadow-sm border border-amber-500/20">
+                <Clock className="w-6 h-6 text-amber-400" />
               </div>
               <div>
                 <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1">Operating Hours</p>
-                <p className="text-lg font-black text-amber-900">9:00 AM - 6:00 PM</p>
-                <p className="text-xs text-amber-700/80 mt-1">Monday to Saturday</p>
+                <p className="text-lg font-black text-amber-400">9:00 AM - 6:00 PM</p>
+                <p className="text-xs text-amber-400/70 mt-1">Monday to Saturday</p>
               </div>
             </div>
           </div>
 
-          <div className="space-y-4 pt-4 border-t border-slate-100">
+          <div className="space-y-4 pt-4 border-t border-[var(--glass-border)]">
             <div className="flex items-center gap-2 mb-6">
-              <MessageSquare className="w-5 h-5 text-slate-400" />
-              <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Frequently Asked Questions</h3>
+              <MessageSquare className="w-5 h-5 text-[var(--text-muted)]" />
+              <h3 className="text-sm font-black text-[var(--text-color)] uppercase tracking-tight">Frequently Asked Questions</h3>
             </div>
             
             <div className="space-y-3">
               {FAQs.map((faq, idx) => (
-                <div key={idx} className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm hover:border-indigo-200 transition-colors">
+                <div key={idx} className="border border-[var(--glass-border)] rounded-2xl overflow-hidden bg-[var(--glass-card-bg)] shadow-sm hover:border-indigo-500/20 transition-colors">
                   <button 
                     onClick={() => toggleAccordion(idx)}
-                    className="w-full px-6 py-4 flex items-center justify-between bg-white text-left focus:outline-none"
+                    className="w-full px-6 py-4 flex items-center justify-between bg-transparent text-left focus:outline-none cursor-pointer"
                   >
-                    <span className="text-sm font-bold text-slate-800 pr-4">{faq.question}</span>
-                    <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform duration-300 shrink-0 ${openIndex === idx ? 'rotate-180' : ''}`} />
+                    <span className="text-sm font-bold text-[var(--text-color)] pr-4">{faq.question}</span>
+                    <ChevronDown className={`w-5 h-5 text-[var(--text-muted)] transition-transform duration-300 shrink-0 ${openIndex === idx ? 'rotate-180' : ''}`} />
                   </button>
                   <AnimatePresence>
                     {openIndex === idx && (
@@ -108,7 +108,7 @@ export default function Support() {
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.3 }}
                       >
-                        <div className="px-6 pb-5 pt-1 text-xs text-slate-500 leading-relaxed border-t border-slate-50/50">
+                        <div className="px-6 pb-5 pt-1 text-xs text-[var(--text-secondary)] leading-relaxed border-t border-[var(--glass-border)]">
                           {faq.answer}
                         </div>
                       </motion.div>
@@ -119,12 +119,12 @@ export default function Support() {
             </div>
           </div>
 
-          <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 flex items-start gap-4">
-            <AlertCircle className="w-6 h-6 text-slate-400 shrink-0 mt-1" />
+          <div className="bg-[var(--glass-card-bg)] p-6 rounded-2xl border border-[var(--glass-border)] flex items-start gap-4">
+            <AlertCircle className="w-6 h-6 text-[var(--text-muted)] shrink-0 mt-1" />
             <div>
-              <p className="text-xs font-black text-slate-700 uppercase mb-1">Need further assistance?</p>
-              <p className="text-[11px] text-slate-500 leading-relaxed">
-                If your issue isn't covered in our FAQs, please don't hesitate to reach out to our support team via email at <a href="mailto:sales@dizipay.in" className="text-indigo-600 font-bold hover:underline">sales@dizipay.in</a>. We're committed to resolving your concerns promptly.
+              <p className="text-xs font-black text-[var(--text-color)] uppercase mb-1">Need further assistance?</p>
+              <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                If your issue isn't covered in our FAQs, please don't hesitate to reach out to our support team via email at <a href="mailto:sales@dizipay.in" className="text-indigo-400 font-bold hover:underline">sales@dizipay.in</a>. We're committed to resolving your concerns promptly.
               </p>
             </div>
           </div>

@@ -15,7 +15,7 @@ export const createPaymentOrder = async (userId, amount, idempotencyKey, upiId, 
   if (!amount || Number(amount) <= 0) throw new Error("Invalid amount. Must be greater than 0.");
   if (!idempotencyKey) throw new Error("idempotencyKey is required");
 
-  const finalIntent = intent === "RECHARGE" ? "RECHARGE" : "TOPUP";
+  const finalIntent = intent === "RECHARGE" ? "RECHARGE" : intent === "IMART" ? "IMART" : "TOPUP";
 
   try {
     // 1. DUPLICATE PREVENTION CHECK (Last 5 mins PENDING)

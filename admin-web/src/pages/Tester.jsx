@@ -166,22 +166,18 @@ export const Tester = () => {
   const bestOperator = compareResults ? getBestOperator(compareResults.results) : null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="max-w-7xl mx-auto space-y-8"
-    >
+    <div className="max-w-7xl mx-auto space-y-8">
       <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight drop-shadow-sm uppercase italic">RECHARGE <span className="text-cyan-600">Engine</span></h1>
-          <p className="text-[10px] md:text-sm text-slate-400 mt-1 font-bold uppercase tracking-widest">Benchmark and debug provider routing in real-time</p>
+          <h1 className="text-2xl md:text-3xl font-black text-[var(--text-color)] tracking-tight drop-shadow-sm uppercase italic">RECHARGE <span className="text-cyan-600">Engine</span></h1>
+          <p className="text-[10px] md:text-sm text-[var(--text-secondary)] mt-1 font-bold uppercase tracking-widest">Benchmark and debug provider routing in real-time</p>
         </div>
         <div className="flex items-center gap-4">
           <motion.button 
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => handleTopUp()}
-            className="w-full lg:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-purple-50 border border-purple-100 text-purple-600 text-[10px] font-black rounded-xl hover:bg-purple-100 transition-all shadow-sm uppercase tracking-[0.2em]"
+            className="w-full lg:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-purple-500/10 border border-purple-500/20 text-purple-400 text-[10px] font-black rounded-xl hover:bg-purple-500/20 transition-all shadow-sm uppercase tracking-[0.2em]"
           >
             <Zap className="w-4 h-4 fill-current" />
             + ₹1000 Credits
@@ -192,46 +188,46 @@ export const Tester = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start">
         {/* LEFT PANEL: Inputs (5 cols) */}
         <div className="lg:col-span-5 space-y-6">
-          <section className="bg-white/70 backdrop-blur-2xl border border-slate-200 rounded-2xl p-8 shadow-xl relative overflow-hidden group">
+          <section className="glass-card border border-[var(--glass-border)] rounded-2xl p-8 shadow-xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
               <Activity className="w-12 h-12 text-cyan-600" />
             </div>
             
-            <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-8 flex items-center gap-3">
+            <h2 className="text-sm font-black text-[var(--text-muted)] uppercase tracking-widest mb-8 flex items-center gap-3">
               <span className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.8)]"></span>
               Request Parameters
             </h2>
 
             <form onSubmit={handleTest} className="space-y-6">
               <div className="space-y-2">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Target Mobile</label>
+                <label className="block text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Target Mobile</label>
                 <input 
                   type="tel"
                   value={mobileNumber}
                   onChange={(e) => setMobileNumber(e.target.value.replace(/[^0-9]/g, ''))}
                   maxLength={10}
                   placeholder="98********"
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold tracking-widest outline-none focus:ring-2 focus:ring-cyan-500/10 focus:border-cyan-500 transition-all placeholder:text-slate-300"
+                  className="w-full px-4 py-3 glass-input text-[var(--text-color)] font-bold tracking-widest outline-none focus:ring-2 focus:ring-cyan-500/10 focus:border-cyan-500 transition-all placeholder:text-[var(--text-muted)]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount (₹)</label>
+                  <label className="block text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Amount (₹)</label>
                   <input 
                     type="number"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="10"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 transition-all placeholder:text-slate-300"
+                    className="w-full px-4 py-3 glass-input text-[var(--text-color)] font-bold outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 transition-all placeholder:text-[var(--text-muted)]"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Operator</label>
+                  <label className="block text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Operator</label>
                   <select 
                     value={operator}
                     onChange={(e) => setOperator(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold outline-none focus:ring-2 focus:ring-cyan-500/10 focus:border-cyan-500 transition-all"
+                    className="w-full px-4 py-3 glass-input text-[var(--text-color)] font-bold outline-none focus:ring-2 focus:ring-cyan-500/10 focus:border-cyan-500 transition-all"
                   >
                     <option value="Jio">Jio</option>
                     <option value="Airtel">Airtel</option>
@@ -242,19 +238,19 @@ export const Tester = () => {
               </div>
 
               <div className="space-y-4 pt-4">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Priority Routing</label>
+                <label className="block text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Priority Routing</label>
                 <div className="space-y-3">
-                  <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all ${selectedOperators.length === 0 ? 'bg-cyan-50 border-cyan-200 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}>
+                  <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all ${selectedOperators.length === 0 ? 'bg-cyan-500/10 border-cyan-500/30 shadow-sm' : 'bg-[var(--bg-tertiary)] border-[var(--glass-border)] hover:border-[var(--glass-border-hover)]'}`}>
                     <input 
                       type="checkbox" 
                       checked={selectedOperators.length === 0} 
                       onChange={() => setSelectedOperators([])}
                       className="hidden"
                     />
-                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${selectedOperators.length === 0 ? 'border-cyan-600 bg-cyan-600' : 'border-slate-300'}`}>
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${selectedOperators.length === 0 ? 'border-cyan-600 bg-cyan-600' : 'border-[var(--text-muted)]'}`}>
                       {selectedOperators.length === 0 && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
                     </div>
-                    <span className="ml-4 text-xs font-black text-slate-900 uppercase tracking-widest">Smart Failover</span>
+                    <span className="ml-4 text-xs font-black text-[var(--text-color)] uppercase tracking-widest">Smart Failover</span>
                     <span className="ml-auto text-[8px] bg-cyan-600 text-white px-2 py-0.5 rounded-full font-black uppercase tracking-tighter">AI Driven</span>
                   </label>
                   
@@ -266,8 +262,8 @@ export const Tester = () => {
                         onClick={() => setSelectedOperators(prev => prev.includes(p.code) ? prev.filter(c => c !== p.code) : [...prev, p.code])}
                         className={`p-3 text-[10px] font-black uppercase tracking-widest border rounded-xl transition-all ${
                           selectedOperators.includes(p.code) 
-                          ? 'bg-purple-50 border-purple-200 text-purple-600 shadow-sm' 
-                          : 'bg-slate-50 border-slate-200 text-slate-400 hover:border-slate-300'
+                          ? 'bg-purple-500/10 border-purple-500/30 text-purple-400 shadow-sm' 
+                          : 'bg-[var(--bg-tertiary)] border-[var(--glass-border)] text-[var(--text-muted)] hover:border-[var(--glass-border-hover)]'
                         }`}
                       >
                         {p.name}
@@ -293,8 +289,8 @@ export const Tester = () => {
           </section>
 
           <div className="grid grid-cols-2 gap-4">
-            <button onClick={() => setMobileNumber('9999999999')} className="text-[10px] py-3 px-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-400 font-black uppercase tracking-widest hover:bg-slate-100 transition-all shadow-sm">Mock Success</button>
-            <button onClick={() => setMobileNumber('8888888888')} className="text-[10px] py-3 px-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-400 font-black uppercase tracking-widest hover:bg-slate-100 transition-all shadow-sm">Mock Failure</button>
+            <button onClick={() => setMobileNumber('9999999999')} className="text-[10px] py-3 px-4 bg-[var(--bg-tertiary)] border border-[var(--glass-border)] rounded-xl text-[var(--text-color)] font-black uppercase tracking-widest hover:bg-[var(--glass-button-bg)] transition-all shadow-sm">Mock Success</button>
+            <button onClick={() => setMobileNumber('8888888888')} className="text-[10px] py-3 px-4 bg-[var(--bg-tertiary)] border border-[var(--glass-border)] rounded-xl text-[var(--text-color)] font-black uppercase tracking-widest hover:bg-[var(--glass-button-bg)] transition-all shadow-sm">Mock Failure</button>
           </div>
         </div>
 
@@ -368,26 +364,26 @@ export const Tester = () => {
           </section>
 
           {/* Session History Table */}
-          <section className="bg-white/70 backdrop-blur-2xl border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
-            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-              <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Session History</h2>
-              <span className="text-[8px] font-black text-slate-400 uppercase">{history.length} Records</span>
+          <section className="glass-card border border-[var(--glass-border)] rounded-2xl shadow-xl overflow-hidden">
+            <div className="p-4 border-b border-[var(--glass-border)] flex justify-between items-center bg-[var(--bg-tertiary)]">
+              <h2 className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Session History</h2>
+              <span className="text-[8px] font-black text-[var(--text-muted)] uppercase">{history.length} Records</span>
             </div>
             <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
               {history.length === 0 ? (
-                <div className="p-8 text-center text-slate-600 text-[10px] font-black uppercase tracking-widest">No activity yet</div>
+                <div className="p-8 text-center text-[var(--text-color)] text-[10px] font-black uppercase tracking-widest">No activity yet</div>
               ) : (
                 <table className="w-full text-left">
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-[var(--glass-border)]">
                     {history.map((tx, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50 transition-all">
+                      <tr key={idx} className="hover:bg-[var(--glass-button-bg)] transition-all">
                         <td className="px-6 py-4">
-                          <div className="text-xs font-black text-slate-900">{tx.mobile}</div>
-                          <div className="text-[8px] text-slate-400 font-black uppercase tracking-tighter">{tx.provider || 'Smart Route'}</div>
+                          <div className="text-xs font-black text-[var(--text-color)]">{tx.mobile}</div>
+                          <div className="text-[8px] text-[var(--text-muted)] font-black uppercase tracking-tighter">{tx.provider || 'Smart Route'}</div>
                         </td>
                         <td className="px-6 py-4 text-right">
                           <span className={`text-[9px] font-black px-3 py-1 rounded-lg uppercase ${
-                            tx.status?.toLowerCase() === 'success' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+                            tx.status?.toLowerCase() === 'success' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'
                           }`}>
                             {tx.status?.toUpperCase()}
                           </span>
@@ -401,6 +397,8 @@ export const Tester = () => {
           </section>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };
+
+

@@ -1,6 +1,7 @@
 import prisma from "../config/prisma.js";
 import { normalizeTransactionStatus } from "../utils/statusHelper.js";
 import { convertToCSV, downloadCSV } from "../utils/exportHelper.js";
+import { getMetricsReport } from "../services/webhookMonitoringService.js";
 
 
 /**
@@ -44,6 +45,7 @@ export const getTransactionHistory = async (req, res) => {
     where.OR = [
       { providerTxnId: { contains: search } },
       { providerRef: { contains: search } },
+      { providerRefId: { contains: search } },
       { mobile: { contains: search } }
     ];
   }
@@ -100,7 +102,7 @@ export const getReportSummary = async (req, res) => {
     const [success, failed, pending, refunded, volume] = await Promise.all([
       prisma.transaction.count({ where: { userId, status: 'SUCCESS' } }),
       prisma.transaction.count({ where: { userId, status: 'FAILED' } }),
-      prisma.transaction.count({ where: { userId, status: 'PENDING' } }),
+      prisma.transaction.count({ where: { userId, status: { in: ['PENDING', 'PENDING_REVIEW', 'PROCESSING'] } } }),
       prisma.transaction.count({ where: { userId, refundStatus: 'refunded' } }),
       prisma.transaction.aggregate({
         where: { userId, status: 'SUCCESS' },
@@ -250,6 +252,7 @@ export const searchRecharge = async (req, res) => {
         OR: [
           { mobile: { contains: query } },
           { providerRef: { contains: query } },
+          { providerRefId: { contains: query } },
           { providerTxnId: { contains: query } },
           { id: isNaN(parseInt(query)) ? undefined : parseInt(query) }
         ].filter(Boolean)
@@ -264,4 +267,15 @@ export const searchRecharge = async (req, res) => {
   }
 };
 
+/**
+ * Fetch webhook and reconciliation metrics.
+ */
+export const getWebhookMetrics = async (req, res) => {
+  try {
+    const metrics = await getMetricsReport();
+    res.json({ success: true, data: metrics });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
 

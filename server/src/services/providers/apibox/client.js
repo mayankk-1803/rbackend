@@ -28,16 +28,29 @@ export const apiboxRequest = async (endpoint, payload, isPost = false) => {
     throw new Error("Provider config missing: APIBOX_TOKEN");
   }
 
-  // Apibox official documentation specifies 'at' for Balance check, 'ApiToken' for Recharge/Status
-  const authKey = endpoint.includes("/Balance") ? "at" : "ApiToken";
-  const params = { [authKey]: API_TOKEN, ...payload };
+  const authKey =
+    endpoint.includes("/Balance")
+      ? "at"
+      : "ApiToken";
+
+  const params = { ...payload };
+  params[authKey] = API_TOKEN;
+
   const url = `${API_URL}${endpoint}`;
 
   const maskedToken = `***${API_TOKEN.slice(-4)}`;
   const payloadKeys = Object.keys(params).join(", ");
   const logPrefix = endpoint.includes("/Balance") ? "[APIBOX][BALANCE_REQUEST]" : "[APIBOX][REQUEST]";
 
-  console.log(`${logPrefix}\nEndpoint: ${endpoint}\nPayload Keys: ${payloadKeys}\nAuth: ${maskedToken}`);
+  const maskedParams = { ...params };
+  if (maskedParams[authKey]) {
+    maskedParams[authKey] = maskedToken;
+  }
+  const queryString = new URLSearchParams(maskedParams).toString();
+  const finalMaskedUrl = `${url}?${queryString}`;
+
+  console.log(`${logPrefix}\nEndpoint: ${endpoint}\nPayload Keys: ${payloadKeys}\nAuth: ${maskedToken}\nMasked URL: ${finalMaskedUrl}`);
+  console.log(`[APIBOX_REQUEST_URL] Masked URL: ${finalMaskedUrl}`);
 
   try {
     let response;
@@ -61,10 +74,19 @@ export const apiboxRequest = async (endpoint, payload, isPost = false) => {
       });
     }
     
-    console.log(`[APIBOX][RESPONSE_SUCCESS]\nEndpoint: ${endpoint}\nStatus: ${response.status}\nBody:`, JSON.stringify(response.data));
+    if (response.data && typeof response.data === "object" && !Array.isArray(response.data)) {
+      response.data.__httpStatus = response.status;
+    }
+    console.log(`[APIBOX_RESPONSE_SUCCESS]\nEndpoint: ${endpoint}\nStatus: ${response.status}\nBody:`, JSON.stringify(response.data));
+    console.log("[APIBOX_RESPONSE]", {
+      endpoint,
+      statusCode: response.status,
+      providerResponse: response.data,
+      providerTxnId: response.data?.OPTXNID || response.data?.OPTxnId || response.data?.OPtxnId || response.data?.TXNID || null
+    });
     return response.data;
   } catch (error) {
-    console.error(`[APIBOX][RESPONSE_ERROR]\nEndpoint: ${endpoint}\nStatus: ${error.response?.status || "N/A"}\nMessage: ${error.message}`);
+    console.error(`[APIBOX_RESPONSE_ERROR]\nEndpoint: ${endpoint}\nStatus: ${error.response?.status || "N/A"}\nMessage: ${error.message}`);
     if (error.response) {
       error.raw = error.response.data;
       error.status = error.response.status;

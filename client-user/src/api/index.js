@@ -19,12 +19,13 @@ api.interceptors.request.use((config) => {
 });
 
 import toast from "react-hot-toast";
-import { sanitizeErrorMessage } from "../utils/sanitizeErrorMessage";
+import { getErrorContext, sanitizeErrorMessage } from "../utils/sanitizeErrorMessage";
 
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const sanitizedMessage = sanitizeErrorMessage(error);
+    const errorContext = getErrorContext(error);
+    const sanitizedMessage = sanitizeErrorMessage(error, { context: errorContext });
     
     // Decorate the error object with safeMessage for backward-compatible error reads
     if (error && typeof error === "object") {
@@ -45,7 +46,7 @@ api.interceptors.response.use(
       if (!window.location.pathname.includes('/login')) {
         window.location.href = "/login";
       }
-    } else if (error.response?.status !== 404) {
+    } else if (error.response?.status !== 404 && !["login", "otp", "register"].includes(errorContext)) {
       toast.error(sanitizedMessage);
     }
     
@@ -54,4 +55,3 @@ api.interceptors.response.use(
 );
 
 export default api;
-

@@ -6,7 +6,8 @@ import {
   getReportSummary, 
   getCommissionReport, 
   exportTransactions, 
-  searchRecharge 
+  searchRecharge,
+  getWebhookMetrics
 } from "../controllers/reportController.js";
 
 const router = express.Router();
@@ -38,5 +39,10 @@ router.get("/export", exportTransactions);
  * @route GET /api/admin/reports/search
  */
 router.get("/search", searchRecharge);
+
+/**
+ * @route GET /api/admin/reports/webhook-metrics
+ */
+router.get("/webhook-metrics", getWebhookMetrics);
 
 export default router;

@@ -16,7 +16,8 @@ import {
   getAdminWallet,
   getUsers,
   getCashbackSettings,
-  updateCashbackSettings
+  updateCashbackSettings,
+  retryReconciliation
 } from "../controllers/adminController.js";
 import { getCommissionReport } from "../controllers/reportController.js";
 import { resolveDispute, getAllDisputes } from "../controllers/disputeController.js";
@@ -36,6 +37,7 @@ router.get("/dashboard", getDashboard);
 router.get("/users", getUsers);
 router.get("/top-users", getTopUsers);
 router.post("/retry/:id", retryTxn);
+router.post("/reconcile/:id", retryReconciliation);
 router.get("/retry-stats", getRetryStats);
 router.get("/transactions", getTransactions);
 router.get("/alerts", getAlerts);

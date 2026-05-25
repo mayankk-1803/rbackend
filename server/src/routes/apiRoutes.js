@@ -4,7 +4,7 @@ import { idempotency, requireIdempotency } from "../middlewares/idempotency.js";
 import { fraudDetectionMiddleware } from "../middlewares/fraudDetection.js";
 import { getOperator } from "../controllers/operatorController.js";
 import { getWallet } from "../controllers/walletController.js";
-import { getPlans, recharge, payPostpaidBill, initPrepaidRecharge, initPostpaidRecharge } from "../controllers/rechargeController.js";
+import { getPlans, recharge, payPostpaidBill, initPrepaidRecharge, initPostpaidRecharge, refreshStatus } from "../controllers/rechargeController.js";
 import { validateRechargeInput } from "../middlewares/validateInput.js";
 import { rechargeInitLimiter } from "../middlewares/rateLimiter.js";
 import prisma from "../config/prisma.js";
@@ -72,6 +72,8 @@ router.get("/status/:id", auth, async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
+
+router.get("/recharge/:txnId/refresh-status", auth, refreshStatus);
 
 router.get("/wallet", auth, getWallet);
 

@@ -4,13 +4,16 @@ import { compareProviders } from "../services/compareService.js";
 import { recordFinancialEntry } from "../services/ledgerService.js";
 import { logAction, AUDIT_ACTIONS } from "../services/auditService.js";
 import { Prisma } from "@prisma/client";
+import eventBus from "../config/eventBus.js";
+import { logTransactionEvent, TXN_EVENTS } from "../services/transactionEventService.js";
+import { reconcileSingleTransaction } from "../services/reconciliationService.js";
 
 export const getDashboard = async (req, res) => {
   try {
     const totalUsers = await prisma.user.count();
     const totalTransactions = await prisma.transaction.count();
     const failureCount = await prisma.transaction.count({ where: { status: "FAILED" } });
-    const pendingCount = await prisma.transaction.count({ where: { status: "PENDING" } });
+    const pendingCount = await prisma.transaction.count({ where: { status: { in: ["PENDING", "PENDING_REVIEW", "PROCESSING"] } } });
     const fraudAlerts = prisma.fraudlog ? await prisma.fraudlog.count() : 0;
     
     let successRate = 0;
@@ -123,7 +126,7 @@ export const getTopUsers = async (req, res) => {
   }
 };
 
-export const retryTxn = async (req, res) => {
+const retryTxnLegacy = async (req, res) => {
   try {
     const txnId = parseInt(req.params.id);
     console.log(`[RETRY][REQUESTED] → Txn #${txnId} by Admin ${req.user.id}`);
@@ -195,6 +198,115 @@ export const retryTxn = async (req, res) => {
   } catch (err) {
     console.error(`[RETRY][FAILED] → Txn #${req.params.id}: ${err.message}`);
     res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const retryTxn = async (req, res) => {
+  try {
+    const txnId = parseInt(req.params.id);
+    console.log(`[RETRY][REQUESTED] Txn #${txnId} by Admin ${req.user.id}`);
+
+    let queuedTxn;
+
+    await prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw`SELECT * FROM transaction WHERE id = ${txnId} FOR UPDATE`;
+      const txn = rows?.[0];
+
+      if (!txn) {
+        const error = new Error("Transaction not found");
+        error.statusCode = 404;
+        throw error;
+      }
+
+      const eligible = txn.status === "PENDING_REVIEW" || txn.status === "FAILED";
+      if (!eligible) {
+        const error = new Error("Recharge is not eligible for retry");
+        error.statusCode = 400;
+        throw error;
+      }
+
+      if (txn.rechargeProcessing) {
+        const error = new Error("Recharge processing");
+        error.statusCode = 409;
+        throw error;
+      }
+
+      if (Number(txn.retryCount || 0) >= 3) {
+        const error = new Error("Maximum retry attempts exceeded");
+        error.statusCode = 400;
+        throw error;
+      }
+
+      queuedTxn = await tx.transaction.update({
+        where: { id: txn.id },
+        data: {
+          status: "PROCESSING",
+          reviewStatus: "PROCESSING",
+          rechargeProcessing: true,
+          retryCount: { increment: 1 },
+          lastRetryAt: new Date(),
+          processingStartedAt: new Date(),
+          adminRetriedBy: req.user.id
+        }
+      });
+
+      await logTransactionEvent(txn.id, TXN_EVENTS.ADMIN_RETRY_REQUESTED, {
+        adminId: req.user.id,
+        retryCount: Number(txn.retryCount || 0) + 1
+      }, tx);
+      await logTransactionEvent(txn.id, TXN_EVENTS.PROCESSING, { source: "admin_retry" }, tx);
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      timeout: 10000
+    });
+
+    try {
+      await addRechargeJob({
+        userId: queuedTxn.userId,
+        amount: queuedTxn.amount,
+        mobile: queuedTxn.mobile,
+        operator: queuedTxn.operator,
+        txnId: queuedTxn.id,
+        retryCount: queuedTxn.retryCount,
+        idempotencyKey: queuedTxn.idempotencyKey
+      });
+    } catch (queueErr) {
+      await prisma.transaction.update({
+        where: { id: queuedTxn.id },
+        data: {
+          status: "PENDING_REVIEW",
+          reviewStatus: "PENDING_REVIEW",
+          rechargeProcessing: false
+        }
+      });
+      throw queueErr;
+    }
+
+    eventBus.emit("recharge_processing", {
+      userId: queuedTxn.userId,
+      txnId: queuedTxn.id,
+      transactionId: queuedTxn.id,
+      status: "PROCESSING",
+      transaction: queuedTxn
+    });
+    eventBus.emit("transaction_updated", {
+      userId: queuedTxn.userId,
+      transactionId: queuedTxn.id,
+      status: "PROCESSING",
+      transaction: queuedTxn
+    });
+
+    res.json({
+      success: true,
+      message: "Recharge processing",
+      data: {
+        transactionId: queuedTxn.id,
+        status: "PROCESSING"
+      }
+    });
+  } catch (err) {
+    console.error(`[RETRY][FAILED] Txn #${req.params.id}: ${err.message}`);
+    res.status(err.statusCode || 500).json({ success: false, message: err.message });
   }
 };
 
@@ -475,5 +587,56 @@ export const getAdminWallet = async (req, res) => {
     res.json({ success: true, data: { balance: totalBalance._sum.balance || 0 } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const retryReconciliation = async (req, res) => {
+  try {
+    const txnId = parseInt(req.params.id);
+    if (isNaN(txnId)) {
+      return res.status(400).json({ success: false, message: "Invalid transaction ID" });
+    }
+
+    console.log(`[MANUAL_RECONCILE][REQUESTED] Txn #${txnId} by Admin ${req.user.id}`);
+
+    // Call reconcileSingleTransaction which handles validation and status checks internally
+    const result = await reconcileSingleTransaction(txnId);
+
+    // Audit logging
+    await logAction({
+      action: AUDIT_ACTIONS.RECHARGE_RECONCILE || "RECHARGE_RECONCILE",
+      adminId: req.user.id,
+      entity: "TRANSACTION",
+      entityId: txnId,
+      details: { result },
+      req
+    });
+
+    res.json({
+      success: true,
+      message: "Transaction reconciliation completed",
+      data: result
+    });
+  } catch (err) {
+    console.error(`[MANUAL_RECONCILE][FAILED] Txn #${req.params.id}: ${err.message}`);
+    
+    // Audit log the failure as well
+    await logAction({
+      action: AUDIT_ACTIONS.RECHARGE_RECONCILE || "RECHARGE_RECONCILE",
+      adminId: req.user?.id,
+      entity: "TRANSACTION",
+      entityId: parseInt(req.params.id) || null,
+      details: { error: err.message, status: "FAILED" },
+      req
+    });
+
+    let statusCode = 500;
+    if (err.message.includes("not found")) {
+      statusCode = 404;
+    } else if (err.message.includes("cannot be reconciled manually") || err.message.includes("status is")) {
+      statusCode = 400;
+    }
+
+    res.status(statusCode).json({ success: false, message: err.message });
   }
 };

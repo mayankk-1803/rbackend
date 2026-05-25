@@ -33,7 +33,7 @@ export const getInvoice = async (req, res) => {
         status: txn.status,
         mobile: txn.mobile,
         operator: txn.operator,
-        providerRef: txn.providerRef || txn.providerTxnId,
+        providerRef: txn.providerRef || txn.providerRefId || txn.providerTxnId,
         branding: "DiziPay Vault",
         logo: "https://dizipay.in/logo.png"
       };

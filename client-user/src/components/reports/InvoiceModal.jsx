@@ -5,7 +5,7 @@ import html2pdf from 'html2pdf.js';
 import { formatAmount } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
-// A4 Optimized Template for PDF Export
+// A4 Optimized Template for PDF Export (Remains light for printer friendliness)
 const PrintableInvoice = React.forwardRef(({ transaction, snapshot, displayDate, displayAmount, displayRef, displayOperator, displayMobile, customer }, ref) => (
   <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
     <div 
@@ -20,7 +20,7 @@ const PrintableInvoice = React.forwardRef(({ transaction, snapshot, displayDate,
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '40px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ width: '48px', height: '48px', backgroundColor: '#06b6d4', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyCenter: 'center' }}>
+          <div style={{ width: '48px', height: '48px', backgroundColor: '#06b6d4', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Smartphone style={{ color: '#ffffff', width: '28px', height: '28px' }} />
           </div>
           <div>
@@ -153,7 +153,7 @@ export const InvoiceModal = ({ isOpen, onClose, transaction }) => {
       toast.success("Receipt downloaded", { id: toastId });
     } catch (error) {
       if (import.meta.env.DEV) {
-        if (import.meta.env.DEV) console.error("PDF ERROR:", error);
+        console.error("PDF ERROR:", error);
       }
       toast.error("Failed to generate PDF");
     } finally {
@@ -188,58 +188,58 @@ export const InvoiceModal = ({ isOpen, onClose, transaction }) => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={onClose}
-              className="absolute inset-0 bg-slate-900/60"
+              className="absolute inset-0 bg-slate-950/60 backdrop-blur-md"
             />
             
             <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              className="relative w-full max-w-2xl bg-white rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.95 }}
+              className="relative w-full max-w-2xl glass-modal shadow-[0_20px_50px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col max-h-[90vh] border border-white/10 rounded-[2rem]"
             >
               {/* Header Actions - STICKY */}
-              <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+              <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center bg-slate-950/40 sticky top-0 z-10 backdrop-blur-md">
                 <div className="flex gap-2">
                   <button 
                     onClick={handleDownload}
                     disabled={isGenerating}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20 disabled:opacity-50"
+                    className="flex items-center gap-2 px-4 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-102 transition-all shadow-lg shadow-cyan-500/20 disabled:opacity-50 cursor-pointer"
                   >
                     <Download className={`w-4 h-4 ${isGenerating ? 'animate-spin' : ''}`} /> 
                     {isGenerating ? 'Processing...' : 'Download PDF'}
                   </button>
                   <button 
                     onClick={handlePrint}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
+                    className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-850 text-slate-200 border border-white/5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-102 transition-all cursor-pointer"
                   >
                     <Printer className="w-4 h-4" /> Print
                   </button>
                 </div>
                 <button 
                   onClick={onClose}
-                  className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-400 hover:text-slate-900"
+                  className="p-2 hover:bg-slate-900/50 rounded-full transition-colors text-slate-400 hover:text-white cursor-pointer"
                 >
                   <X className="w-6 h-6" />
                 </button>
               </div>
 
               {/* Modal View Content */}
-              <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-slate-50/50">
-                <div className="bg-white p-8 md:p-10 rounded-2xl border border-slate-100 shadow-sm">
+              <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-slate-950/20">
+                <div className="glass-card p-8 md:p-10 rounded-2xl border border-white/5 shadow-2xl relative overflow-hidden">
                   {/* Branding */}
                   <div className="flex flex-col md:flex-row justify-between items-start gap-6 mb-10">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center shadow-lg">
-                        <Smartphone className="w-6 h-6 text-white" />
+                      <div className="w-12 h-12 bg-slate-950 rounded-xl flex items-center justify-center border border-white/5 shadow-inner">
+                        <Smartphone className="w-6 h-6 text-cyan-400 cyan-glow" />
                       </div>
                       <div>
-                        <h2 className="text-xl font-black tracking-tight uppercase italic">Dizipay <span className="text-cyan-600">Wallet</span></h2>
+                        <h2 className="text-xl font-black tracking-tight uppercase italic text-white">Dizipay <span className="text-cyan-400 cyan-glow">Wallet</span></h2>
                         <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Digital Payment</p>
                       </div>
                     </div>
                     <div className="md:text-right">
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                        transaction.status === 'SUCCESS' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors ${
+                        transaction.status === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/15' : 'bg-rose-500/10 text-rose-400 border-rose-500/15'
                       }`}>
                         {transaction.status === 'SUCCESS' ? <CheckCircle2 className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
                         {transaction.status}
@@ -253,39 +253,39 @@ export const InvoiceModal = ({ isOpen, onClose, transaction }) => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
                     <div>
                       <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Customer</h4>
-                      <p className="text-sm font-black text-slate-900">{customer.name || 'Account Holder'}</p>
+                      <p className="text-sm font-black text-white">{customer.name || 'Account Holder'}</p>
                       <p className="text-xs text-slate-500 font-bold mt-0.5">Ref: #{transaction.id}</p>
                     </div>
                     <div className="md:text-right">
                       <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Service</h4>
-                      <p className="text-sm font-black text-slate-900 uppercase tracking-tight">{displayOperator}</p>
+                      <p className="text-sm font-black text-white uppercase tracking-tight">{displayOperator}</p>
                       <p className="text-xs text-slate-500 font-bold mt-0.5">{displayMobile}</p>
                     </div>
                   </div>
 
                   {/* Summary Box */}
-                  <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 space-y-4">
+                  <div className="bg-slate-950/40 rounded-2xl p-6 border border-white/5 space-y-4">
                     <div className="flex justify-between items-center">
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Recharge Amount</span>
-                      <span className="text-lg font-black text-slate-900">₹{formatAmount(displayAmount)}</span>
+                      <span className="text-lg font-black text-white">₹{formatAmount(displayAmount)}</span>
                     </div>
                     {transaction.cashback > 0 && (
-                      <div className="flex justify-between items-center text-emerald-600">
+                      <div className="flex justify-between items-center text-emerald-400">
                         <span className="text-[10px] font-black uppercase tracking-widest">Cashback Earned</span>
-                        <span className="text-sm font-black">+₹{formatAmount(transaction.cashback)}</span>
+                        <span className="text-sm font-black emerald-glow">+₹{formatAmount(transaction.cashback)}</span>
                       </div>
                     )}
-                    <div className="flex justify-between items-center pt-4 border-t border-slate-200">
+                    <div className="flex justify-between items-center pt-4 border-t border-white/5">
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Operator Ref</span>
-                      <span className="text-[10px] font-mono font-bold text-slate-600 truncate max-w-[150px]">{displayRef}</span>
+                      <span className="text-[10px] font-mono font-bold text-slate-400 truncate max-w-[150px]">{displayRef}</span>
                     </div>
                   </div>
 
-                  <div className="mt-8 pt-8 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4">
+                  <div className="mt-8 pt-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                      <ShieldCheck className="w-4 h-4 text-emerald-500" /> AES-256 Encrypted Receipt
+                      <ShieldCheck className="w-4 h-4 text-emerald-400" /> AES-256 Encrypted Receipt
                     </div>
-                    <p className="text-[8px] text-slate-300 font-medium">© 2024 DIZIPAY FINTECH CORP</p>
+                    <p className="text-[8px] text-slate-500 font-medium">© 2026 DIZIPAY FINTECH CORP</p>
                   </div>
                 </div>
               </div>
@@ -296,4 +296,3 @@ export const InvoiceModal = ({ isOpen, onClose, transaction }) => {
     </AnimatePresence>
   );
 };
-

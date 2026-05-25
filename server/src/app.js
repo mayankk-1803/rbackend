@@ -25,6 +25,8 @@ import adminReportRoutes from "./routes/adminReportRoutes.js";
 import cookieParser from "cookie-parser";
 import { globalErrorHandler } from "./middlewares/errorHandler.js";
 import { idempotency } from "./middlewares/idempotency.js";
+import path from "path";
+import imartRoutes from "./routes/imartRoutes.js";
 
 const app = express();
 
@@ -87,6 +89,42 @@ app.use(cookieParser(process.env.COOKIE_SECRET || "dizipay_secret"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(apiLogger);
+
+const cleanClientMessage = (message = "") => {
+  const raw = String(message || "").toLowerCase();
+  if (raw.includes("refund")) return "Refund processed";
+  if (raw.includes("queued") || raw.includes("pending_review") || raw.includes("pending review")) return "Recharge queued";
+  if (raw.includes("processing")) return "Recharge processing";
+  if (raw.includes("recharge") && raw.includes("failed")) return "Recharge failed";
+  if (raw.includes("recharge") && raw.includes("success")) return "Recharge Successful";
+  if (
+    raw.includes("payment") ||
+    raw.includes("gateway") ||
+    raw.includes("order") ||
+    raw.includes("declined") ||
+    raw.includes("insufficient")
+  ) return "Payment Failed";
+  if (raw.includes("success")) return "Order Placed Successfully";
+  return "Something went wrong";
+};
+
+app.use((req, res, next) => {
+  if (!req.path.startsWith("/api")) return next();
+  const originalJson = res.json.bind(res);
+  res.json = (body) => {
+    if (body && typeof body === "object" && body.success === false) {
+      body = {
+        ...body,
+        message: cleanClientMessage(body.message),
+        data: undefined,
+        stack: undefined,
+        error: undefined
+      };
+    }
+    return originalJson(body);
+  };
+  next();
+});
 
 /**
  * =========================================================
@@ -158,6 +196,9 @@ app.use("/health", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/otp", otpRoutes);
 
+// Serve static uploads
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+
 // Apply rate limiting and idempotency to all protected APIs
 app.use("/api", apiLimiter, idempotency);
 
@@ -169,6 +210,7 @@ app.use("/api/admin/reports", adminReportRoutes);
 app.use("/api/developer", developerRoutes);
 app.use("/api/v1/dev", apiDevRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/imart", imartRoutes);
 app.use("/api", apiRoutes);
 
 

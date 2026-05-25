@@ -39,7 +39,7 @@ const LANGUAGES = [
 ];
 
 const Skeleton = ({ className }) => (
-  <div className={`animate-pulse bg-slate-200 rounded-2xl ${className}`}></div>
+  <div className={`animate-pulse bg-slate-800 rounded-2xl ${className}`}></div>
 );
 
 const generateCode = (endpoint, lang) => {
@@ -53,7 +53,7 @@ const generateCode = (endpoint, lang) => {
       url = url.replace(`{${p.name}}`, `[${p.name.toUpperCase()}]`);
     });
   }
-
+ 
   if (query) {
     const q = query.map(p => `${p.name}=value`).join('&');
     url += `?${q}`;
@@ -173,7 +173,7 @@ export default function ApiDocs({ searchQuery }) {
   if (loading) return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
       <div className="space-y-8">
-         <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 space-y-6">
+         <div className="glass-card border border-white/5 rounded-[2.5rem] p-8 space-y-6">
             <Skeleton className="h-6 w-24" />
             <Skeleton className="h-10 w-3/4" />
             <Skeleton className="h-20 w-full" />
@@ -188,17 +188,17 @@ export default function ApiDocs({ searchQuery }) {
   );
 
   if (error) return (
-    <div className="flex flex-col items-center justify-center p-20 text-center gap-6 bg-white border border-slate-200 rounded-[2.5rem]">
-      <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center">
-        <AlertCircle className="w-8 h-8 text-rose-500" />
+    <div className="flex flex-col items-center justify-center p-20 text-center gap-6 bg-slate-950/40 border border-white/5 rounded-[2.5rem]">
+      <div className="w-16 h-16 bg-rose-500/10 rounded-full flex items-center justify-center">
+        <AlertCircle className="w-8 h-8 text-rose-450" />
       </div>
       <div className="space-y-2">
-        <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight italic">Oops! Something went wrong</h3>
-        <p className="text-sm text-slate-500 max-w-xs">{error}</p>
+        <h3 className="text-xl font-black text-white uppercase tracking-tight italic">Oops! Something went wrong</h3>
+        <p className="text-sm text-slate-400 max-w-xs">{error}</p>
       </div>
       <button 
         onClick={fetchManifest}
-        className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all"
+        className="flex items-center gap-2 px-6 py-3 bg-cyan-400 text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-cyan-300 transition-all cursor-pointer"
       >
         <RefreshCw className="w-4 h-4" />
         Retry Loading
@@ -209,22 +209,22 @@ export default function ApiDocs({ searchQuery }) {
   if (!selectedEndpoint) return null;
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 relative z-10">
       {/* Left Column: API Details */}
       <div className="space-y-8">
-        <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-xl shadow-slate-200/50">
+        <div className="glass-card border border-white/5 rounded-[2.5rem] p-8 shadow-xl">
            <div className="space-y-4">
               <div className="flex items-center gap-3">
                  <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
-                   selectedEndpoint.method === 'GET' ? 'bg-emerald-50 text-emerald-600' : 'bg-cyan-50 text-cyan-600'
+                   selectedEndpoint.method === 'GET' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-cyan-500/10 text-cyan-400'
                  }`}>
                    {selectedEndpoint.method}
                  </span>
-                 <code className="text-sm font-black text-slate-400 tracking-tight">{selectedEndpoint.path}</code>
+                 <code className="text-sm font-black text-slate-455 tracking-tight">{selectedEndpoint.path}</code>
               </div>
               
-              <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter italic">{selectedEndpoint.name}</h2>
-              <p className="text-slate-500 text-sm font-medium leading-relaxed">
+              <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic">{selectedEndpoint.name}</h2>
+              <p className="text-slate-400 text-sm font-medium leading-relaxed">
                 {selectedEndpoint.description}
               </p>
            </div>
@@ -233,12 +233,12 @@ export default function ApiDocs({ searchQuery }) {
               {/* Request Parameters */}
               {selectedEndpoint.body && (
                 <div className="space-y-4">
-                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                    <Braces className="w-4 h-4 text-cyan-500" />
+                  <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
+                    <Braces className="w-4 h-4 text-cyan-400 cyan-glow" />
                     Request Body
                   </h3>
-                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 overflow-x-auto">
-                    <pre className="text-[11px] font-bold text-slate-600">
+                  <div className="bg-slate-950/40 rounded-2xl p-4 border border-white/5 overflow-x-auto">
+                    <pre className="text-[11px] font-bold text-slate-300">
                       {JSON.stringify(selectedEndpoint.body, null, 2)}
                     </pre>
                   </div>
@@ -247,12 +247,12 @@ export default function ApiDocs({ searchQuery }) {
 
               {/* Response Schema */}
               <div className="space-y-4">
-                <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-emerald-500" />
+                <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-emerald-400" />
                   Success Response
                 </h3>
-                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 overflow-x-auto">
-                   <pre className="text-[11px] font-bold text-slate-600">
+                <div className="bg-slate-950/40 rounded-2xl p-4 border border-white/5 overflow-x-auto">
+                   <pre className="text-[11px] font-bold text-slate-300">
                       {JSON.stringify(selectedEndpoint.responses.success.body, null, 2)}
                     </pre>
                 </div>
@@ -266,19 +266,19 @@ export default function ApiDocs({ searchQuery }) {
             <button
               key={ep.id}
               onClick={() => setSelectedEndpoint(ep)}
-              className={`p-5 rounded-3xl text-left transition-all border ${
+              className={`p-5 rounded-3xl text-left transition-all border cursor-pointer ${
                 selectedEndpoint.id === ep.id 
-                  ? 'bg-slate-900 border-slate-900 shadow-lg shadow-slate-900/20' 
-                  : 'bg-white border-slate-200 hover:border-cyan-500/50'
+                  ? 'bg-cyan-400 border-cyan-400 shadow-lg shadow-cyan-500/20' 
+                  : 'bg-slate-950/40 border-white/5 hover:border-cyan-500/30'
               }`}
             >
                <span className={`text-[8px] font-black uppercase tracking-widest mb-2 block ${
-                 selectedEndpoint.id === ep.id ? 'text-cyan-400' : 'text-slate-400'
+                 selectedEndpoint.id === ep.id ? 'text-slate-950/80' : 'text-cyan-400'
                }`}>
                  {ep.method}
                </span>
                <h4 className={`text-xs font-black uppercase tracking-tighter ${
-                 selectedEndpoint.id === ep.id ? 'text-white' : 'text-slate-900'
+                 selectedEndpoint.id === ep.id ? 'text-slate-950' : 'text-white'
                }`}>
                  {ep.name}
                </h4>
@@ -289,19 +289,19 @@ export default function ApiDocs({ searchQuery }) {
 
       {/* Right Column: Code Generator */}
       <div className="sticky top-8 self-start">
-        <div className="bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/10">
+        <div className="glass-card rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/5">
            {/* Tab Header */}
-           <div className="flex items-center gap-1 p-4 bg-white/5 border-b border-white/10">
+           <div className="flex items-center gap-1 p-4 bg-slate-950/20 border-b border-white/5">
               {LANGUAGES.map((lang) => {
                 const Icon = lang.icon;
                 return (
                   <button
                     key={lang.id}
                     onClick={() => setSelectedLang(lang.id)}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
                       selectedLang === lang.id 
-                        ? 'bg-white/10 text-white shadow-xl border border-white/10' 
-                        : 'text-slate-500 hover:text-slate-300'
+                        ? 'bg-cyan-400 text-slate-950 shadow-xl border border-cyan-400/20' 
+                        : 'text-slate-400 hover:text-white'
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5" />
@@ -315,7 +315,7 @@ export default function ApiDocs({ searchQuery }) {
            <div className="relative group">
               <button 
                 onClick={() => copyCode(generateCode(selectedEndpoint, selectedLang))}
-                className="absolute top-6 right-6 p-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-white/10 z-20"
+                className="absolute top-6 right-6 p-3 bg-slate-950/60 backdrop-blur-xl border border-white/10 rounded-xl text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-white/10 z-20 cursor-pointer"
               >
                 {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
               </button>
@@ -343,14 +343,14 @@ export default function ApiDocs({ searchQuery }) {
            </div>
            
            {/* Footer */}
-           <div className="p-6 bg-white/5 border-t border-white/10 flex items-center justify-between">
+           <div className="p-6 bg-slate-950/20 border-t border-white/5 flex items-center justify-between">
               <div className="flex items-center gap-2">
                  <Shield className="w-3.5 h-3.5 text-cyan-400" />
-                 <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em]">End-to-End Secure Request</span>
+                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">End-to-End Secure Request</span>
               </div>
               <div className="flex items-center gap-2">
                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
-                 <span className="text-[8px] font-black text-emerald-500/70 uppercase tracking-[0.2em]">Server Live</span>
+                 <span className="text-[8px] font-black text-emerald-400/70 uppercase tracking-[0.2em]">Server Live</span>
               </div>
            </div>
         </div>

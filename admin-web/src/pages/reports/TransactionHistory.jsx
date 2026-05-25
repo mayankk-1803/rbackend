@@ -23,6 +23,7 @@ import { formatAmount, safeArray } from '../../utils/helpers';
 import { downloadFile } from '../../utils/downloadFile';
 import { InvoiceModal } from '../../components/InvoiceModal';
 import toast from 'react-hot-toast';
+import { useSocket } from '../../hooks/useSocket';
 
 
 const StatCard = ({ title, value, color, icon: Icon }) => (
@@ -60,6 +61,10 @@ export default function AdminTransactionHistory() {
   const [isExporting, setIsExporting] = useState(false);
   const [selectedTxn, setSelectedTxn] = useState(null);
   const [showInvoice, setShowInvoice] = useState(false);
+  const [retryingId, setRetryingId] = useState(null);
+  const [confirmRetryTxn, setConfirmRetryTxn] = useState(null);
+  const [refreshingTxnId, setRefreshingTxnId] = useState(null);
+  const { useSocketEvent } = useSocket();
 
   const fetchSummary = useCallback(async () => {
     console.log("[FETCH][SUMMARY] Triggered");
@@ -107,6 +112,108 @@ export default function AdminTransactionHistory() {
     fetchSummary();
   }, [fetchSummary]);
 
+  const handleSocketTransactionUpdate = useCallback((payload) => {
+    console.log("[SOCKET_ROW_UPDATE] Received realtime event:", payload);
+    const updatedTxnId = payload.transactionId || payload.txnId;
+    const nextStatus = payload.status;
+    const updatedTxnObj = payload.transaction;
+
+    if (!updatedTxnId) return;
+
+    setTransactions(prev => {
+      const existing = prev.find(t => t.id === updatedTxnId);
+      if (!existing) return prev;
+
+      const statusPriority = {
+        SUCCESS: 6,
+        REFUNDED: 5,
+        FAILED: 4,
+        PROCESSING: 3,
+        PENDING_REVIEW: 2,
+        PENDING: 1
+      };
+
+      const existingPriority = statusPriority[existing.status] || 0;
+      const nextPriority = statusPriority[nextStatus] || 0;
+
+      if (nextPriority < existingPriority) {
+        console.log(`[SOCKET_STALE_BLOCKED] Stale socket update blocked. Current: ${existing.status}, Incoming: ${nextStatus}`);
+        return prev;
+      }
+
+      if (existing.updatedAt && updatedTxnObj?.updatedAt) {
+        const existingTime = new Date(existing.updatedAt).getTime();
+        const incomingTime = new Date(updatedTxnObj.updatedAt).getTime();
+        if (incomingTime < existingTime) {
+          console.log(`[SOCKET_STALE_BLOCKED] Older update blocked. Current: ${existing.updatedAt}, Incoming: ${updatedTxnObj.updatedAt}`);
+          return prev;
+        }
+      }
+
+      console.log(`[SOCKET_ROW_UPDATE] Patching transaction #${updatedTxnId} status from ${existing.status} to ${nextStatus}`);
+      return prev.map(t => {
+        if (t.id === updatedTxnId) {
+          return {
+            ...t,
+            status: nextStatus,
+            providerRef: updatedTxnObj?.providerTxnId || payload.providerTxnId || t.providerRef,
+            providerTxnId: updatedTxnObj?.providerTxnId || payload.providerTxnId || t.providerTxnId,
+            cashback: updatedTxnObj?.cashback !== undefined ? updatedTxnObj.cashback : t.cashback,
+            refundStatus: updatedTxnObj?.refundStatus || t.refundStatus,
+            apiResponse: updatedTxnObj?.apiResponse || t.apiResponse,
+            updatedAt: updatedTxnObj?.updatedAt || new Date().toISOString()
+          };
+        }
+        return t;
+      });
+    });
+
+    fetchSummary();
+  }, [fetchSummary]);
+
+  useSocketEvent('recharge_queued', handleSocketTransactionUpdate);
+  useSocketEvent('recharge_processing', handleSocketTransactionUpdate);
+  useSocketEvent('recharge_success', handleSocketTransactionUpdate);
+  useSocketEvent('recharge_failed', handleSocketTransactionUpdate);
+  useSocketEvent('refund_completed', handleSocketTransactionUpdate);
+  useSocketEvent('transaction_updated', handleSocketTransactionUpdate);
+
+  const softRefresh = useCallback(async () => {
+    console.log("[UI_AUTO_REFRESH] Soft refreshing visible rows...");
+    try {
+      const queryParams = new URLSearchParams(filters).toString();
+      const { data } = await api.get(`/admin/reports/transactions?${queryParams}`);
+      const fetched = safeArray(data.data);
+      
+      setTransactions(prev => {
+        return prev.map(oldTxn => {
+          const fresh = fetched.find(f => f.id === oldTxn.id);
+          if (fresh) {
+            return {
+              ...oldTxn,
+              status: fresh.status,
+              providerRef: fresh.providerRef || fresh.providerTxnId || oldTxn.providerRef,
+              providerTxnId: fresh.providerTxnId || oldTxn.providerTxnId,
+              cashback: fresh.cashback,
+              refundStatus: fresh.refundStatus,
+              updatedAt: fresh.updatedAt
+            };
+          }
+          return oldTxn;
+        });
+      });
+    } catch (err) {
+      console.warn("[UI_AUTO_REFRESH] Soft refresh failed:", err);
+    }
+  }, [filters]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      softRefresh();
+    }, 60000);
+    return () => clearInterval(timer);
+  }, [softRefresh]);
+
   const handleExport = async () => {
     if (isExporting) return;
     setIsExporting(true);
@@ -121,21 +228,55 @@ export default function AdminTransactionHistory() {
     }
   };
 
+  const handleRefreshStatus = async (txnId) => {
+    if (refreshingTxnId === txnId) return;
+    setRefreshingTxnId(txnId);
+    console.log(`[MANUAL_REFRESH] Refresh requested for txn: ${txnId}`);
+    try {
+      const { data } = await api.get(`/recharge/${txnId}/refresh-status`);
+      if (data.success && data.transaction) {
+        toast.success("Status synced successfully");
+        setTransactions(prev =>
+          prev.map(txn =>
+            txn.id === data.transaction.id
+              ? { ...txn, ...data.transaction }
+              : txn
+          )
+        );
+        fetchSummary();
+      } else {
+        toast.error("Failed to sync status");
+      }
+    } catch (err) {
+      if (err.response && err.response.status === 429) {
+        toast.error("Rate limit: Please wait 10 seconds between refreshes.");
+      } else {
+        toast.error("Failed to sync status");
+      }
+    } finally {
+      setRefreshingTxnId(null);
+    }
+  };
 
     const handleRetry = async (txnId) => {
-      const toastId = toast.loading("Initiating recharge retry...");
+      if (retryingId) return;
+      setRetryingId(txnId);
+      const toastId = toast.loading("Recharge processing...");
       try {
         const { data } = await api.post(`/admin/retry/${txnId}`);
         if (data.success) {
-          toast.success(data.message || "Transaction re-queued", { id: toastId });
+          toast.success("Recharge processing", { id: toastId });
           console.log("[RETRY_REFRESH] Triggered");
           fetchTransactions(); 
           fetchSummary();
         } else {
-          toast.error(data.message || "Retry failed", { id: toastId });
+          toast.error("Recharge failed", { id: toastId });
         }
       } catch (err) {
-        toast.error(err.response?.data?.message || "Retry request failed", { id: toastId });
+        toast.error("Recharge failed", { id: toastId });
+      } finally {
+        setRetryingId(null);
+        setConfirmRetryTxn(null);
       }
     };
 
@@ -144,11 +285,21 @@ export default function AdminTransactionHistory() {
         SUCCESS: "bg-emerald-50 text-emerald-600 border-emerald-100",
         FAILED: "bg-rose-50 text-rose-600 border-rose-100",
         PENDING: "bg-amber-50 text-amber-600 border-amber-100",
+        PENDING_REVIEW: "bg-purple-50 text-purple-600 border-purple-100",
+        PROCESSING: "bg-cyan-50 text-cyan-600 border-cyan-100",
         REFUNDED: "bg-cyan-50 text-cyan-600 border-cyan-100"
+      };
+      const labels = {
+        PENDING_REVIEW: "Pending Review",
+        PROCESSING: "Processing",
+        SUCCESS: "Success",
+        FAILED: "Failed",
+        REFUNDED: "Refunded",
+        PENDING: "Pending"
       };
       return (
         <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${styles[status] || styles.PENDING}`}>
-          {status}
+          {labels[status] || status}
         </span>
       );
     };
@@ -209,9 +360,10 @@ export default function AdminTransactionHistory() {
               onChange={(e) => setFilters({...filters, status: e.target.value, page: 1})}
             >
               <option value="">All Statuses</option>
+              <option value="PENDING_REVIEW">Pending Review</option>
+              <option value="PROCESSING">Processing</option>
               <option value="SUCCESS">Success</option>
               <option value="FAILED">Failed</option>
-              <option value="PENDING">Pending</option>
               <option value="REFUNDED">Refunded</option>
             </select>
             <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 rounded-2xl px-4">
@@ -287,6 +439,16 @@ export default function AdminTransactionHistory() {
                       </td>
                       <td className="px-8 py-6 text-right">
                         <div className="flex justify-end gap-2">
+                          {!['SUCCESS', 'FAILED', 'REFUNDED'].includes(tx.status) && (
+                            <button 
+                              onClick={() => handleRefreshStatus(tx.id)}
+                              disabled={refreshingTxnId === tx.id}
+                              className="p-2 hover:bg-white border border-transparent hover:border-slate-200 rounded-xl text-slate-400 hover:text-indigo-600 transition-all disabled:opacity-50" 
+                              title="Refresh Status"
+                            >
+                              <RefreshCw className={`w-4 h-4 ${refreshingTxnId === tx.id ? "animate-spin" : ""}`} />
+                            </button>
+                          )}
                           <button 
                             onClick={() => { setSelectedTxn(tx); setShowInvoice(true); }}
                             className="p-2 hover:bg-white border border-transparent hover:border-slate-200 rounded-xl text-slate-400 hover:text-indigo-600 transition-all" 
@@ -294,13 +456,16 @@ export default function AdminTransactionHistory() {
                           >
                             <Printer className="w-4 h-4" />
                           </button>
-                          <button 
-                            onClick={() => handleRetry(tx.id)}
-                            className="p-2 hover:bg-white border border-transparent hover:border-slate-200 rounded-xl text-slate-400 hover:text-rose-600 transition-all" 
-                            title="Retry/Reconcile"
-                          >
-                            <RefreshCw className="w-4 h-4" />
-                          </button>
+                          {(tx.status === "PENDING_REVIEW" || tx.status === "FAILED") && (
+                            <button 
+                              onClick={() => setConfirmRetryTxn(tx)}
+                              disabled={retryingId === tx.id}
+                              className="p-2 hover:bg-white border border-transparent hover:border-slate-200 rounded-xl text-slate-400 hover:text-rose-600 transition-all disabled:opacity-50" 
+                              title="Retry Recharge"
+                            >
+                              <RefreshCw className={`w-4 h-4 ${retryingId === tx.id ? "animate-spin" : ""}`} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -343,6 +508,46 @@ export default function AdminTransactionHistory() {
         onClose={() => setShowInvoice(false)} 
         transaction={selectedTxn} 
       />
+
+      <AnimatePresence>
+        {confirmRetryTxn && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: 20 }}
+              className="glass-modal border border-[var(--glass-border)] rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5"
+            >
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[0.25em] text-[var(--color-accent)]">Admin Retry</p>
+                <h3 className="text-lg font-black uppercase tracking-tight text-[var(--text-color)]">Retry Recharge</h3>
+                <p className="text-[10px] text-[var(--text-secondary)] uppercase tracking-widest mt-2">
+                  This will execute the real recharge API for transaction #{confirmRetryTxn.id}.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-[var(--glass-border)] bg-[var(--glass-button-bg)] p-4 text-[10px] uppercase tracking-widest text-[var(--text-secondary)] space-y-2">
+                <div className="flex justify-between"><span>Mobile</span><strong>{confirmRetryTxn.mobile}</strong></div>
+                <div className="flex justify-between"><span>Amount</span><strong>INR {formatAmount(confirmRetryTxn.amount)}</strong></div>
+                <div className="flex justify-between"><span>Status</span><strong>{confirmRetryTxn.status}</strong></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <button onClick={() => setConfirmRetryTxn(null)} className="py-3 rounded-xl border border-[var(--glass-border)] bg-[var(--glass-button-bg)] text-[var(--text-color)] text-[9px] font-black uppercase tracking-widest">
+                  Cancel
+                </button>
+                <button onClick={() => handleRetry(confirmRetryTxn.id)} disabled={retryingId === confirmRetryTxn.id} className="py-3 rounded-xl bg-[var(--color-accent)] text-white text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-60">
+                  <RefreshCw className={`w-4 h-4 ${retryingId === confirmRetryTxn.id ? "animate-spin" : ""}`} />
+                  Retry
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

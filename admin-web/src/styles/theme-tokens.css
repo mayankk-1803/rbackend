@@ -1,0 +1,150 @@
+:root {
+  /* ==========================================
+     LIGHT MODE DESIGN SYSTEM (APPLE + STRIPE + NOTION INSPIRED)
+     ========================================== */
+  /* BACKGROUND LAYERS */
+  --bg-primary: #f8fbff;
+  --bg-secondary: #e8eff9;
+  --bg-tertiary: #dbe6f4;
+
+  /* TEXT COLOR HIERARCHY */
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+
+  /* BORDERS */
+  --border-primary: rgba(15, 23, 42, 0.26);
+  --border-soft: rgba(30, 41, 59, 0.24);
+
+  /* SURFACES */
+  --card-bg: rgba(255, 255, 255, 0.97);
+  --glass-bg: rgba(248, 251, 255, 0.86);
+  --navbar-bg: rgba(248, 251, 255, 0.9);
+
+  /* ACCENTS */
+  --accent-cyan: #1d4ed8;
+  --accent-purple: #4f46e5;
+  --accent-pink: #ff4081;
+
+  /* SHADOWS */
+  --shadow-soft: 0 10px 24px rgba(15, 23, 42, 0.05), 0 1px 0 rgba(255, 255, 255, 0.85) inset;
+  --shadow-medium: 0 22px 58px rgba(26, 39, 64, 0.16), 0 8px 22px rgba(80, 101, 138, 0.08);
+  --shadow-glow: 0 12px 30px rgba(29, 78, 216, 0.08), 0 4px 12px rgba(15, 37, 71, 0.04);
+
+  /* ==========================================
+     BACKWARD COMPATIBILITY VARIABLES & GRADIENTS
+     ========================================== */
+  --bg-color: var(--bg-secondary);
+  --bg-gradient: radial-gradient(circle at 8% 12%, rgba(79, 70, 229, 0.02) 0%, transparent 34%),
+                 radial-gradient(circle at 92% 18%, rgba(29, 78, 216, 0.02) 0%, transparent 32%),
+                 radial-gradient(circle at 62% 88%, rgba(79, 70, 229, 0.02) 0%, transparent 38%),
+                 linear-gradient(135deg, #dfeafb 0%, #f8fbff 46%, #e6edf8 100%);
+  --text-color: var(--text-primary);
+  
+  --color-primary: var(--accent-purple);
+  --color-primary-glow: rgba(79, 70, 229, 0.18);
+  --color-accent: var(--accent-cyan);
+  --color-accent-glow: rgba(29, 78, 216, 0.18);
+  
+  --glass-card-bg: var(--card-bg);
+  --glass-navbar-bg: var(--navbar-bg);
+  --glass-modal-bg: rgba(255, 255, 255, 0.97);
+  --glass-button-bg: rgba(30, 41, 59, 0.07);
+  --glass-input-bg: rgba(255, 255, 255, 0.88);
+  
+  --glass-border: var(--border-soft);
+  --glass-border-hover: rgba(29, 78, 216, 0.34);
+  --glass-shadow: var(--shadow-medium);
+  
+  --scrollbar-track: rgba(219, 230, 244, 0.8);
+  --scrollbar-thumb: rgba(79, 70, 229, 0.28);
+  
+  --glow-intensity: 0.2;
+  --neural-grid-color: rgba(15, 23, 42, 0.028);
+  
+  --card-border-gradient: linear-gradient(to bottom right, rgba(15, 23, 42, 0.15), rgba(255, 255, 255, 0.5));
+  --card-border-hover-gradient: linear-gradient(to bottom right, rgba(79, 70, 229, 0.36), rgba(29, 78, 216, 0.34));
+
+  /* ADMIN LIGHT THEME SEMANTICS */
+  --admin-shell-bg: radial-gradient(circle at 0% 0%, rgba(29, 78, 216, 0.025) 0%, transparent 40%),
+                     radial-gradient(circle at 100% 0%, rgba(29, 78, 216, 0.025) 0%, transparent 40%),
+                     radial-gradient(circle at 0% 100%, rgba(29, 78, 216, 0.025) 0%, transparent 40%),
+                     radial-gradient(circle at 100% 100%, rgba(29, 78, 216, 0.025) 0%, transparent 40%),
+                     linear-gradient(180deg, #edf3fb 0%, #f6f9fc 100%);
+  --admin-surface: rgba(255, 255, 255, 0.97);
+  --admin-surface-strong: rgba(255, 255, 255, 0.98);
+  --admin-surface-muted: rgba(232, 240, 251, 0.88);
+  --admin-sidebar-bg: linear-gradient(180deg, rgba(247, 250, 255, 0.95), rgba(231, 239, 250, 0.92));
+  --admin-navbar-bg: rgba(248, 251, 255, 0.92);
+  --admin-table-header-bg: rgba(222, 232, 246, 0.92);
+  --admin-table-row-hover: rgba(29, 78, 216, 0.075);
+  --admin-input-bg: rgba(255, 255, 255, 0.92);
+  --admin-focus-ring: rgba(29, 78, 216, 0.16);
+}
+
+:root.dark {
+  /* ==========================================
+     DARK MODE DESIGN SYSTEM (CYBERPUNK / GLASSMORPHIC)
+     ========================================== */
+  /* BACKGROUND LAYERS */
+  --bg-primary: #030012;
+  --bg-secondary: #050816;
+  --bg-tertiary: #0b0f2a;
+
+  /* TEXT COLOR HIERARCHY */
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+
+  /* BORDERS */
+  --border-primary: rgba(255, 255, 255, 0.12);
+  --border-soft: rgba(255, 255, 255, 0.08);
+
+  /* SURFACES */
+  --card-bg: rgba(255, 255, 255, 0.03);
+  --glass-bg: rgba(10, 10, 20, 0.5);
+  --navbar-bg: rgba(3, 0, 18, 0.55);
+
+  /* ACCENTS */
+  --accent-cyan: #00d9ff;
+  --accent-purple: #7b61ff;
+  --accent-pink: #ff4d6d;
+
+  /* SHADOWS */
+  --shadow-soft: 0 4px 12px 0 rgba(0, 0, 0, 0.2);
+  --shadow-medium: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 25px rgba(0, 217, 255, 0.15);
+
+  /* ==========================================
+     BACKWARD COMPATIBILITY VARIABLES & GRADIENTS
+     ========================================== */
+  --bg-color: var(--bg-primary);
+  --bg-gradient: radial-gradient(circle at 10% 20%, rgba(123, 97, 255, 0.06) 0%, transparent 45%),
+                 radial-gradient(circle at 90% 80%, rgba(0, 217, 255, 0.06) 0%, transparent 45%),
+                 radial-gradient(circle at 50% 50%, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+  --text-color: var(--text-primary);
+  
+  --color-primary: var(--accent-purple);
+  --color-primary-glow: rgba(123, 97, 255, 0.5);
+  --color-accent: var(--accent-cyan);
+  --color-accent-glow: rgba(0, 217, 255, 0.5);
+  
+  --glass-card-bg: var(--card-bg);
+  --glass-navbar-bg: var(--navbar-bg);
+  --glass-modal-bg: rgba(8, 8, 16, 0.85);
+  --glass-button-bg: rgba(255, 255, 255, 0.05);
+  --glass-input-bg: rgba(0, 0, 0, 0.3);
+  
+  --glass-border: var(--border-soft);
+  --glass-border-hover: rgba(6, 182, 212, 0.4);
+  --glass-shadow: var(--shadow-medium);
+  
+  --scrollbar-track: rgba(3, 0, 18, 0.6);
+  --scrollbar-thumb: rgba(6, 182, 212, 0.2);
+  
+  --glow-intensity: 0.5;
+  --neural-grid-color: rgba(255, 255, 255, 0.015);
+  
+  --card-border-gradient: linear-gradient(to bottom right, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
+  --card-border-hover-gradient: linear-gradient(to bottom right, rgba(0, 217, 255, 0.4), rgba(123, 97, 255, 0.4));
+}

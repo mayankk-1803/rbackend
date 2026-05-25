@@ -138,7 +138,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center p-4 relative overflow-hidden font-['Inter']">
+    <div className="min-h-screen bg-[var(--bg-color)] flex flex-col justify-center items-center p-4 relative overflow-hidden font-['Inter'] transition-colors duration-300">
       {/* Background Orbs */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
         <div className="absolute -top-40 -left-40 w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-[140px]"></div>
@@ -150,31 +150,31 @@ export default function Login() {
         animate={{ opacity: 1, scale: 1 }}
         className="max-w-md w-full relative z-10"
       >
-        <div className="bg-white/70 backdrop-blur-2xl p-8 border border-slate-200 rounded-[2.5rem] shadow-xl">
+        <div className="glass-card p-8 rounded-[2.5rem] shadow-[var(--glass-shadow)] border border-[var(--glass-border)] bg-[var(--glass-card-bg)]">
           <div className="text-center mb-8">
-            <div className="inline-flex p-3 rounded-2xl bg-purple-50 border border-purple-100 mb-4">
-              <ShieldCheck className="w-6 h-6 text-purple-600" />
+            <div className="inline-flex p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 mb-4">
+              <ShieldCheck className="w-6 h-6 text-cyan-400" />
             </div>
-            <h2 className="text-3xl font-black text-slate-900 tracking-tight italic uppercase">
+            <h2 className="text-3xl font-black text-[var(--text-color)] tracking-tight italic uppercase">
               SECURE LOGIN
             </h2>
-            <p className="text-slate-500 text-sm mt-2">Access your Dizipay account</p>
+            <p className="text-[var(--text-secondary)] text-sm mt-2">Access your Dizipay account</p>
           </div>
 
           {/* Auth Method Tabs */}
-          <div className="flex p-1 bg-slate-100 rounded-2xl mb-8">
+          <div className="flex p-1 bg-[var(--bg-secondary)]/60 rounded-2xl mb-8 border border-[var(--glass-border)]">
             <button
               onClick={() => { setAuthMethod('phone'); setConfirmationResult(null); }}
-              className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${
-                authMethod === 'phone' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer ${
+                authMethod === 'phone' ? 'bg-cyan-500/10 border border-cyan-500/20 text-cyan-555 text-[var(--color-accent)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
               }`}
             >
               Mobile OTP
             </button>
             <button
               onClick={() => setAuthMethod('email')}
-              className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${
-                authMethod === 'email' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer ${
+                authMethod === 'email' ? 'bg-cyan-500/10 border border-cyan-500/20 text-cyan-555 text-[var(--color-accent)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
               }`}
             >
               Email Password
@@ -193,9 +193,9 @@ export default function Login() {
                 {!confirmationResult ? (
                   <div className="space-y-6">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Phone Number</label>
+                      <label className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] ml-1">Phone Number</label>
                       <div className="flex gap-2">
-                        <div className="flex-none w-16 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-center text-sm font-bold text-slate-400">
+                        <div className="flex-none w-16 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl flex items-center justify-center text-sm font-bold text-[var(--text-secondary)]">
                           +91
                         </div>
                         <div className="flex-1 relative">
@@ -203,17 +203,17 @@ export default function Login() {
                             type="tel"
                             value={phone}
                             onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                            className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-medium outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 transition-all"
+                            className="w-full pl-4 pr-10 py-4 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl text-[var(--text-color)] font-medium outline-none focus:ring-2 focus:ring-cyan-500/10 focus:border-cyan-400 transition-all placeholder:text-[var(--text-muted)]"
                             placeholder="98********"
                           />
-                          <Smartphone className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                          <Smartphone className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
                         </div>
                       </div>
                     </div>
                     <button
                       onClick={handleSendOTP}
                       disabled={loading || phone.length < 10}
-                      className="w-full py-4 bg-slate-900 text-white rounded-2xl text-sm font-black tracking-widest shadow-lg hover:bg-black transition-all disabled:opacity-50 flex items-center justify-center gap-2 group"
+                      className="w-full py-4 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white rounded-2xl text-sm font-black tracking-widest shadow-lg shadow-cyan-500/20 hover:shadow-cyan-400/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2 group cursor-pointer"
                     >
                       {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                         <>
@@ -227,23 +227,23 @@ export default function Login() {
                   <form onSubmit={handleVerifyAndLogin} className="space-y-6">
                     <div className="space-y-2">
                       <div className="flex justify-between items-center px-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Verification</label>
-                        <button type="button" onClick={() => setConfirmationResult(null)} className="text-[10px] font-bold text-purple-600">CHANGE</button>
+                        <label className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em]">Verification</label>
+                        <button type="button" onClick={() => setConfirmationResult(null)} className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300 cursor-pointer">CHANGE</button>
                       </div>
-                      <OTPInput value={otpCode} onChange={setOtpCode} length={6} color="purple" />
+                      <OTPInput value={otpCode} onChange={setOtpCode} length={6} color="cyan" />
                     </div>
                     <button
                       type="submit"
                       disabled={loading || otpCode.length < 6}
-                      className="w-full py-4 bg-slate-900 text-white rounded-2xl text-sm font-black tracking-widest hover:bg-black transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                      className="w-full py-4 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white rounded-2xl text-sm font-black tracking-widest shadow-lg shadow-cyan-500/20 hover:shadow-cyan-400/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
                     >
                       {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'VERIFY & LOGIN'}
                     </button>
                     <div className="text-center">
                       {timer > 0 ? (
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Resend in {timer}s</p>
+                        <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Resend in {timer}s</p>
                       ) : (
-                        <button type="button" onClick={handleSendOTP} className="text-[10px] font-black text-purple-600 uppercase tracking-widest">RESEND OTP</button>
+                        <button type="button" onClick={handleSendOTP} className="text-[10px] font-black text-cyan-400 hover:text-cyan-300 uppercase tracking-widest cursor-pointer">RESEND OTP</button>
                       )}
                     </div>
                   </form>
@@ -259,40 +259,40 @@ export default function Login() {
                 className="space-y-6"
               >
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Email Address</label>
+                  <label className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] ml-1">Email Address</label>
                   <div className="relative">
                     <input
                       type="email"
                       value={email}
                       onChange={e => setEmail(e.target.value)}
-                      className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-medium outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 transition-all"
+                      className="w-full pl-12 pr-4 py-4 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl text-[var(--text-color)] font-medium outline-none focus:ring-2 focus:ring-cyan-500/10 focus:border-cyan-400 transition-all placeholder:text-[var(--text-muted)]"
                       placeholder="name@example.com"
                     />
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-muted)]" />
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <div className="flex justify-between items-center px-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Password</label>
-                    <Link to="/forgot-password" size="sm" className="text-[10px] font-bold text-purple-600">FORGOT?</Link>
+                    <label className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em]">Password</label>
+                    <Link to="/forgot-password" size="sm" className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300">FORGOT?</Link>
                   </div>
                   <div className="relative">
                     <input
                       type="password"
                       value={password}
                       onChange={e => setPassword(e.target.value)}
-                      className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-medium outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 transition-all"
+                      className="w-full pl-12 pr-4 py-4 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl text-[var(--text-color)] font-medium outline-none focus:ring-2 focus:ring-cyan-500/10 focus:border-cyan-400 transition-all placeholder:text-[var(--text-muted)]"
                       placeholder="••••••••"
                     />
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-muted)]" />
                   </div>
                 </div>
 
                 <button
                   type="submit"
                   disabled={loading || !email || !password}
-                  className="w-full py-4 bg-slate-900 text-white rounded-2xl text-sm font-black tracking-widest hover:bg-black transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full py-4 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white rounded-2xl text-sm font-black tracking-widest shadow-lg shadow-cyan-500/20 hover:shadow-cyan-400/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                     <>
@@ -305,13 +305,13 @@ export default function Login() {
             )}
           </AnimatePresence>
 
-          <div className="mt-8 pt-8 border-t border-slate-100 text-center">
-            <span className="text-slate-500 text-sm">New to Dizipay? </span>
-            <Link to="/register" className="text-purple-600 font-bold hover:underline underline-offset-4">Create Account</Link>
+          <div className="mt-8 pt-8 border-t border-[var(--glass-border)] text-center">
+            <span className="text-[var(--text-secondary)] text-sm">New to Dizipay? </span>
+            <Link to="/register" className="text-cyan-400 font-bold hover:underline underline-offset-4">Create Account</Link>
           </div>
         </div>
         
-        <p className="mt-8 text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">
+        <p className="mt-8 text-center text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.3em]">
           Dizipay Security Infrastructure v2.0
         </p>
       </motion.div>

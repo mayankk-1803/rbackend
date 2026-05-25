@@ -1,61 +1,864 @@
 @import "tailwindcss";
+@import "./styles/theme-tokens.css";
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
-/* Base Styles */
+/* Typography & Base Configuration */
 :root {
-  background-color: #f8fafc;
-  color: #0f172a;
+  --font-inter: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-space: 'Space Grotesk', sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-inter);
   min-height: 100vh;
-  background: 
-    radial-gradient(circle at 20% 20%, rgba(6, 182, 212, 0.08) 0%, transparent 40%),
-    radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 40%),
-    #f8fafc;
+  background: var(--bg-gradient);
+  color: var(--text-color);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+img, svg, video, canvas {
+  max-width: 100%;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-space);
+  letter-spacing: -0.02em;
 }
 
 #root {
   min-height: 100vh;
 }
 
+/* Glassmorphism Design System */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+}
+
+.glass-card {
+  background: var(--glass-card-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-navbar {
+  background: var(--glass-navbar-bg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid var(--glass-border);
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+.glass-modal {
+  background: var(--glass-modal-bg);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+.glass-button {
+  background: var(--glass-button-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  color: var(--text-color);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--glass-button-bg), var(--color-accent) 12%);
+  border-color: var(--glass-border-hover);
+  color: var(--text-color);
+  box-shadow: 0 0 20px var(--color-accent-glow);
+}
+
+.glass-input {
+  background: var(--glass-input-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 0.75rem;
+  color: var(--text-color);
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.glass-input:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 15px var(--color-accent-glow);
+  background: var(--glass-input-bg);
+}
+
+/* Accent Glows */
+.cyan-glow {
+  text-shadow: 0 0 10px color-mix(in srgb, var(--color-accent), transparent 68%), 0 0 20px var(--color-accent-glow);
+}
+
+.purple-glow {
+  text-shadow: 0 0 10px color-mix(in srgb, var(--color-primary), transparent 68%), 0 0 20px var(--color-primary-glow);
+}
+
+/* Ambient Neural Grid Layer */
+.neural-grid {
+  background-image: 
+    linear-gradient(var(--neural-grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--neural-grid-color) 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-position: center center;
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.01);
+  background: var(--scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--scrollbar-thumb);
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--color-accent);
 }
 
-/* Toast Modernization */
-.hot-toast-cyber {
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  color: #0f172a;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-size: 10px;
-  padding: 1rem 1.5rem;
-  border-radius: 1rem;
-  box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.1);
+/* Shimmer Skeletal Loader */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
+.shimmer-element {
+  background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.gpu-accelerated {
+  transform: translateZ(0);
+  will-change: transform, opacity;
+}
+
+/* Premium Border Gradient Accent */
+.gradient-border-card {
+  position: relative;
+  background: var(--glass-card-bg);
+  border-radius: 1.5rem;
+}
+
+.gradient-border-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 1.5rem;
+  padding: 1px;
+  background: var(--card-border-gradient);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+  transition: all 0.5s ease;
+}
+
+.gradient-border-card:hover::before {
+  background: var(--card-border-hover-gradient);
+}
+
+:root.light {
+  color-scheme: light;
+}
+
+:root.dark {
+  color-scheme: dark;
+}
+
+:root.light [class*="bg-slate-950"],
+:root.light [class*="bg-slate-900"] {
+  background-color: var(--glass-card-bg) !important;
+  color: var(--text-color) !important;
+}
+
+:root.light [class*="bg-white/5"],
+:root.light [class*="bg-white/10"] {
+  background-color: rgba(15, 23, 42, 0.04) !important;
+}
+
+:root.light [class*="border-white/"] {
+  border-color: var(--glass-border) !important;
+}
+
+:root.light [class*="text-slate-400"],
+:root.light [class*="text-slate-500"],
+:root.light [class*="text-slate-600"] {
+  color: var(--text-muted) !important;
+}
+
+:root.light .shadow-2xl {
+  box-shadow: var(--shadow-medium) !important;
+}
+
+:root.light .cyan-glow,
+:root.light .purple-glow,
+:root.light .emerald-glow {
+  text-shadow: none;
+}
+
+/* Admin light theme polish: scoped to the authenticated admin shell so dark mode stays untouched. */
+:root.light .admin-shell {
+  background: var(--admin-shell-bg) !important;
+}
+
+:root.light .admin-shell .dashboard-ambient-layer,
+:root.light .admin-shell .ambient-blob {
+  display: none !important;
+  opacity: 0 !important;
+}
+
+/* GLOBAL CARD SYSTEM */
+:root.light .admin-shell .glass-card,
+:root.light .admin-shell .glass-panel,
+:root.light .admin-shell .gradient-border-card {
+  background-color: rgba(255, 255, 255, 0.97) !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  border-radius: 24px !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05) !important;
+  transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease, background-color 200ms ease !important;
+}
+
+:root.light .admin-shell .glass-card:hover,
+:root.light .admin-shell .gradient-border-card:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+:root.light .admin-shell .glass-panel {
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+}
+
+:root.light .admin-shell .glass-card {
+  backdrop-filter: blur(10px) saturate(118%);
+  -webkit-backdrop-filter: blur(10px) saturate(118%);
+}
+
+:root.light .admin-shell .glass-modal {
+  background: var(--glass-modal-bg) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  box-shadow: var(--shadow-medium) !important;
+}
+
+/* SIDEBAR & NAV BAR */
+:root.light .admin-shell aside {
+  background: var(--admin-sidebar-bg) !important;
+  box-shadow: 16px 0 48px rgba(29, 43, 70, 0.04), inset -1px 0 rgba(15, 23, 42, 0.08) !important;
+  border-right: 1px solid rgba(15, 23, 42, 0.08) !important;
+}
+
+:root.light .admin-shell aside .h-20 {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08) !important;
+}
+
+/* Logo container style: linear-gradient(135deg, #f8fafc, #e2e8f0) background, border rgba(15, 23, 42, 0.08), remove shadow and neon/cyan overlays. */
+:root.light .admin-shell aside .h-20 .w-10.h-10 {
+  background: linear-gradient(135deg, #f8fafc, #e2e8f0) !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  box-shadow: none !important;
+}
+
+:root.light .admin-shell aside .h-20 .w-10.h-10 svg {
+  color: #1d4ed8 !important;
+  animation: none !important;
+}
+
+:root.light .admin-shell aside .text-shadow-glow {
+  text-shadow: none !important;
+  color: #1d4ed8 !important;
+}
+
+:root.light .admin-shell header.sticky,
+:root.light .admin-shell .glass-navbar {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05) !important;
+  backdrop-filter: blur(16px) saturate(125%);
+  -webkit-backdrop-filter: blur(16px) saturate(125%);
+}
+
+/* ACTIVE TAB HIGHLIGHT */
+:root.light .admin-shell nav a {
+  border: 1px solid transparent;
+  transition: all 200ms ease !important;
+}
+
+:root.light .admin-shell nav a:hover:not([aria-current="page"]) {
+  background-color: rgba(29, 78, 216, 0.04) !important;
+  border-color: rgba(15, 23, 42, 0.06) !important;
+  color: #0f172a !important;
+}
+
+:root.light .admin-shell nav a[aria-current="page"],
+:root.light .admin-shell nav a[href].bg-\[var\(--color-primary-glow\)\] {
+  background: rgba(29, 78, 216, 0.10) !important;
+  color: #1d4ed8 !important;
+  border: 1px solid rgba(29, 78, 216, 0.18) !important;
+  box-shadow: none !important;
+}
+
+:root.light .admin-shell nav a[aria-current="page"] svg,
+:root.light .admin-shell nav a[href].bg-\[var\(--color-primary-glow\)\] svg {
+  color: #1d4ed8 !important;
+}
+
+/* ACTIVE TOP BAR CONTROLS */
+:root.light .admin-shell .hidden.lg\:flex.items-center.bg-\[var\(--color-primary-glow\)\] {
+  background: rgba(29, 78, 216, 0.10) !important;
+  border: 1px solid rgba(29, 78, 216, 0.18) !important;
+  color: #1d4ed8 !important;
+}
+
+:root.light .admin-shell .hidden.lg\:flex.items-center.bg-\[var\(--color-primary-glow\)\] span {
+  color: #1d4ed8 !important;
+}
+
+:root.light .admin-shell .w-8.h-8.rounded-xl.bg-gradient-to-br,
+:root.light .admin-shell .w-10.h-10.rounded-xl.bg-gradient-to-br {
+  background: linear-gradient(135deg, #f8fafc, #e2e8f0) !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  box-shadow: none !important;
+}
+
+:root.light .admin-shell .w-8.h-8.rounded-xl.bg-gradient-to-br svg,
+:root.light .admin-shell .w-10.h-10.rounded-xl.bg-gradient-to-br svg {
+  color: #334155 !important;
+}
+
+/* HARCODED BG-SLATE-900 / PERFORMANCE / SIMULATOR OVERRIDES */
+:root.light .admin-shell .bg-slate-900 {
+  background: linear-gradient(180deg, #ffffff, #eef4ff) !important;
+  color: #0f172a !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05) !important;
+}
+
+:root.light .admin-shell .bg-slate-900 .text-white,
+:root.light .admin-shell .bg-slate-900 h3,
+:root.light .admin-shell .bg-slate-900 span {
+  color: #0f172a !important;
+}
+
+:root.light .admin-shell .bg-slate-900 .text-slate-400,
+:root.light .admin-shell .bg-slate-900 label {
+  color: #64748b !important;
+}
+
+:root.light .admin-shell .bg-slate-900 input {
+  background-color: #ffffff !important;
+  border: 1px solid rgba(15, 23, 42, 0.10) !important;
+  color: #0f172a !important;
+}
+
+:root.light .admin-shell .bg-slate-900 input:focus {
+  border-color: #1d4ed8 !important;
+  box-shadow: 0 0 0 4px rgba(29, 78, 216, 0.12) !important;
+}
+
+:root.light .admin-shell .bg-slate-900 .bg-white\/10 {
+  background: linear-gradient(135deg, #f8fafc, #e2e8f0) !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  box-shadow: none !important;
+}
+
+:root.light .admin-shell .bg-slate-900 .bg-white\/10 svg {
+  color: #1d4ed8 !important;
+}
+
+:root.light .admin-shell .bg-slate-900 .bg-white\/5 {
+  background: #ffffff !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03) !important;
+}
+
+:root.light .admin-shell .bg-slate-900 .bg-white\/5 * {
+  color: #0f172a !important;
+}
+
+:root.light .admin-shell .bg-slate-900 .text-purple-400 {
+  color: #1d4ed8 !important;
+}
+
+:root.light .admin-shell .bg-slate-900 .text-emerald-400 {
+  color: #10b981 !important;
+}
+
+:root.light .admin-shell .bg-slate-900 [class*="bg-purple-600/10"],
+:root.light .admin-shell .bg-slate-900 [class*="bg-purple-500/10"],
+:root.light .admin-shell .bg-slate-900 [class*="blur-"] {
+  display: none !important;
+  opacity: 0 !important;
+}
+
+/* TYPOGRAPHY SYSTEM */
+:root.light .admin-shell h1,
+:root.light .admin-shell h2,
+:root.light .admin-shell h3,
+:root.light .admin-shell h4,
+:root.light .admin-shell h5,
+:root.light .admin-shell h6 {
+  color: #0f172a !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.015em !important;
+}
+
+:root.light .admin-shell p,
+:root.light .admin-shell span,
+:root.light .admin-shell label {
+  color: #334155;
+  letter-spacing: normal !important;
+}
+
+:root.light .admin-shell .font-mono,
+:root.light .admin-shell [class*="font-mono"] {
+  font-weight: 700 !important;
+}
+
+:root.light .admin-shell [class*="text-cyan"],
+:root.light .admin-shell [class*="text-purple"],
+:root.light .admin-shell [class*="text-indigo"] {
+  color: var(--color-accent) !important;
+}
+
+:root.light .admin-shell [class*="text-emerald"],
+:root.light .admin-shell [class*="text-green"] {
+  color: #10b981 !important;
+}
+
+:root.light .admin-shell [class*="text-rose"],
+:root.light .admin-shell [class*="text-red"] {
+  color: #ef4444 !important;
+}
+
+:root.light .admin-shell [class*="text-amber"],
+:root.light .admin-shell [class*="text-orange"] {
+  color: #f59e0b !important;
+}
+
+/* DASHBOARD STATS WIDE TEXT GRADIENTS FORCE TO SOLID */
+:root.light .admin-shell .glass-card p span {
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  color: #0f172a !important;
+  text-shadow: none !important;
+}
+
+/* SUBTLE STATUS CHIPS */
+:root.light .admin-shell [class*="bg-cyan-"][class*="/"],
+:root.light .admin-shell [class*="bg-purple-"][class*="/"],
+:root.light .admin-shell [class*="bg-indigo-"][class*="/"],
+:root.light .admin-shell [class*="bg-blue-"][class*="/"] {
+  background-color: rgba(29, 78, 216, 0.08) !important;
+}
+
+:root.light .admin-shell [class*="bg-emerald-"][class*="/"],
+:root.light .admin-shell [class*="bg-green-"][class*="/"] {
+  background-color: rgba(16, 185, 129, 0.08) !important;
+}
+
+:root.light .admin-shell [class*="bg-rose-"][class*="/"],
+:root.light .admin-shell [class*="bg-red-"][class*="/"] {
+  background-color: rgba(239, 68, 68, 0.08) !important;
+}
+
+:root.light .admin-shell [class*="bg-amber-"][class*="/"],
+:root.light .admin-shell [class*="bg-orange-"][class*="/"] {
+  background-color: rgba(245, 158, 11, 0.08) !important;
+}
+
+:root.light .admin-shell [class*="border-cyan"],
+:root.light .admin-shell [class*="border-purple"],
+:root.light .admin-shell [class*="border-indigo"],
+:root.light .admin-shell [class*="border-blue"] {
+  border-color: rgba(29, 78, 216, 0.18) !important;
+}
+
+:root.light .admin-shell [class*="border-emerald"],
+:root.light .admin-shell [class*="border-green"] {
+  border-color: rgba(16, 185, 129, 0.18) !important;
+}
+
+:root.light .admin-shell [class*="border-rose"],
+:root.light .admin-shell [class*="border-red"] {
+  border-color: rgba(239, 68, 68, 0.18) !important;
+}
+
+:root.light .admin-shell [class*="border-amber"],
+:root.light .admin-shell [class*="border-orange"] {
+  border-color: rgba(245, 158, 11, 0.18) !important;
+}
+
+:root.light .admin-shell [class*="shadow-cyan"],
+:root.light .admin-shell [class*="shadow-purple"],
+:root.light .admin-shell [class*="shadow-indigo"],
+:root.light .admin-shell [class*="shadow-emerald"],
+:root.light .admin-shell [class*="shadow-rose"],
+:root.light .admin-shell [class*="shadow-amber"],
+:root.light .admin-shell [class*="shadow-[0_0"] {
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05) !important;
+}
+
+/* INPUTS & SELECTION */
+:root.light .admin-shell input,
+:root.light .admin-shell select,
+:root.light .admin-shell textarea,
+:root.light .admin-shell .glass-input {
+  background-color: var(--admin-input-bg) !important;
+  border: 1px solid rgba(15, 23, 42, 0.10) !important;
+  color: var(--text-primary) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), 0 1px 2px rgba(31, 45, 71, 0.04);
+}
+
+:root.light .admin-shell input::placeholder,
+:root.light .admin-shell textarea::placeholder {
+  color: rgba(64, 83, 111, 0.72) !important;
+}
+
+:root.light .admin-shell input:focus,
+:root.light .admin-shell select:focus,
+:root.light .admin-shell textarea:focus,
+:root.light .admin-shell .glass-input:focus {
+  border-color: var(--color-accent) !important;
+  box-shadow: 0 0 0 4px var(--admin-focus-ring), inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+}
+
+/* TABLES & DATA POLISH */
+:root.light .admin-shell table {
+  color: var(--text-secondary);
+}
+
+:root.light .admin-shell thead tr {
+  background: var(--admin-table-header-bg) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+:root.light .admin-shell tbody {
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+:root.light .admin-shell tbody tr {
+  background-color: #ffffff !important;
+}
+
+:root.light .admin-shell tbody tr:hover {
+  background-color: var(--admin-table-row-hover) !important;
+}
+
+:root.light .admin-shell table th,
+:root.light .admin-shell table td {
+  padding: 10px 16px !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+:root.light .admin-shell table th {
+  color: var(--text-secondary) !important;
+}
+
+:root.light .admin-shell .divide-slate-50 > :not([hidden]) ~ :not([hidden]),
+:root.light .admin-shell .divide-y > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+/* BUTTON SYSTEM */
+:root.light .admin-shell button.bg-slate-900,
+:root.light .admin-shell button.bg-purple-600,
+:root.light .admin-shell button.bg-purple-500,
+:root.light .admin-shell button.bg-gradient-to-tr,
+:root.light .admin-shell button.bg-cyan-500,
+:root.light .admin-shell button[type="submit"] {
+  background: linear-gradient(135deg, #1d4ed8 0%, #0f2547 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 10px 20px rgba(29, 78, 216, 0.12) !important;
+}
+
+:root.light .admin-shell button.bg-slate-900:hover,
+:root.light .admin-shell button.bg-purple-600:hover,
+:root.light .admin-shell button.bg-purple-500:hover,
+:root.light .admin-shell button.bg-gradient-to-tr:hover,
+:root.light .admin-shell button.bg-cyan-500:hover,
+:root.light .admin-shell button[type="submit"]:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 12px 24px rgba(29, 78, 216, 0.18) !important;
+}
+
+:root.light .admin-shell .glass-button,
+:root.light .admin-shell button.bg-slate-100,
+:root.light .admin-shell button.bg-slate-50,
+:root.light .admin-shell button.border-slate-200 {
+  background: #ffffff !important;
+  border: 1px solid rgba(15, 23, 42, 0.10) !important;
+  color: #0f172a !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+:root.light .admin-shell .glass-button:hover,
+:root.light .admin-shell button.bg-slate-100:hover,
+:root.light .admin-shell button.bg-slate-50:hover,
+:root.light .admin-shell button.border-slate-200:hover {
+  background: #f8fafc !important;
+  border-color: rgba(15, 23, 42, 0.20) !important;
+  color: #0f172a !important;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05) !important;
+}
+
+/* CHART OVERRIDES */
+:root.light .admin-shell .recharts-bar-rect {
+  fill: #1d4ed8 !important;
+}
+
+:root.light .admin-shell .recharts-cartesian-grid-horizontal line {
+  stroke: rgba(15, 23, 42, 0.08) !important;
+}
+
+/* TIMELINE AND CUSTOM LAYOUT */
+:root.light .admin-shell [class*="timeline-connector"],
+:root.light .admin-shell [class*="telemetry-accent"],
+:root.light .admin-shell .timeline-progress,
+:root.light .admin-shell .timeline-progress-bar {
+  background: linear-gradient(90deg, #1d4ed8, #4f46e5) !important;
+}
+
+:root.light .admin-shell [class*="bg-slate-50"],
+:root.light .admin-shell [class*="bg-slate-100"],
+:root.light .admin-shell [class*="bg-[#F"],
+:root.light .admin-shell [class*="bg-[var(--bg-tertiary)]"] {
+  background-color: var(--admin-surface-muted) !important;
+}
+
+:root.light .admin-shell [class*="border-slate-100"],
+:root.light .admin-shell [class*="border-slate-200"],
+:root.light .admin-shell [class*="border-[#E2E8F0]"] {
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+:root.light .admin-shell [class*="text-slate-900"],
+:root.light .admin-shell [class*="text-[#0"],
+:root.light .admin-shell [class*="text-[var(--text-color)]"] {
+  color: var(--text-primary) !important;
+}
+
+:root.light .admin-shell [class*="text-slate-600"],
+:root.light .admin-shell [class*="text-slate-500"] {
+  color: var(--text-secondary) !important;
+}
+
+:root.light .admin-shell [class*="text-slate-400"],
+:root.light .admin-shell [class*="text-slate-300"] {
+  color: var(--text-muted) !important;
+}
+
+:root.light .admin-shell .shadow-sm {
+  box-shadow: var(--shadow-soft) !important;
+}
+
+:root.light .admin-shell .shadow-xl,
+:root.light .admin-shell .shadow-2xl {
+  box-shadow: var(--shadow-medium) !important;
+}
+
+@supports (-webkit-touch-callout: none) {
+  :root.light .admin-shell .glass-panel,
+  :root.light .admin-shell .glass-card,
+  :root.light .admin-shell .glass-navbar,
+  :root.light .admin-shell [class*="backdrop-blur"] {
+    backdrop-filter: blur(4px) saturate(112%) !important;
+    -webkit-backdrop-filter: blur(4px) saturate(112%) !important;
+  }
+}
+
+@media (max-width: 767px) {
+  button,
+  a,
+  input,
+  select {
+    min-height: 44px;
+  }
+
+  table {
+    min-width: 640px;
+  }
+}
+
+/* Global Ambient Blur Concealment inside admin app */
+:root.light .blur-\[60px\],
+:root.light .blur-\[80px\],
+:root.light .blur-\[100px\],
+:root.light .blur-\[120px\],
+:root.light .blur-\[140px\],
+:root.light .blur-\[150px\],
+:root.light .blur-\[160px\],
+:root.light .blur-3xl,
+:root.light .blur-2xl,
+:root.light .blur-xl {
+  display: none !important;
+  opacity: 0 !important;
+}
+
+/* Hide absolute gradient bubbles/orbs in light mode dashboard cards */
+:root.light .admin-shell .glass-card div.absolute.bg-gradient-to-br,
+:root.light .admin-shell .glass-card div.absolute[class*="from-"],
+:root.light .admin-shell .glass-card div.absolute[class*="bg-"],
+:root.light .admin-shell .bg-slate-900 div.absolute.bg-purple-500\/10,
+:root.light .admin-shell .bg-slate-900 div.absolute.rounded-full.blur-\[100px\] {
+  display: none !important;
+  opacity: 0 !important;
+}
+
+/* Hide background blur orbs in Login page in light mode */
+:root.light div.bg-\[\#030014\] div.pointer-events-none div {
+  display: none !important;
+  opacity: 0 !important;
+}
+
+/* Admin Login Page Light Mode Overrides */
+:root.light div.bg-\[\#030014\] {
+  background: var(--bg-gradient) !important;
+  color: var(--text-primary) !important;
+}
+
+:root.light div.bg-\[\#030014\] .bg-white\/\[0\.03\] {
+  background-color: rgba(255, 255, 255, 0.97) !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05) !important;
+}
+
+:root.light div.bg-\[\#030014\] h2.text-white {
+  color: #0f172a !important;
+}
+
+:root.light div.bg-\[\#030014\] p.text-slate-400 {
+  color: #64748b !important;
+}
+
+:root.light div.bg-\[\#030014\] label.text-slate-500 {
+  color: #334155 !important;
+}
+
+:root.light div.bg-\[\#030014\] input {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
+  color: #0f172a !important;
+}
+
+:root.light div.bg-\[\#030014\] input::placeholder {
+  color: #64748b !important;
+}
+
+:root.light div.bg-\[\#030014\] input:focus {
+  border-color: #1d4ed8 !important;
+  box-shadow: 0 0 0 4px rgba(29, 78, 216, 0.12) !important;
+}
+
+:root.light div.bg-\[\#030014\] .group:focus-within svg {
+  color: #1d4ed8 !important;
+}
+
+:root.light div.bg-\[\#030014\] button[type="submit"] {
+  background: linear-gradient(135deg, #1d4ed8 0%, #0f2547 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 20px rgba(29, 78, 216, 0.12) !important;
+}
+
+:root.light div.bg-\[\#030014\] button[type="submit"]:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%) !important;
+  box-shadow: 0 12px 24px rgba(29, 78, 216, 0.18) !important;
+}
+
+:root.light div.bg-\[\#030014\] .border-t.border-white\/5 {
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+:root.light div.bg-\[\#030014\] p.text-slate-500 {
+  color: #64748b !important;
+}
+
+:root.light div.bg-\[\#030014\] .bg-gradient-to-tr.from-cyan-500.to-purple-600 {
+  background: linear-gradient(135deg, #1d4ed8 0%, #0f2547 100%) !important;
+  box-shadow: 0 10px 20px rgba(29, 78, 216, 0.12) !important;
+}
+
+/* Global Icon Container overrides to remove glowing shadows & bright overlays in Admin */
+:root.light .admin-shell .glass-card .bg-\[var\(--glass-button-bg\)\],
+:root.light .admin-shell .glass-card [class*="bg-[var(--glass-button-bg)]"],
+:root.light .admin-shell .bg-\[var\(--color-accent-glow\)\],
+:root.light .admin-shell .bg-\[var\(--color-primary-glow\)\],
+:root.light .admin-shell [class*="bg-[var(--color-accent-glow)]"],
+:root.light .admin-shell [class*="bg-[var(--color-primary-glow)]"],
+:root.light .admin-shell [class*="bg-purple-500/10"],
+:root.light .admin-shell [class*="bg-cyan-500/10"],
+:root.light .admin-shell [class*="bg-blue-500/10"] {
+  background: linear-gradient(135deg, #f8fafc, #e2e8f0) !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  box-shadow: none !important;
+  color: #334155 !important;
+}
+
+:root.light .admin-shell .glass-card:hover .bg-\[var\(--glass-button-bg\)\],
+:root.light .admin-shell .glass-card:hover [class*="bg-[var(--glass-button-bg)]"],
+:root.light .admin-shell .group:hover .bg-\[var\(--color-accent-glow\)\],
+:root.light .admin-shell .group:hover .bg-\[var\(--color-primary-glow\)\],
+:root.light .admin-shell .group:hover [class*="bg-[var(--color-accent-glow)]"],
+:root.light .admin-shell .group:hover [class*="bg-[var(--color-primary-glow)]"] {
+  background: linear-gradient(135deg, #f8fafc, #e2e8f0) !important;
+  color: #1d4ed8 !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+:root.light .admin-shell .glass-card .bg-\[var\(--glass-button-bg\)\] svg,
+:root.light .admin-shell .glass-card [class*="bg-[var(--glass-button-bg)]"] svg,
+:root.light .admin-shell .bg-\[var\(--color-accent-glow\)\] svg,
+:root.light .admin-shell .bg-\[var\(--color-primary-glow\)\] svg,
+:root.light .admin-shell [class*="bg-[var(--color-accent-glow)]"] svg,
+:root.light .admin-shell [class*="bg-[var(--color-primary-glow)]"] svg,
+:root.light .admin-shell [class*="bg-purple-500/10"] svg,
+:root.light .admin-shell [class*="bg-cyan-500/10"] svg,
+:root.light .admin-shell [class*="bg-blue-500/10"] svg {
+  color: #334155 !important;
+  fill: none !important;
+}
+
+:root.light .admin-shell .glass-card:hover .bg-\[var\(--glass-button-bg\)\] svg,
+:root.light .admin-shell .glass-card:hover [class*="bg-[var(--glass-button-bg)]"] svg,
+:root.light .admin-shell .group:hover .bg-\[var\(--color-accent-glow\)\] svg,
+:root.light .admin-shell .group:hover .bg-\[var\(--color-primary-glow\)\] svg,
+:root.light .admin-shell .group:hover [class*="bg-[var(--color-accent-glow)]"] svg,
+:root.light .admin-shell .group:hover [class*="bg-[var(--color-primary-glow)]"] svg {
+  color: #1d4ed8 !important;
+}

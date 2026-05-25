@@ -61,9 +61,13 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'https://rchserver.irecharge.in',
+        target: 'http://localhost:5000',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '/api')
+      },
+      '/uploads': {
+        target: 'http://localhost:5000',
+        changeOrigin: true
       }
     }
   }

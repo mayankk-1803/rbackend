@@ -1,26 +1,56 @@
 import prisma from "../config/prisma.js";
 import crypto from "crypto";
 import { claimIdempotencyKey } from "../utils/idempotency.js";
-import { addRechargeJob } from "../services/queueService.js";
 import { APIBOX_OPERATORS } from "../config/operators.js";
 import eventBus from "../config/eventBus.js";
 import { Prisma } from "@prisma/client";
-import { getProvider } from "../services/providers/providerFactory.js";
 import { getCommissionDetails } from "../services/commissionEngine.js";
 import { detectEzytmHLR } from "../services/hlr/ezytmHlrService.js";
 import { mapEzytmToMplan } from "../config/mplanMappings.js";
 import { fetchMPlanPlans } from "../services/mplan/mplanService.js";
 import { recordFinancialEntry } from "../services/ledgerService.js";
+import { TXN_EVENTS } from "../services/transactionEventService.js";
+import { rechargeQueue } from "../config/rechargeQueue.js";
+import { isFinalizedStatus } from "../utils/transactionStateGuard.js";
+import { reconcileSingleTransaction } from "../services/reconciliationService.js";
+import { redisClient } from "../config/redis.js";
+import { getIO } from "../config/socket.js";
+
+const summarizePlanPayload = (plans = {}) => {
+  const categories = Object.keys(plans).filter((key) => Array.isArray(plans[key]) && plans[key].length > 0);
+  const totalPlans = categories.reduce((sum, key) => sum + plans[key].length, 0);
+  return { totalPlans, categories };
+};
+
 
 /**
  * Fetch recharge plans for an operator
  */
 export const getPlans = async (req, res) => {
   try {
-    const { operatorCode } = req.query;
+    const { operatorCode, circleCode, operatorName, circleName } = req.query;
     if (!operatorCode) return res.status(400).json({ success: false, message: "operatorCode is required" });
 
-    return res.json({ success: true, data: [] });
+    const operatorObj = {
+      name: operatorName || "Mobile",
+      code: Number(operatorCode)
+    };
+    const circleObj = {
+      name: circleName || "Delhi NCR",
+      code: Number(circleCode || 5)
+    };
+
+    console.log("[MPLAN_FETCH]", {
+      operator: operatorObj.name,
+      circle: circleObj.name,
+      mplanCode: operatorObj.code
+    });
+
+    const plansResponse = await fetchMPlanPlans(operatorObj, circleObj);
+    const planSummary = summarizePlanPayload(plansResponse.plans);
+    console.log("[PLAN_FETCH_SUCCESS]", planSummary);
+
+    return res.json(plansResponse);
   } catch (error) {
     console.error("[Plans Error]:", error);
     res.status(500).json({ success: false, message: "Failed to fetch plans" });
@@ -66,7 +96,7 @@ export const recharge = async (req, res) => {
       where: {
         mobile,
         amount: new Prisma.Decimal(amount),
-        status: { in: ["SUCCESS", "PENDING"] },
+        status: { in: ["SUCCESS", "PENDING", "PENDING_REVIEW", "PROCESSING"] },
         createdAt: { gte: fiveMinutesAgo }
       }
     });
@@ -106,7 +136,7 @@ export const recharge = async (req, res) => {
           userId,
           amount: new Prisma.Decimal(amount),
           type: "RECHARGE",
-          status: "PENDING",
+          status: "PENDING_REVIEW",
           direction: "DEBIT",
           mobile,
           operator: operatorName,
@@ -116,9 +146,20 @@ export const recharge = async (req, res) => {
           balanceAfter: balanceAfter,
           commission: commDetails.commission,
           cashback: commDetails.cashback,
-          profit: commDetails.profit
+          profit: commDetails.profit,
+          rechargeProcessing: false,
+          reviewStatus: "PENDING_REVIEW",
+          invoiceSnapshot: {
+            timeline: [{
+              event: TXN_EVENTS.PENDING_REVIEW,
+              timestamp: new Date().toISOString(),
+              details: { mobile, operator: operatorName }
+            }]
+          }
         }
       });
+
+      console.log(`[TXN_ID_GENERATED]\ninternalTxnId: ${transaction.id}`);
 
       await tx.ledgerEntry.update({
         where: { id: ledgerEntry.id },
@@ -132,28 +173,49 @@ export const recharge = async (req, res) => {
       return res.status(400).json({ success: false, message: "Insufficient wallet balance" });
     }
 
-    const { transaction, updatedWallet } = initResult;
+    const { transaction } = initResult;
 
-    // 4. ENQUEUE RECHARGE JOB
-    await addRechargeJob({
-      userId: transaction.userId,
-      amount: transaction.amount,
-      mobile: transaction.mobile,
-      operator: transaction.operator,
-      txnId: transaction.id,
-      retryCount: 0,
-      idempotencyKey: transaction.idempotencyKey
-    });
+    console.log("[QUEUE_DEBUG] About to add recharge job for txn:", transaction.id);
+    console.log("[QUEUE_DEBUG] Queue object exists:", !!rechargeQueue);
 
-    // 5. NOTIFY & RESPONSE
+    try {
+      await rechargeQueue.add(
+        "processRecharge",
+        {
+          txnId: transaction.id
+        },
+        {
+          attempts: 3,
+          removeOnComplete: 100,
+          removeOnFail: 100
+        }
+      );
+      console.log("[QUEUE_JOB_CREATED] Recharge job added successfully for txn:", transaction.id);
+    } catch (err) {
+      console.error("[QUEUE_ADD_ERROR]", err);
+    }
+
+    // 4. Notify only. Real provider execution is admin-triggered via retry.
     eventBus.emit("wallet_updated", { userId: userId.toString() });
+    eventBus.emit("recharge_queued", {
+      userId: userId.toString(),
+      txnId: transaction.id,
+      status: "PENDING_REVIEW",
+      transaction
+    });
+    eventBus.emit("transaction_updated", {
+      userId: userId.toString(),
+      transactionId: transaction.id,
+      status: "PENDING_REVIEW",
+      transaction
+    });
 
     return res.json({
       success: true,
-      provider: "APIBOX",
       operator: operatorName,
-      status: "PENDING",
-      message: "Recharge request queued successfully"
+      status: "PENDING_REVIEW",
+      transactionId: transaction.id,
+      message: "Recharge queued"
     });
 
   } catch (error) {
@@ -210,7 +272,7 @@ export const payPostpaidBill = async (req, res) => {
           userId,
           amount: new Prisma.Decimal(amount),
           type: "BILL_PAYMENT",
-          status: "PENDING",
+          status: "PENDING_REVIEW",
           direction: "DEBIT",
           mobile,
           operator: operatorName || `OpCode: ${operatorCode}`,
@@ -221,9 +283,20 @@ export const payPostpaidBill = async (req, res) => {
           description: `Postpaid Bill Payment for ${mobile}`,
           commission: commDetails.commission,
           cashback: commDetails.cashback,
-          profit: commDetails.profit
+          profit: commDetails.profit,
+          rechargeProcessing: false,
+          reviewStatus: "PENDING_REVIEW",
+          invoiceSnapshot: {
+            timeline: [{
+              event: TXN_EVENTS.PENDING_REVIEW,
+              timestamp: new Date().toISOString(),
+              details: { mobile, operator: operatorName || `OpCode: ${operatorCode}` }
+            }]
+          }
         }
       });
+
+      console.log(`[TXN_ID_GENERATED]\ninternalTxnId: ${transaction.id}`);
 
       await tx.ledgerEntry.update({
         where: { id: ledgerEntry.id },
@@ -239,23 +312,44 @@ export const payPostpaidBill = async (req, res) => {
 
     const { transaction } = initResult;
 
-    // 4. ENQUEUE POSTPAID JOB
-    await addRechargeJob({
-      userId: transaction.userId,
-      amount: transaction.amount,
-      mobile: transaction.mobile,
-      operator: transaction.operator,
-      txnId: transaction.id,
-      retryCount: 0,
-      idempotencyKey: transaction.idempotencyKey
-    });
+    console.log("[QUEUE_DEBUG] About to add recharge job for txn:", transaction.id);
+    console.log("[QUEUE_DEBUG] Queue object exists:", !!rechargeQueue);
+
+    try {
+      await rechargeQueue.add(
+        "processRecharge",
+        {
+          txnId: transaction.id
+        },
+        {
+          attempts: 3,
+          removeOnComplete: 100,
+          removeOnFail: 100
+        }
+      );
+      console.log("[QUEUE_JOB_CREATED] Recharge job added successfully for txn:", transaction.id);
+    } catch (err) {
+      console.error("[QUEUE_ADD_ERROR]", err);
+    }
 
     eventBus.emit("wallet_updated", { userId: userId.toString() });
+    eventBus.emit("recharge_queued", {
+      userId: userId.toString(),
+      txnId: transaction.id,
+      status: "PENDING_REVIEW",
+      transaction
+    });
+    eventBus.emit("transaction_updated", {
+      userId: userId.toString(),
+      transactionId: transaction.id,
+      status: "PENDING_REVIEW",
+      transaction
+    });
 
     return res.json({
       success: true,
-      status: "PENDING",
-      message: "Payment request queued successfully",
+      status: "PENDING_REVIEW",
+      message: "Recharge queued",
       transactionId: transaction.id
     });
 
@@ -289,6 +383,7 @@ export const initPrepaidRecharge = async (req, res) => {
     }
 
     const { operator, circle, source: hlrSource } = hlrResult;
+    console.log("[HLR_DETECTED]", { mobile, operator, circle });
 
     // 2. Map EzyTM names to MPlan codes
     const mapResult = mapEzytmToMplan(operator, circle);
@@ -304,7 +399,14 @@ export const initPrepaidRecharge = async (req, res) => {
     const circleObj = { name: circle, code: Number(mapResult.circleCode) };
 
     // 3. Fetch Live Plans from MPlan & Normalize
+    console.log("[MPLAN_FETCH]", {
+      operator: operatorObj.name,
+      circle: circleObj.name,
+      mplanCode: operatorObj.code
+    });
     const mplanResponse = await fetchMPlanPlans(operatorObj, circleObj);
+    const planSummary = summarizePlanPayload(mplanResponse.plans);
+    console.log("[PLAN_FETCH_SUCCESS]", planSummary);
 
     // 4. Attach Frontend Source Badge
     mplanResponse.source = {
@@ -391,6 +493,92 @@ export const initPostpaidRecharge = async (req, res) => {
       success: false, 
       message: "Unable to detect network currently. Please retry in a few seconds.", 
       fallbackFlags: { revealDropdown: true, revealAmount: true } 
+    });
+  }
+};
+
+/**
+ * GET /api/recharge/:txnId/refresh-status
+ * Syncs status of a single active transaction with the provider with rate-limiting.
+ */
+export const refreshStatus = async (req, res) => {
+  const { txnId } = req.params;
+  const txnIdNum = Number(txnId);
+
+  try {
+    if (isNaN(txnIdNum) || !Number.isInteger(txnIdNum)) {
+      return res.status(400).json({ success: false, message: "Invalid transaction ID" });
+    }
+
+    const txn = await prisma.transaction.findUnique({
+      where: { id: txnIdNum }
+    });
+
+    if (!txn) {
+      console.log(`[MANUAL_REFRESH_SKIPPED] Txn finalized: not found`);
+      return res.status(404).json({ success: false, message: "Transaction not found" });
+    }
+
+    // FINALIZED GUARD
+    if (
+      txn.status === 'SUCCESS' ||
+      txn.status === 'FAILED' ||
+      txn.status === 'REFUNDED'
+    ) {
+      console.log(
+        `[MANUAL_REFRESH_SKIPPED] Txn finalized: ${txn.id}`
+      );
+
+      return res.json({
+        success: true,
+        finalized: true,
+        transaction: txn
+      });
+    }
+
+    // Rate limiting cooldown check (max 1 refresh per txn every 10 seconds)
+    const cooldownKey = `refresh_cooldown:${txnIdNum}`;
+    const acquired = await redisClient.set(cooldownKey, "1", "NX", "EX", 10);
+    if (!acquired) {
+      console.log(`[REFRESH_RATE_LIMITED] Rate limited refresh request for txn: ${txnIdNum}`);
+      return res.status(429).json({
+        success: false,
+        message: "Too many refresh requests. Please wait 10 seconds.",
+        transaction: txn
+      });
+    }
+
+    console.log(`[MANUAL_REFRESH] Refresh requested for txn: ${txnIdNum}`);
+
+    // Perform reconciliation status sync (safely reuse active-only reconciliation)
+    await reconcileSingleTransaction(txnIdNum);
+
+    const updatedTxn = await prisma.transaction.findUnique({
+      where: { id: txnIdNum }
+    });
+
+    // SOCKET EMISSION
+    const io = getIO();
+    io.emit('transaction_updated', updatedTxn);
+    io.emit('recharge_update', updatedTxn);
+
+    console.log(`[MANUAL_REFRESH_SUCCESS] Updated txn: ${txnIdNum}`);
+
+    return res.json({
+      success: true,
+      transaction: updatedTxn || txn
+    });
+
+  } catch (error) {
+    console.error(`[TXN_REFRESH_FAILED] Error refreshing txn ${txnId}:`, error.message);
+    let currentTxn = null;
+    if (!isNaN(txnIdNum)) {
+      currentTxn = await prisma.transaction.findUnique({ where: { id: txnIdNum } });
+    }
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to refresh transaction status",
+      transaction: currentTxn
     });
   }
 };

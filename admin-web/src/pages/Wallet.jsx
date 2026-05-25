@@ -107,10 +107,10 @@ export const Wallet = () => {
             <Zap className="w-3.5 h-3.5" />
             <span className="text-[10px] font-black uppercase tracking-widest">Admin Wallet Terminal</span>
           </div>
-          <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter italic">
+          <h1 className="text-4xl font-black text-[var(--text-color)] uppercase tracking-tighter italic">
             Capital <span className="text-purple-600">Wallet</span>
           </h1>
-          <p className="text-slate-500 text-xs font-medium max-w-md">
+          <p className="text-[var(--text-secondary)] text-xs font-medium max-w-md">
             Manage administrative liquidity, settle provider balances, and track internal settlements in real-time.
           </p>
         </div>
@@ -151,29 +151,29 @@ export const Wallet = () => {
           </div>
 
           {/* Quick Topup Form */}
-          <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 md:p-10 shadow-xl shadow-slate-200/40">
+          <div className="glass-card border border-[var(--glass-border)] rounded-[2.5rem] p-8 md:p-10 shadow-xl hover:shadow-[var(--shadow-glow)] transition-all">
             <div className="flex items-center gap-4 mb-8">
-               <div className="w-12 h-12 bg-purple-50 rounded-2xl flex items-center justify-center border border-purple-100">
+               <div className="w-12 h-12 bg-purple-500/10 rounded-2xl flex items-center justify-center border border-purple-500/20">
                   <ArrowUpCircle className="w-6 h-6 text-purple-600" />
                </div>
                <div>
-                  <h3 className="text-xl font-black text-slate-900 uppercase italic tracking-tight">Replenish <span className="text-purple-600">Wallet</span></h3>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Add funds via secure gateway</p>
+                  <h3 className="text-xl font-black text-[var(--text-color)] uppercase italic tracking-tight">Replenish <span className="text-purple-600">Wallet</span></h3>
+                  <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Add funds via secure gateway</p>
                </div>
             </div>
 
             <form onSubmit={handleTopup} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Credits to Add (₹)</label>
+                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest ml-1">Credits to Add (₹)</label>
                   <div className="relative">
-                    <span className="absolute left-6 top-1/2 -translate-y-1/2 text-xl font-black text-slate-400">₹</span>
+                    <span className="absolute left-6 top-1/2 -translate-y-1/2 text-xl font-black text-[var(--text-muted)]">₹</span>
                     <input 
                       type="number" 
                       value={topupAmount}
                       onChange={(e) => setTopupAmount(e.target.value)}
                       placeholder="0.00"
-                      className="w-full pl-12 pr-6 py-5 bg-slate-50 border border-slate-200 rounded-[1.5rem] text-xl font-black text-slate-900 focus:border-purple-500 outline-none transition-all placeholder:text-slate-300"
+                      className="w-full pl-12 pr-6 py-5 glass-input rounded-[1.5rem] text-xl font-black text-[var(--text-color)] focus:border-purple-500 outline-none transition-all placeholder:text-[var(--text-muted)]"
                     />
                   </div>
                 </div>
@@ -189,11 +189,11 @@ export const Wallet = () => {
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-50 rounded-2xl flex items-center gap-4 border border-slate-100">
-                <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-slate-200 text-slate-400">
+              <div className="p-4 bg-[var(--bg-tertiary)] rounded-2xl flex items-center gap-4 border border-[var(--glass-border)]">
+                <div className="w-8 h-8 bg-[var(--bg-primary)] rounded-lg flex items-center justify-center border border-[var(--glass-border)] text-[var(--text-muted)]">
                    <Clock className="w-4 h-4" />
                 </div>
-                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed">
+                <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest leading-relaxed">
                   Payments are processed instantly via our secure gateway. Ensure your <span className="text-purple-600">Merchant Token</span> is active.
                 </p>
               </div>
@@ -203,24 +203,24 @@ export const Wallet = () => {
 
         {/* Right Side: Recent Activity */}
         <div className="lg:col-span-1 space-y-6">
-           <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-xl shadow-slate-200/40 h-full">
+           <div className="glass-card border border-[var(--glass-border)] rounded-[2.5rem] p-8 shadow-xl hover:shadow-[var(--shadow-glow)] transition-all h-full">
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
                   <History className="w-5 h-5 text-purple-600" />
-                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Recent Logs</h3>
+                  <h3 className="text-sm font-black text-[var(--text-color)] uppercase tracking-widest">Recent Logs</h3>
                 </div>
-                <button onClick={fetchStats} className="p-2 hover:bg-slate-50 rounded-xl transition-all">
-                   <RefreshCw className="w-4 h-4 text-slate-400" />
+                <button onClick={fetchStats} className="p-2 hover:bg-[var(--glass-button-bg)] rounded-xl transition-all">
+                   <RefreshCw className="w-4 h-4 text-[var(--text-muted)]" />
                 </button>
               </div>
 
               <div className="space-y-6">
                 {stats?.recentPayments?.length > 0 ? stats.recentPayments.map((p, idx) => (
-                  <div key={idx} className="flex items-center gap-4 p-4 rounded-3xl border border-slate-50 hover:bg-slate-50 transition-all">
+                  <div key={idx} className="flex items-center gap-4 p-4 rounded-3xl border border-[var(--glass-border)] hover:bg-[var(--glass-button-bg)] transition-all">
                     <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border ${
-                      p.status === 'SUCCESS' ? 'bg-emerald-50 border-emerald-100 text-emerald-600' :
-                      p.status === 'FAILED' ? 'bg-rose-50 border-rose-100 text-rose-600' :
-                      'bg-amber-50 border-amber-100 text-amber-600'
+                      p.status === 'SUCCESS' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' :
+                      p.status === 'FAILED' ? 'bg-rose-500/10 border-rose-500/20 text-rose-500' :
+                      'bg-amber-500/10 border-amber-500/20 text-amber-500'
                     }`}>
                       {p.status === 'SUCCESS' ? <CheckCircle2 className="w-5 h-5" /> : 
                        p.status === 'FAILED' ? <XCircle className="w-5 h-5" /> : 
@@ -228,15 +228,15 @@ export const Wallet = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start mb-1">
-                        <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight">Topup Request</p>
-                        <span className="text-[10px] font-black text-slate-900">₹{p.amount}</span>
+                        <p className="text-[10px] font-black text-[var(--text-color)] uppercase tracking-tight">Topup Request</p>
+                        <span className="text-[10px] font-black text-[var(--text-color)]">₹{p.amount}</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{new Date(p.createdAt).toLocaleString()}</p>
+                        <p className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-widest">{new Date(p.createdAt).toLocaleString()}</p>
                         <span className={`text-[7px] font-black uppercase px-2 py-0.5 rounded-full ${
-                          p.status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-700' :
-                          p.status === 'FAILED' ? 'bg-rose-100 text-rose-700' :
-                          'bg-amber-100 text-amber-700'
+                          p.status === 'SUCCESS' ? 'bg-emerald-500/20 text-emerald-400' :
+                          p.status === 'FAILED' ? 'bg-rose-500/20 text-rose-400' :
+                          'bg-amber-500/20 text-amber-400'
                         }`}>{p.status}</span>
                       </div>
                     </div>

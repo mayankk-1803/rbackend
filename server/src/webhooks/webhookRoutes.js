@@ -10,10 +10,18 @@ const router = express.Router();
 // Apply webhook limiter to all routes in this router
 router.use(webhookLimiter);
 
-// Debug: Log all incoming webhook attempts
+// Log incoming webhook attempts
 router.use((req, res, next) => {
   console.log(`[WEBHOOK ATTEMPT] ${req.method} ${req.originalUrl}`);
-  console.log(`[WEBHOOK HEADERS]`, JSON.stringify(req.headers));
+  console.log("[WEBHOOK_DELIVERY_DEBUG]", {
+    method: req.method,
+    originalUrl: req.originalUrl,
+    query: req.query || {},
+    body: req.body || {},
+    userAgent: req.headers?.["user-agent"] || null,
+    xForwardedFor: req.headers?.["x-forwarded-for"] || null,
+    timestamp: new Date().toISOString()
+  });
   next();
 });
 
@@ -24,4 +32,4 @@ router.post("/apibox", handleApiboxCallback);
 // NexGate Webhook - Use hardened controller logic
 router.post("/nexgate", paymentWebhook);
 
-export default router;
+export default router;

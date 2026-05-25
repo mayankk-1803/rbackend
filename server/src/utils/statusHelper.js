@@ -9,7 +9,10 @@ export const normalizeTransactionStatus = (status) => {
   
   if (['success', 'paid', 'captured', 'completed'].includes(s)) return 'success';
   if (['failed', 'failure', 'reversed', 'cancelled', 'rejected'].includes(s)) return 'failed';
-  if (['pending', 'processing', 'queued', 'initiated'].includes(s)) return 'pending';
+  if (['refunded', 'refund'].includes(s)) return 'refunded';
+  if (['processing', 'in_process'].includes(s)) return 'processing';
+  if (['pending_review', 'review'].includes(s)) return 'pending_review';
+  if (['pending', 'queued', 'initiated'].includes(s)) return 'pending';
   
   return 'pending';
 };

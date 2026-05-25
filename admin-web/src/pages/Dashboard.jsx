@@ -4,6 +4,7 @@ import { useSocket } from '../hooks/useSocket';
 import { TransactionsPieChart } from '../components/TransactionsPieChart';
 import { RevenueBarChart } from '../components/RevenueBarChart';
 import { motion } from 'framer-motion';
+import { useTheme } from '../context/ThemeContext';
 
 const StatCard = ({ title, value, index }) => (
   <motion.div 
@@ -11,11 +12,11 @@ const StatCard = ({ title, value, index }) => (
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay: index * 0.1, duration: 0.4 }}
     whileHover={{ scale: 1.03, y: -2 }}
-    className="p-6 bg-white/70 backdrop-blur-2xl border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all group relative overflow-hidden"
+    className="p-6 glass-card rounded-2xl border border-[var(--glass-border)] shadow-sm hover:shadow-[var(--shadow-glow)] transition-all group relative overflow-hidden"
   >
     <div className="absolute -right-6 -top-6 w-24 h-24 bg-gradient-to-br from-cyan-500/5 to-purple-500/5 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
-    <h3 className="text-xs text-slate-500 uppercase font-black tracking-widest mb-2 relative z-10">{title}</h3>
-    <p className="text-3xl font-black text-slate-900 tracking-tight relative z-10">
+    <h3 className="text-xs text-[var(--text-secondary)] uppercase font-black tracking-widest mb-2 relative z-10">{title}</h3>
+    <p className="text-3xl font-black text-[var(--text-color)] tracking-tight relative z-10">
       {typeof value === 'string' && value.includes('₹') ? (
         <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-cyan-600">{value}</span>
       ) : (
@@ -26,6 +27,7 @@ const StatCard = ({ title, value, index }) => (
 );
 
 export const Dashboard = () => {
+  const { resolvedTheme } = useTheme();
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalTransactions: 0,
@@ -90,11 +92,13 @@ export const Dashboard = () => {
     fetchCharts();
   });
 
+  const isDark = resolvedTheme === 'dark';
+
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Dashboard Overview</h1>
-        <p className="text-sm text-slate-500 mt-1 font-medium">Real-time system health and transaction metrics</p>
+        <h1 className="text-2xl font-black text-[var(--text-color)] tracking-tight">Dashboard Overview</h1>
+        <p className="text-sm text-[var(--text-secondary)] mt-1 font-medium">Real-time system health and transaction metrics</p>
       </header>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
@@ -113,14 +117,14 @@ export const Dashboard = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.4 }}
-          className="p-4 md:p-6 bg-white/70 backdrop-blur-2xl border border-slate-200 rounded-2xl shadow-sm"
+          className="p-4 md:p-6 glass-card rounded-2xl"
         >
-          <h3 className="text-[10px] md:text-xs text-slate-500 font-black uppercase tracking-widest mb-6">Transaction Distribution</h3>
+          <h3 className="text-[10px] md:text-xs text-[var(--text-secondary)] font-black uppercase tracking-widest mb-6">Transaction Distribution</h3>
           {chartsLoading ? (
-            <div className="h-48 md:h-64 bg-slate-100 animate-pulse rounded-xl" />
+            <div className="h-48 md:h-64 bg-[var(--bg-tertiary)] animate-pulse rounded-xl" />
           ) : (
             <div className="h-48 md:h-64 w-full">
-              <TransactionsPieChart {...chartData} isDark={false} />
+              <TransactionsPieChart {...chartData} isDark={isDark} />
             </div>
           )}
         </motion.div>
@@ -129,14 +133,14 @@ export const Dashboard = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 0.4 }}
-          className="p-4 md:p-6 bg-white/70 backdrop-blur-2xl border border-slate-200 rounded-2xl shadow-sm"
+          className="p-4 md:p-6 glass-card rounded-2xl"
         >
-          <h3 className="text-[10px] md:text-xs text-slate-500 font-black uppercase tracking-widest mb-6">Revenue Trend</h3>
+          <h3 className="text-[10px] md:text-xs text-[var(--text-secondary)] font-black uppercase tracking-widest mb-6">Revenue Trend</h3>
           {chartsLoading ? (
-            <div className="h-48 md:h-64 bg-slate-100 animate-pulse rounded-xl" />
+            <div className="h-48 md:h-64 bg-[var(--bg-tertiary)] animate-pulse rounded-xl" />
           ) : (
             <div className="h-48 md:h-64 w-full">
-              <RevenueBarChart dailyRevenue={chartData.dailyRevenue} isDark={false} />
+              <RevenueBarChart dailyRevenue={chartData.dailyRevenue} isDark={isDark} />
             </div>
           )}
         </motion.div>

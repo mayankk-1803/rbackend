@@ -38,6 +38,7 @@ api.interceptors.request.use(
 
 // Response Interceptor: Handle Global Errors & Logging
 import toast from "react-hot-toast";
+import { sanitizeErrorMessage } from "../utils/sanitizeErrorMessage";
 
 const lastToast = { message: "", time: 0 };
 const showToastOnce = (message, type = "error") => {
@@ -57,7 +58,7 @@ api.interceptors.response.use(
   },
   (error) => {
     const status = error.response?.status;
-    const message = error.response?.data?.message || "Something went wrong";
+    const message = sanitizeErrorMessage(error);
 
     if (status === 401) {
       localStorage.removeItem("dizipay_admin_token");

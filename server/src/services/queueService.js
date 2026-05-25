@@ -20,6 +20,9 @@ export const addRechargeJob = async (data) => {
     : `recharge_${data.idempotencyKey}_${Date.now()}`;
 
   console.log(`[QUEUE][ADD] → Txn: ${data.txnId} | JobID: ${jobId} | Delay: ${delayMs}ms`);
+  console.log(
+    `[QUEUE_JOB_CREATED] Job successfully queued for Txn: ${data.txnId} | JobID: ${jobId}`
+  );
 
   return rechargeQueue.add("recharge", data, {
     jobId,

@@ -61,6 +61,7 @@ model payment {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   user            user           @relation(fields: [userId], references: [id])
+  order           Order?
 
   @@index([status])
   @@index([userId])
@@ -101,43 +102,51 @@ model recharge {
 }
 
 model transaction {
-  id              Int                    @id @default(autoincrement())
-  userId          Int
-  amount          Decimal                @db.Decimal(10, 2)
-  type            transaction_type
-  status          transaction_status     @default(PENDING)
-  direction       transaction_direction?
-  balanceAfter    Decimal?               @db.Decimal(10, 2)
-  mobile          String?
-  operator          String?
-  cashback          Decimal                @default(0) @db.Decimal(10, 2)
-  cashbackCoins     Int                    @default(0)
-  rewardClaimed     Boolean                @default(false)
-  rewardProcessed   Boolean                @default(false)
-  rewardProcessedAt DateTime?
-  commission        Decimal                @default(0) @db.Decimal(10, 2)
-  profit          Decimal                @default(0) @db.Decimal(10, 2)
-  provider        String?
-  providerTxnId   String?
-  providerRef     String?                @unique
-  amountDeducted  Boolean                @default(false)
-  refundStatus    String                 @default("none")
-  refundedAt      DateTime?
-  idempotencyKey  String?                @unique
-  gatewayTxnId    String?
-  paymentGateway  String?
-  retryCount      Int                    @default(0)
-  lastRetryAt     DateTime?
-  isLocked        Boolean                @default(false)
-  description     String?                @db.VarChar(255)
-  invoiceSnapshot Json?
-  apiResponse     Json?
-  financialSequenceId String?            @unique
-  createdAt       DateTime               @default(now())
-  updatedAt       DateTime               @updatedAt
+  id                  Int                    @id @default(autoincrement())
+  userId              Int
+  amount              Decimal                @db.Decimal(10, 2)
+  type                transaction_type
+  status              transaction_status     @default(PENDING)
+  direction           transaction_direction?
+  balanceAfter        Decimal?               @db.Decimal(10, 2)
+  mobile              String?
+  operator            String?
+  cashback            Decimal                @default(0) @db.Decimal(10, 2)
+  cashbackCoins       Int                    @default(0)
+  rewardClaimed       Boolean                @default(false)
+  rewardProcessed     Boolean                @default(false)
+  rewardProcessedAt   DateTime?
+  commission          Decimal                @default(0) @db.Decimal(10, 2)
+  profit              Decimal                @default(0) @db.Decimal(10, 2)
+  provider            String?
+  providerTxnId       String?
+  providerRef         String?                @unique
+  providerRefId       String?                @unique @db.VarChar(50)
+  amountDeducted      Boolean                @default(false)
+  refundStatus        String                 @default("none")
+  refundedAt          DateTime?
+  idempotencyKey      String?                @unique
+  gatewayTxnId        String?
+  paymentGateway      String?
+  retryCount          Int                    @default(0)
+  lastRetryAt         DateTime?
+  processingStartedAt DateTime?
+  processedAt         DateTime?
+  lastStatusCheckAt   DateTime?
+  processingLock      Boolean                @default(false)
+  rechargeProcessing  Boolean                @default(false)
+  adminRetriedBy      Int?
+  reviewStatus        String?
+  isLocked            Boolean                @default(false)
+  description         String?                @db.VarChar(255)
+  invoiceSnapshot     Json?
+  apiResponse         Json?
+  financialSequenceId String?                @unique
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
 
   recharge         recharge?
-  user             user                  @relation(fields: [userId], references: [id])
+  user             user              @relation(fields: [userId], references: [id])
   coinTransactions coinTransaction[]
   disputes         dispute[]
   ledgerEntries    ledgerEntry[]
@@ -148,27 +157,30 @@ model transaction {
   @@index([createdAt])
   @@index([mobile])
   @@index([financialSequenceId])
+  @@index([providerTxnId])
+  @@index([providerRefId])
 }
 
 model ledgerEntry {
-  id               Int                @id @default(autoincrement())
-  userId           Int
-  amount           Decimal            @db.Decimal(10, 2)
-  balanceBefore    Decimal            @db.Decimal(10, 2)
-  balanceAfter     Decimal            @db.Decimal(10, 2)
-  type             ledgerEntry_type
-  transactionId    Int?
-  referenceEntryId Int?
-  referenceId      Int?
-  referenceType    String?
-  description      String?            @db.VarChar(255)
-  metadata         Json?
-  financialSequenceId String?         @unique
-  createdAt        DateTime           @default(now())
+  id                  Int              @id @default(autoincrement())
+  userId              Int
+  amount              Decimal          @db.Decimal(10, 2)
+  balanceBefore       Decimal          @db.Decimal(10, 2)
+  balanceAfter        Decimal          @db.Decimal(10, 2)
+  type                ledgerEntry_type
+  transactionId       Int?
+  referenceEntryId    Int?
+  referenceId         Int?
+  referenceType       String?
+  description         String?          @db.VarChar(255)
+  metadata            Json?
+  financialSequenceId String?          @unique
+  createdAt           DateTime         @default(now())
 
   user        user         @relation(fields: [userId], references: [id])
   transaction transaction? @relation(fields: [transactionId], references: [id])
 
+  @@unique([transactionId, type])
   @@index([userId])
   @@index([createdAt])
   @@index([transactionId])
@@ -196,16 +208,16 @@ model cashbackSettings {
 }
 
 model dispute {
-  id            Int             @id @default(autoincrement())
+  id            Int            @id @default(autoincrement())
   userId        Int
   transactionId Int
   type          String
-  description   String          @db.Text
-  status        dispute_status  @default(OPEN)
-  remarks       String?         @db.Text
+  description   String         @db.Text
+  status        dispute_status @default(OPEN)
+  remarks       String?        @db.Text
   adminId       Int?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   user        user        @relation(fields: [userId], references: [id])
   transaction transaction @relation(fields: [transactionId], references: [id])
@@ -292,12 +304,14 @@ model user {
   wallet           wallet?
   ledgerEntries    ledgerEntry[]
   disputes         dispute[]
-  adminDisputes    dispute[] @relation("adminDisputes")
-  auditLogs        auditLog[] @relation("userAudit")
-  adminAuditLogs   auditLog[] @relation("adminAudit")
+  adminDisputes    dispute[]          @relation("adminDisputes")
+  auditLogs        auditLog[]         @relation("userAudit")
+  adminAuditLogs   auditLog[]         @relation("adminAudit")
   walletSnapshots  walletSnapshot[]
   notifications    notification[]
   cashbackSettings cashbackSettings[]
+  wishlist         Wishlist?
+  orders           Order[]
 
   user       user?  @relation("userToUser", fields: [referredBy], references: [id])
   other_user user[] @relation("userToUser")
@@ -308,16 +322,16 @@ model user {
 }
 
 model apiKey {
-  id            Int      @id @default(autoincrement())
+  id            Int       @id @default(autoincrement())
   userId        Int
-  clientId      String   @unique
-  apiKey        String   @unique
-  apiSecret     String   @unique
+  clientId      String    @unique
+  apiKey        String    @unique
+  apiSecret     String    @unique
   webhookSecret String?
-  isActive      Boolean  @default(true)
+  isActive      Boolean   @default(true)
   lastUsedAt    DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   user user @relation(fields: [userId], references: [id])
 
@@ -370,9 +384,9 @@ model wallet {
 }
 
 model coinTransaction {
-  id            Int                  @id @default(autoincrement())
-  userId        Int
-  amount        Int
+  id                  Int                  @id @default(autoincrement())
+  userId              Int
+  amount              Int
   type                coinTransaction_type
   description         String?
   rechargeTxnId       Int?
@@ -384,9 +398,9 @@ model coinTransaction {
 
   user user @relation(fields: [userId], references: [id])
 
+  @@unique([rechargeTxnId, type])
   @@index([userId])
   @@index([userId, createdAt])
-  @@unique([rechargeTxnId, type])
   @@index([financialSequenceId])
 }
 
@@ -405,6 +419,7 @@ enum transaction_type {
   WALLET
   BILL_PAYMENT
   POSTPAID
+  IMART_BUY
 }
 
 enum fraudlog_actionTaken {
@@ -413,9 +428,12 @@ enum fraudlog_actionTaken {
 }
 
 enum transaction_status {
+  PENDING_REVIEW
+  PROCESSING
   PENDING
   SUCCESS
   FAILED
+  REFUNDED
 }
 
 enum user_role {
@@ -434,6 +452,7 @@ enum ledgerEntry_type {
   REVERSAL_CREDIT
   ADMIN_ADJUSTMENT
   TOPUP_CREDIT
+  IMART_DEBIT
 }
 
 enum reward_mode {
@@ -457,6 +476,7 @@ enum transaction_direction {
 enum payment_intent {
   TOPUP
   RECHARGE
+  IMART
 }
 
 enum provider_healthStatus {
@@ -489,4 +509,103 @@ model dlqEntry {
   failureReason String?  @db.Text
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String
+  slug      String    @unique
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Product {
+  id             Int            @id @default(autoincrement())
+  name           String
+  slug           String         @unique
+  description    String         @db.Text
+  specifications Json?
+  price          Decimal        @db.Decimal(10, 2)
+  discountPrice  Decimal?       @db.Decimal(10, 2)
+  stock          Int            @default(0)
+  featured       Boolean        @default(false)
+  categoryId     Int
+  category       Category       @relation(fields: [categoryId], references: [id])
+  images         ProductImage[]
+  wishlistItems  WishlistItem[]
+  orderItems     OrderItem[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([categoryId])
+}
+
+model ProductImage {
+  id        Int     @id @default(autoincrement())
+  productId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String  @db.Text
+
+  @@index([productId])
+}
+
+model Wishlist {
+  id        Int            @id @default(autoincrement())
+  userId    Int            @unique
+  user      user           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     WishlistItem[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model WishlistItem {
+  id         Int      @id @default(autoincrement())
+  wishlistId Int
+  wishlist   Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  productId  Int
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([wishlistId, productId])
+  @@index([wishlistId])
+  @@index([productId])
+}
+
+model Order {
+  id             Int         @id @default(autoincrement())
+  userId         Int
+  user           user        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subtotalAmount Decimal     @default(0.00) @db.Decimal(10, 2)
+  gstAmount      Decimal     @default(0.00) @db.Decimal(10, 2)
+  gstRate        Decimal     @default(18.00) @db.Decimal(5, 2)
+  totalAmount    Decimal     @db.Decimal(10, 2)
+  paymentId      Int?        @unique
+  payment        payment?    @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  paymentStatus  String      @default("PENDING") // PENDING, SUCCESS, FAILED
+  gatewayRef     String?
+  paymentMethod  String?
+  invoiceId      String?     @unique
+  paidAt         DateTime?
+  status         String      @default("PENDING") // PENDING, PROCESSING, SHIPPED, DELIVERED, CANCELLED
+  items          OrderItem[]
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([paymentStatus])
+}
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   Int
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+  price     Decimal @db.Decimal(10, 2)
+  quantity  Int
+
+  @@index([orderId])
+  @@index([productId])
 }

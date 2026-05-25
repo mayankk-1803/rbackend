@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useRef, memo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import RechargePaymentModal from '../components/RechargePaymentModal';
+import OperatorInputAdornment from '../components/OperatorInputAdornment';
 import { OPERATORS, operatorMeta } from '../config/operators';
 import { Smartphone, ChevronDown, CheckCircle2, Activity, ShieldCheck, Zap, Receipt, Search, User, Calendar, FileText } from 'lucide-react';
+import { isIOSDevice } from '../utils/device';
 
-const OperatorDropdown = ({ selected, onSelect }) => {
+const OperatorDropdown = memo(({ selected, onSelect }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -23,24 +25,24 @@ const OperatorDropdown = ({ selected, onSelect }) => {
     <div className="relative" ref={dropdownRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between px-4 py-5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-bold focus:border-purple-500 transition-all shadow-inner"
+        className="w-full flex items-center justify-between px-4 py-5 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl text-[var(--text-color)] font-bold focus:border-purple-500 transition-all shadow-inner cursor-pointer"
       >
         <div className="flex items-center gap-3">
           <span className="text-sm font-black uppercase tracking-tight">
             {selected ? operatorMeta[selected]?.label : "Select Operator"}
           </span>
-          {selected && <div className={`w-2 h-2 rounded-full bg-purple-500 animate-pulse`} />}
+          {selected && <div className={`w-2 h-2 rounded-full bg-purple-400 animate-pulse`} />}
         </div>
-        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-4 h-4 text-[var(--text-secondary)] transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       <AnimatePresence>
         {isOpen && (
-          <motion.div 
+          <Motion.div 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className="absolute z-[100] top-full mt-2 w-full bg-white border border-slate-100 rounded-3xl shadow-2xl overflow-hidden max-h-[300px] overflow-y-auto"
+            className="absolute z-[100] top-full mt-2 w-full bg-[var(--glass-modal-bg)] backdrop-blur-2xl border border-[var(--glass-border)] rounded-3xl shadow-2xl overflow-hidden max-h-[300px] overflow-y-auto"
           >
             {Object.keys(OPERATORS).filter(k => k !== 'UNKNOWN').map(opKey => {
               const op = OPERATORS[opKey];
@@ -49,19 +51,19 @@ const OperatorDropdown = ({ selected, onSelect }) => {
                 <button
                   key={op}
                   onClick={() => { onSelect(op); setIsOpen(false); }}
-                  className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-all border-b border-slate-50 last:border-none"
+                  className="w-full flex items-center justify-between px-6 py-4 hover:bg-purple-500/10 transition-all border-b border-[var(--glass-border)] last:border-none cursor-pointer"
                 >
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-700">{meta.label}</span>
-                  {selected === op && <CheckCircle2 className="w-4 h-4 text-purple-500" />}
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">{meta.label}</span>
+                  {selected === op && <CheckCircle2 className="w-4 h-4 text-purple-400" />}
                 </button>
               );
             })}
-          </motion.div>
+          </Motion.div>
         )}
       </AnimatePresence>
     </div>
   );
-};
+});
 
 export default function MobilePostpaid() {
   const [number, setNumber] = useState('');
@@ -74,8 +76,24 @@ export default function MobilePostpaid() {
   const [fallbackMode, setFallbackMode] = useState(false);
   const [detectedCircle, setDetectedCircle] = useState('');
   const navigate = useNavigate();
+  const isIOS = isIOSDevice();
+  const detectionStateRef = useRef({
+    operator: '',
+    detectedCircle: '',
+    fallbackMode: false,
+    hasBillDetails: false,
+  });
 
-  // 800ms Debounce Auto-Detection & BBPS Bill Fetching
+  useEffect(() => {
+    detectionStateRef.current = {
+      operator,
+      detectedCircle,
+      fallbackMode,
+      hasBillDetails: Boolean(billDetails),
+    };
+  }, [operator, detectedCircle, fallbackMode, billDetails]);
+
+  // Debounced Auto-Detection & BBPS Bill Fetching
   useEffect(() => {
     if (number.length === 10 && /^[6-9]\d{9}$/.test(number)) {
       const timer = setTimeout(async () => {
@@ -103,24 +121,44 @@ export default function MobilePostpaid() {
               toast.error("No pending bill found. Please enter amount manually.");
             }
           } else {
+            setOperator('');
             setFallbackMode(true);
             toast.error("Automatic detection unavailable.");
           }
-        } catch (err) {
+        } catch {
+          setOperator('');
           setFallbackMode(true);
           toast.error("Unable to load recharge plans.");
         } finally {
           setDetecting(false);
         }
-      }, 800);
+      }, isIOS ? 1000 : 800);
 
       return () => clearTimeout(timer);
-    } else {
-      setBillDetails(null);
-      setDetectedCircle('');
-      setFallbackMode(false);
+    } else if (
+      detectionStateRef.current.operator ||
+      detectionStateRef.current.detectedCircle ||
+      detectionStateRef.current.fallbackMode ||
+      detectionStateRef.current.hasBillDetails
+    ) {
+      const resetTimer = setTimeout(() => {
+        setBillDetails(null);
+        setDetectedCircle('');
+        setOperator('');
+        setFallbackMode(false);
+      }, isIOS ? 120 : 0);
+      return () => clearTimeout(resetTimer);
     }
-  }, [number]);
+    return undefined;
+  }, [number, isIOS]);
+
+  const handleNumberChange = useCallback((e) => {
+    setNumber(e.target.value.replace(/\D/g, '').slice(0, 10));
+  }, []);
+
+  const handleAmountChange = useCallback((e) => {
+    setAmount(e.target.value.replace(/\D/g, ''));
+  }, []);
 
   const validateForm = () => {
     if (!/^[6-9]\d{9}$/.test(number)) {
@@ -152,8 +190,8 @@ export default function MobilePostpaid() {
       });
       
       if (data.success) {
-        toast.success("Bill Payment Authorized Successfully", { id: lt });
-        navigate('/user/transactions');
+        toast.success("Recharge queued", { id: lt });
+        navigate('/reports/transactions');
       } else throw new Error(data.message || "Payment failed");
     } catch(err) {
       toast.error(err.safeMessage || "Recharge could not be processed.", { id: lt });
@@ -161,22 +199,22 @@ export default function MobilePostpaid() {
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-6xl mx-auto space-y-8 py-6 px-4 md:px-0">
+    <Motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-6xl mx-auto space-y-8 py-6 px-4 md:px-0 relative z-10">
       {/* Header */}
-      <div className="bg-white border border-slate-200 rounded-[2.5rem] shadow-xl overflow-hidden relative group">
+      <div className="glass-card border border-[var(--glass-border)] rounded-[2.5rem] shadow-xl overflow-hidden relative group">
         <div className="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-purple-500/5 to-transparent pointer-events-none"></div>
-        <div className="px-6 md:px-10 py-8 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-10">
+        <div className="px-6 md:px-10 py-8 border-b border-[var(--glass-border)] bg-[var(--bg-tertiary)]/20 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-10">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <Receipt className="w-6 h-6 text-purple-600" />
-              <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight uppercase italic">Mobile <span className="text-purple-600">Postpaid</span></h2>
+              <Receipt className="w-6 h-6 text-purple-400 purple-glow" />
+              <h2 className="text-2xl md:text-3xl font-black text-[var(--text-color)] tracking-tight uppercase italic">Mobile <span className="text-purple-400 purple-glow">Postpaid</span></h2>
             </div>
-            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Secure Payment</p>
+            <p className="text-xs font-black text-[var(--text-secondary)] uppercase tracking-widest">Secure Payment</p>
           </div>
           {operator && detectedCircle && (
-            <div className="flex items-center gap-3 px-5 py-2.5 bg-white border border-slate-200 rounded-2xl shadow-sm">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Signal:</span>
-              <span className="text-xs font-black uppercase tracking-wider text-purple-600">{operatorMeta[operator]?.label} • {detectedCircle}</span>
+            <div className="flex max-w-full flex-wrap items-center gap-2 px-4 py-2.5 bg-[var(--bg-secondary)]/60 border border-[var(--glass-border)] rounded-2xl shadow-sm">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">OPERATOR:</span>
+              <span className="min-w-0 break-words text-xs font-black uppercase tracking-wider text-purple-400">{operatorMeta[operator]?.label} • {detectedCircle}</span>
             </div>
           )}
         </div>
@@ -185,61 +223,57 @@ export default function MobilePostpaid() {
           {/* Input Section */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
             <div className={`md:col-span-${fallbackMode ? '4' : '6'} space-y-2`}>
-              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Mobile Number</label>
+              <label className="block text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-1">Mobile Number</label>
               <div className="relative">
-                <Smartphone className="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-slate-400" />
+                <Smartphone className="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-[var(--text-secondary)]" />
                 <input 
                   type="tel" 
                   maxLength="10" 
                   value={number} 
-                  onChange={e => setNumber(e.target.value.replace(/\D/g, ''))} 
-                  className="w-full pl-14 pr-12 py-5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 text-xl font-bold focus:border-purple-500 transition-all outline-none shadow-inner" 
+                  onChange={handleNumberChange} 
+                  className="w-full pl-14 pr-20 py-5 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl text-[var(--text-color)] text-lg sm:text-xl font-bold focus:border-purple-500 transition-all outline-none shadow-inner" 
                   placeholder="Enter 10-digit postpaid number" 
                 />
-                {detecting && (
-                  <div className="absolute right-5 top-1/2 -translate-y-1/2">
-                    <div className="animate-spin h-5 w-5 border-2 border-purple-600 border-t-transparent rounded-full"></div>
-                  </div>
-                )}
+                <OperatorInputAdornment operator={operator} loading={detecting} accent="purple" />
               </div>
-              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest ml-1">Auto-fetches pending BBPS bill</p>
+              <p className="text-[9px] text-[var(--text-muted)] font-bold uppercase tracking-widest ml-1">Auto-fetches pending BBPS bill</p>
             </div>
 
             {/* Fallback Manual Operator Dropdown */}
             {fallbackMode && (
-              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="md:col-span-4 space-y-2">
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Operator Gateway</label>
+              <Motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="md:col-span-4 space-y-2">
+                <label className="block text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-1">Operator Gateway</label>
                 <OperatorDropdown selected={operator} onSelect={setOperator} />
-                <p className="text-[9px] text-amber-500 font-bold uppercase tracking-widest ml-1">Manual Selection Mode</p>
-              </motion.div>
+                <p className="text-[9px] text-amber-400 font-bold uppercase tracking-widest ml-1">Manual Selection Mode</p>
+              </Motion.div>
             )}
 
             {/* Fallback Manual Amount Input */}
             {fallbackMode && (
-              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="md:col-span-4 space-y-2">
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Bill Amount (₹)</label>
+              <Motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="md:col-span-4 space-y-2">
+                <label className="block text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-1">Bill Amount (₹)</label>
                 <input 
                   type="tel" 
                   value={amount} 
-                  onChange={e => setAmount(e.target.value.replace(/\D/g, ''))} 
-                  className="w-full px-6 py-5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 text-xl font-bold focus:border-purple-500 transition-all outline-none shadow-inner" 
+                  onChange={handleAmountChange} 
+                  className="w-full px-6 py-5 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl text-[var(--text-color)] text-xl font-bold focus:border-purple-500 transition-all outline-none shadow-inner" 
                   placeholder="0.00" 
                 />
-                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest ml-1">Enter custom bill amount</p>
-              </motion.div>
+                <p className="text-[9px] text-[var(--text-muted)] font-bold uppercase tracking-widest ml-1">Enter custom bill amount</p>
+              </Motion.div>
             )}
 
             {!fallbackMode && !billDetails && (
               <div className="md:col-span-6 flex items-center justify-end h-full pt-6">
-                <div className="flex items-center gap-6 px-8 py-5 bg-slate-900 text-white rounded-2xl shadow-lg w-full md:w-auto justify-between">
+                <div className="flex items-center gap-6 px-8 py-5 bg-[var(--bg-secondary)]/80 border border-[var(--glass-border)] text-[var(--text-color)] rounded-2xl shadow-lg w-full md:w-auto justify-between">
                   <div className="flex items-center gap-3">
                     <ShieldCheck className="w-6 h-6 text-purple-400" />
                     <div>
                       <p className="text-xs font-black uppercase tracking-wider">Bharat BillPay Engine</p>
-                      <p className="text-[9px] text-slate-400 font-medium">Instant Bill Verification Active</p>
+                      <p className="text-[9px] text-[var(--text-muted)] font-medium">Instant Bill Verification Active</p>
                     </div>
                   </div>
-                  <span className="text-[10px] font-black uppercase px-3 py-1 bg-white/10 rounded-xl text-purple-300 border border-white/10">BBPS</span>
+                  <span className="text-[10px] font-black uppercase px-3 py-1 bg-[var(--glass-button-bg)] rounded-xl text-purple-300 border border-[var(--glass-border)]">BBPS</span>
                 </div>
               </div>
             )}
@@ -251,7 +285,7 @@ export default function MobilePostpaid() {
               <button 
                 disabled={loading} 
                 onClick={() => validateForm() && setShowRechargeModal(true)} 
-                className="w-full md:w-auto px-12 py-5 bg-purple-600 hover:bg-purple-700 text-white font-black rounded-2xl shadow-xl shadow-purple-600/20 transition-all text-xs uppercase tracking-widest active:scale-95"
+                className="w-full md:w-auto px-12 py-5 bg-purple-500 hover:bg-purple-400 text-slate-950 font-black rounded-2xl shadow-xl shadow-purple-600/20 transition-all text-xs uppercase tracking-widest active:scale-95 cursor-pointer"
               >
                 {loading ? 'Authorizing...' : 'Proceed with Manual Bill Payment'}
               </button>
@@ -260,39 +294,39 @@ export default function MobilePostpaid() {
 
           {/* Fetched Bill Summary Card */}
           {billDetails && !fallbackMode && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white border border-slate-200 p-8 rounded-3xl shadow-lg relative overflow-hidden group">
+            <Motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-[var(--bg-tertiary)]/20 border border-[var(--glass-border)] p-8 rounded-3xl shadow-lg relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
               
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8 border-b border-slate-100 pb-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8 border-b border-[var(--glass-border)] pb-6">
                 <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 bg-purple-50 border border-purple-100 text-purple-600 rounded-2xl flex items-center justify-center shadow-sm">
+                  <div className="w-14 h-14 bg-purple-500/10 border border-purple-500/20 text-purple-400 rounded-2xl flex items-center justify-center shadow-sm">
                     <User className="w-7 h-7" />
                   </div>
                   <div>
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Customer Name</span>
-                    <span className="text-xl font-black text-slate-900 tracking-tight">{billDetails.customerName}</span>
+                    <span className="block text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Customer Name</span>
+                    <span className="text-xl font-black text-[var(--text-color)] tracking-tight">{billDetails.customerName}</span>
                   </div>
                 </div>
 
                 <div className="text-left md:text-right">
-                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Bill Amount</span>
-                  <span className="text-4xl font-black text-purple-600 tracking-tighter">₹{billDetails.billAmount}</span>
+                  <span className="block text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Bill Amount</span>
+                  <span className="text-4xl font-black text-purple-400 tracking-tighter">₹{billDetails.billAmount}</span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 bg-[var(--bg-secondary)]/60 p-6 rounded-2xl border border-[var(--glass-border)]">
                 <div className="flex items-center gap-3">
-                  <Calendar className="w-5 h-5 text-purple-600" />
+                  <Calendar className="w-5 h-5 text-purple-400" />
                   <div>
-                    <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest">Due Date</span>
-                    <span className="text-sm font-black text-slate-900">{billDetails.dueDate || "N/A"}</span>
+                    <span className="block text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Due Date</span>
+                    <span className="text-sm font-black text-[var(--text-color)]">{billDetails.dueDate || "N/A"}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <FileText className="w-5 h-5 text-purple-600" />
+                  <FileText className="w-5 h-5 text-purple-400" />
                   <div>
-                    <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest">Bill Number</span>
-                    <span className="text-sm font-black text-slate-900 font-mono">{billDetails.billNumber || "N/A"}</span>
+                    <span className="block text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Bill Number</span>
+                    <span className="text-sm font-black text-[var(--text-color)] font-mono">{billDetails.billNumber || "N/A"}</span>
                   </div>
                 </div>
               </div>
@@ -300,24 +334,24 @@ export default function MobilePostpaid() {
               <div className="flex justify-end">
                 <button
                   onClick={() => validateForm() && setShowRechargeModal(true)}
-                  className="w-full md:w-auto px-12 py-5 bg-purple-600 hover:bg-purple-700 text-white font-black rounded-2xl shadow-xl shadow-purple-600/20 transition-all text-xs uppercase tracking-widest active:scale-95 flex items-center justify-center gap-3"
+                  className="w-full md:w-auto px-12 py-5 bg-purple-500 hover:bg-purple-400 text-slate-950 font-black rounded-2xl shadow-xl shadow-purple-600/20 transition-all text-xs uppercase tracking-widest active:scale-95 flex items-center justify-center gap-3 cursor-pointer"
                 >
                   Pay Bill Now ₹{billDetails.billAmount}
                   <Zap className="w-4 h-4 fill-current" />
                 </button>
               </div>
-            </motion.div>
+            </Motion.div>
           )}
 
           {/* Awaiting Input Prompt */}
           {number.length < 10 && (
-            <div className="py-20 border-2 border-dashed border-slate-100 rounded-3xl flex flex-col items-center justify-center gap-4 text-center bg-slate-50/30">
-              <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center border border-slate-100">
-                <Receipt className="w-8 h-8 text-purple-600" />
+            <div className="py-20 border-2 border-dashed border-[var(--glass-border)] rounded-3xl flex flex-col items-center justify-center gap-4 text-center bg-[var(--bg-tertiary)]/20">
+              <div className="w-16 h-16 bg-[var(--bg-secondary)]/60 rounded-2xl shadow-sm flex items-center justify-center border border-[var(--glass-border)] text-purple-400">
+                <Receipt className="w-8 h-8" />
               </div>
               <div>
-                <p className="text-sm font-black text-slate-700 uppercase tracking-widest">Awaiting 10-Digit Postpaid Number</p>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Enter number above to instantly verify and pay pending bills</p>
+                <p className="text-sm font-black text-[var(--text-color)] uppercase tracking-widest">Awaiting 10-Digit Postpaid Number</p>
+                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mt-1">Enter number above to instantly verify and pay pending bills</p>
               </div>
             </div>
           )}
@@ -336,6 +370,6 @@ export default function MobilePostpaid() {
           />
         )}
       </AnimatePresence>
-    </motion.div>
+    </Motion.div>
   );
 }

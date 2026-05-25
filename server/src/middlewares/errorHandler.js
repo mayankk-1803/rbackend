@@ -1,5 +1,22 @@
 import AppError from "../utils/AppError.js";
 
+const cleanClientMessage = (err) => {
+  const raw = String(err?.message || err?.code || "").toLowerCase();
+  if (raw.includes("refund")) return "Refund processed";
+  if (raw.includes("queued") || raw.includes("pending_review") || raw.includes("pending review")) return "Recharge queued";
+  if (raw.includes("processing")) return "Recharge processing";
+  if (raw.includes("recharge") && raw.includes("failed")) return "Recharge failed";
+  if (raw.includes("recharge") && raw.includes("success")) return "Recharge Successful";
+  if (
+    raw.includes("payment") ||
+    raw.includes("gateway") ||
+    raw.includes("order") ||
+    raw.includes("declined") ||
+    raw.includes("insufficient")
+  ) return "Payment Failed";
+  return "Something went wrong";
+};
+
 /**
  * Global error handling middleware.
  */
@@ -25,8 +42,7 @@ export const globalErrorHandler = (err, req, res, next) => {
     return res.status(400).json({
       success: false,
       code: 'DUPLICATE_ENTRY',
-      message: `A record with this ${err.meta?.target || 'value'} already exists.`,
-      data: isDev ? err.meta : {}
+      message: "Something went wrong"
     });
   }
 
@@ -35,8 +51,7 @@ export const globalErrorHandler = (err, req, res, next) => {
     return res.status(err.response?.status || 502).json({
       success: false,
       code: 'PROVIDER_ERROR',
-      message: isDev ? err.message : 'Downstream provider is currently unreachable',
-      data: isDev ? { providerResponse: err.response?.data } : {}
+      message: "Payment Failed"
     });
   }
 
@@ -45,15 +60,13 @@ export const globalErrorHandler = (err, req, res, next) => {
     return res.status(err.statusCode).json({
       success: false,
       code: err.code,
-      message: err.message,
-      data: err.metadata || {}
+      message: cleanClientMessage(err)
     });
   }
 
   return res.status(err.statusCode).json({
     success: false,
     code: err.code,
-    message: isDev ? err.message : 'An unexpected error occurred. Please try again later.',
-    data: isDev ? { stack: err.stack } : {}
+    message: cleanClientMessage(err)
   });
 };

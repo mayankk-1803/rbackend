@@ -111,125 +111,143 @@ export const issueReward = async (transactionId) => {
   let userId = null;
   let newCoinBalance = null;
 
-  await prisma.$transaction(async (tx) => {
-    // 1. Fetch transaction with lock
-    const lockedTxns = await tx.$queryRaw`SELECT * FROM transaction WHERE id = ${transactionId} FOR UPDATE`;
+  let attempts = 10;
+  while (attempts > 0) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        // 1. Fetch transaction with lock
+        const lockedTxns = await tx.$queryRaw`SELECT * FROM transaction WHERE id = ${transactionId} FOR UPDATE`;
 
-    if (!lockedTxns || lockedTxns.length === 0) {
-      console.error(`[CASHBACK][ERROR] → Transaction #${transactionId} not found`);
-      return null;
-    }
-
-    const transaction = lockedTxns[0];
-
-    const userFreeze = await getFreezeStatus(transaction.userId);
-    if (userFreeze.isSoft) {
-      console.log(`[CASHBACK][FREEZE] Skipped reward issuance for User ${transaction.userId} due to user soft freeze.`);
-      return null;
-    }
-
-    if (transaction.status !== 'SUCCESS') {
-      console.log(`[CASHBACK][SKIPPED] → Txn #${transactionId} status is ${transaction.status}`);
-      return null;
-    }
-
-    // Strict Idempotency: Check both rewardProcessed and rewardClaimed flags
-    if (transaction.rewardProcessed || transaction.rewardClaimed) {
-      console.log(`[CASHBACK][SKIPPED] → Txn #${transactionId} already has reward processed.`);
-      return null;
-    }
-
-    // Global Idempotency Key Claim
-    const correlationId = crypto.randomBytes(8).toString('hex');
-    const canClaim = await claimIdempotencyKey(`reward:${transactionId}`, { transactionId }, tx);
-    if (!canClaim) {
-      console.log(`[CASHBACK][SKIPPED] → Idempotency key reward:${transactionId} already claimed.`);
-      return null;
-    }
-
-    // Update flags first inside transaction to prevent concurrent updates
-    await tx.transaction.update({
-      where: { id: transactionId },
-      data: {
-        rewardClaimed: true,
-        rewardProcessed: true,
-        rewardProcessedAt: new Date()
-      }
-    });
-
-    rewardAmount = await calculateReward(transaction, tx);
-    userId = transaction.userId;
-
-    // Generate random 1 or 2 coins
-    earnedCoins = Math.floor(Math.random() * 2) + 1; // 1 or 2
-
-    // Award cashback if applicable
-    if (rewardAmount && rewardAmount.greaterThan(0)) {
-      // Credit wallet and create ledger entry via central recordFinancialEntry service
-      const { balanceAfter } = await recordFinancialEntry({
-        userId,
-        amount: rewardAmount,
-        type: 'CASHBACK_CREDIT',
-        transactionId: transactionId,
-        description: `Cashback for recharge #${transactionId}`,
-        context: { correlationId, ipAddress: "system" },
-        tx
-      });
-
-      // Create dedicated CASHBACK transaction record for transaction log
-      const cashbackTx = await tx.transaction.create({
-        data: {
-          userId,
-          amount: rewardAmount,
-          cashback: rewardAmount,
-          type: 'CASHBACK',
-          status: 'SUCCESS',
-          direction: 'CREDIT',
-          balanceAfter,
-          description: `Cashback for recharge #${transactionId}`,
-          idempotencyKey: `reward:${transactionId}`,
-          financialSequenceId: correlationId,
-          invoiceSnapshot: {
-            rechargeId: transactionId,
-            cashbackPercentage: (rewardAmount.toNumber() / Number(transaction.amount)) * 100,
-            originalAmount: Number(transaction.amount)
-          }
+        if (!lockedTxns || lockedTxns.length === 0) {
+          console.error(`[CASHBACK][ERROR] → Transaction #${transactionId} not found`);
+          return null;
         }
+
+        const transaction = lockedTxns[0];
+
+        const userFreeze = await getFreezeStatus(transaction.userId);
+        if (userFreeze.isSoft) {
+          console.log(`[CASHBACK][FREEZE] Skipped reward issuance for User ${transaction.userId} due to user soft freeze.`);
+          return null;
+        }
+
+        if (transaction.status !== 'SUCCESS') {
+          console.log(`[CASHBACK][SKIPPED] → Txn #${transactionId} status is ${transaction.status}`);
+          return null;
+        }
+
+        // Strict Idempotency: Check both rewardProcessed and rewardClaimed flags
+        if (transaction.rewardProcessed || transaction.rewardClaimed) {
+          console.log(`[CASHBACK][SKIPPED] → Txn #${transactionId} already has reward processed.`);
+          return null;
+        }
+
+        // Global Idempotency Key Claim
+        const correlationId = crypto.randomBytes(8).toString('hex');
+        const canClaim = await claimIdempotencyKey(`reward:${transactionId}`, { transactionId }, tx);
+        if (!canClaim) {
+          console.log(`[CASHBACK][SKIPPED] → Idempotency key reward:${transactionId} already claimed.`);
+          return null;
+        }
+
+        // Update flags first inside transaction to prevent concurrent updates
+        await tx.transaction.update({
+          where: { id: transactionId },
+          data: {
+            rewardClaimed: true,
+            rewardProcessed: true,
+            rewardProcessedAt: new Date()
+          }
+        });
+
+        rewardAmount = await calculateReward(transaction, tx);
+        userId = transaction.userId;
+
+        // Generate random 1 or 2 coins
+        earnedCoins = Math.floor(Math.random() * 2) + 1; // 1 or 2
+
+        // Award cashback if applicable
+        if (rewardAmount && rewardAmount.greaterThan(0)) {
+          // Credit wallet and create ledger entry via central recordFinancialEntry service
+          const { balanceAfter } = await recordFinancialEntry({
+            userId,
+            amount: rewardAmount,
+            type: 'CASHBACK_CREDIT',
+            transactionId: transactionId,
+            description: `Cashback for recharge #${transactionId}`,
+            context: { correlationId, ipAddress: "system" },
+            tx
+          });
+
+          // Create dedicated CASHBACK transaction record for transaction log
+          const cashbackTx = await tx.transaction.create({
+            data: {
+              userId,
+              amount: rewardAmount,
+              cashback: rewardAmount,
+              type: 'CASHBACK',
+              status: 'SUCCESS',
+              direction: 'CREDIT',
+              balanceAfter,
+              description: `Cashback for recharge #${transactionId}`,
+              idempotencyKey: `reward:${transactionId}`,
+              financialSequenceId: correlationId,
+              invoiceSnapshot: {
+                rechargeId: transactionId,
+                cashbackPercentage: (rewardAmount.toNumber() / Number(transaction.amount)) * 100,
+                originalAmount: Number(transaction.amount)
+              }
+            }
+          });
+        } else {
+          rewardAmount = new Prisma.Decimal(0);
+        }
+
+        // Award coins securely via central recordCoinEntry
+        const { balanceAfter: updatedCoinBalance } = await recordCoinEntry({
+          userId,
+          amount: earnedCoins,
+          type: 'EARNED',
+          description: `Earned from recharge #${transactionId}`,
+          rechargeTxnId: transactionId,
+          sourceTransactionId: transactionId,
+          context: { correlationId, ipAddress: "system" },
+          tx
+        });
+        newCoinBalance = updatedCoinBalance;
+
+        // Update original transaction with final details
+        await tx.transaction.update({
+          where: { id: transactionId },
+          data: {
+            cashback: rewardAmount,
+            cashbackCoins: earnedCoins
+          }
+        });
+
+        console.log(`[CASHBACK][SUCCESS] → Txn #${transactionId} completed with reward ₹${rewardAmount} and ${earnedCoins} coins`);
+
+        await logTransactionEvent(transactionId, TXN_EVENTS.CASHBACK_ISSUED, { amount: rewardAmount, coins: earnedCoins }, tx);
+      }, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable
       });
-    } else {
-      rewardAmount = new Prisma.Decimal(0);
-    }
-
-    // Award coins securely via central recordCoinEntry
-    // Import `recordCoinEntry` at the top of the file if needed. We'll assume it's imported correctly.
-    // Wait, we need to import it. I'll add the import via another replace block or just assume it's exported from ledgerService.js. Let's make sure it's imported.
-    const { balanceAfter: updatedCoinBalance } = await recordCoinEntry({
-      userId,
-      amount: earnedCoins,
-      type: 'EARNED',
-      description: `Earned from recharge #${transactionId}`,
-      rechargeTxnId: transactionId,
-      sourceTransactionId: transactionId,
-      context: { correlationId, ipAddress: "system" },
-      tx
-    });
-    newCoinBalance = updatedCoinBalance;
-
-    // Update original transaction with final details
-    await tx.transaction.update({
-      where: { id: transactionId },
-      data: {
-        cashback: rewardAmount,
-        cashbackCoins: earnedCoins
+      break; // break the loop on success
+    } catch (err) {
+      const isDeadlock = 
+        err.code === 'P2034' || 
+        (err.code === 'P2010' && (err.message?.includes("1213") || err.message?.toLowerCase().includes("deadlock"))) ||
+        err.message?.toLowerCase().includes("deadlock") || 
+        err.message?.toLowerCase().includes("write conflict");
+      if (isDeadlock && attempts > 1) {
+        attempts--;
+        const delay = Math.floor(Math.random() * 150) + 50 * (11 - attempts); // adaptive backoff grows with each retry
+        console.warn(`[CASHBACK][DEADLOCK] Deadlock in issueReward for Txn #${transactionId}. Retrying in ${delay}ms... attempts left: ${attempts}`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        throw err;
       }
-    });
-
-    console.log(`[CASHBACK][SUCCESS] → Txn #${transactionId} completed with reward ₹${rewardAmount} and ${earnedCoins} coins`);
-
-    await logTransactionEvent(transactionId, TXN_EVENTS.CASHBACK_ISSUED, { amount: rewardAmount, coins: earnedCoins }, tx);
-  }, {
-    isolationLevel: Prisma.TransactionIsolationLevel.Serializable
-  });
+    }
+  }
 
   // Emitting event bus/realtime events AFTER successful transaction commit
   if (userId) {

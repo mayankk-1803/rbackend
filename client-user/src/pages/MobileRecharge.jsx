@@ -205,7 +205,7 @@ export default function MobileRecharge() {
           <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase italic">Secure <span className="text-cyan-600">Recharge</span></h2>
           {operator && (
             <div className="flex items-center gap-3 px-4 py-2 bg-white border border-slate-200 rounded-full shadow-sm">
-               <span className="text-[10px] font-black uppercase text-slate-400">Signal:</span>
+               <span className="text-[10px] font-black uppercase text-slate-400">Operator:</span>
                <span className="text-[10px] font-black uppercase text-cyan-600">{operatorMeta[operator].label} (Code: {operatorMeta[operator].code})</span>
             </div>
           )}

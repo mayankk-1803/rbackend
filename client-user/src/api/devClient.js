@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { sanitizeErrorMessage } from '../utils/sanitizeErrorMessage';
 
 const BASE_URL = import.meta.env.VITE_API_URL || "https://rchserver.irecharge.in/api";
 
@@ -34,15 +35,11 @@ export const executeApiRequest = async ({ method, path, data, headers }) => {
       latency: Date.now() - start
     };
   } catch (err) {
+    const safeMessage = sanitizeErrorMessage(err);
     return {
       success: false,
       status: err.response?.status || 0,
-      data: err.response?.data || { 
-        message: err.message,
-        hint: err.message === 'Network Error' 
-          ? "Check CORS settings or backend connectivity." 
-          : "Verify your API Key and Secret are correct."
-      },
+      data: { message: safeMessage },
       latency: Date.now() - start
     };
   }
