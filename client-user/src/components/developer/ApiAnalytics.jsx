@@ -35,7 +35,7 @@ const CustomAreaTooltip = ({ active, payload, label }) => {
   );
 };
 
-export default function ApiAnalytics() {
+export default function ApiAnalytics({ isDeveloperVerified }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -52,8 +52,10 @@ export default function ApiAnalytics() {
         setLoading(false);
       }
     };
-    fetchAnalytics();
-  }, []);
+    if (isDeveloperVerified) {
+      fetchAnalytics();
+    }
+  }, [isDeveloperVerified]);
 
   if (loading) return (
     <div className="flex items-center justify-center p-20 relative z-10">

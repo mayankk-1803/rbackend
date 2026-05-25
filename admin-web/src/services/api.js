@@ -40,14 +40,33 @@ api.interceptors.request.use(
 import toast from "react-hot-toast";
 import { sanitizeErrorMessage } from "../utils/sanitizeErrorMessage";
 
-const lastToast = { message: "", time: 0 };
-const showToastOnce = (message, type = "error") => {
-  const now = Date.now();
-  if (lastToast.message === message && now - lastToast.time < 3000) return;
-  lastToast.message = message;
-  lastToast.time = now;
-  toast[type](message);
-};
+// Toast deduplication global setup
+try {
+  const originalError = toast.error;
+  const originalSuccess = toast.success;
+  const toastIdMap = new Map();
+  const DEDUPE_TIME = 3000;
+
+  toast.error = (message, options) => {
+    const now = Date.now();
+    const key = typeof message === 'string' ? message : JSON.stringify(message);
+    const lastTime = toastIdMap.get(key);
+    if (lastTime && now - lastTime < DEDUPE_TIME) return null;
+    toastIdMap.set(key, now);
+    return originalError(message, options);
+  };
+
+  toast.success = (message, options) => {
+    const now = Date.now();
+    const key = typeof message === 'string' ? message : JSON.stringify(message);
+    const lastTime = toastIdMap.get(key);
+    if (lastTime && now - lastTime < DEDUPE_TIME) return null;
+    toastIdMap.set(key, now);
+    return originalSuccess(message, options);
+  };
+} catch (e) {
+  console.warn("Failed to patch toast error deduplication:", e.message);
+}
 
 api.interceptors.response.use(
   (response) => {
@@ -65,9 +84,9 @@ api.interceptors.response.use(
       localStorage.removeItem("dizipay_admin_data");
       window.location.href = "/admin/login";
     } else if (status === 429) {
-      showToastOnce("Rate limit exceeded. Please slow down.", "error");
+      toast.error("Rate limit exceeded. Please slow down.");
     } else if (status !== 404) {
-      showToastOnce(message, "error");
+      toast.error(message);
     }
 
     if (import.meta.env.DEV) {

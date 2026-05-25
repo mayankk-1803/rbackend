@@ -1,5 +1,6 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { WalletProvider } from './context/WalletContext';
 import { Toaster } from 'react-hot-toast';
 import Navbar from './components/Navbar';
 import BottomNav from './components/BottomNav';
@@ -77,7 +78,7 @@ import { useIsIOS } from './utils/device';
     return (
       <LazyMotion features={domAnimation}>
         {showNavbar && <Navbar />}
-        <main className={showNavbar ? "max-w-7xl mx-auto px-3 sm:px-4 py-5 md:py-6 pb-24 md:pb-6" : ""}>
+        <main className={showNavbar ? "max-w-[1600px] mx-auto px-4 md:px-6 lg:px-8 py-5 md:py-6 pb-24 md:pb-6" : ""}>
           <Suspense fallback={<PageLoader />}>
             {children}
           </Suspense>
@@ -151,41 +152,43 @@ import { useIsIOS } from './utils/device';
               {isAuth && <RewardPopup />}
 
               <Layout>
-                <Routes>
-                  <Route path="/login" element={<PublicRoute isAuth={isAuth}><Login /></PublicRoute>} />
-                  <Route path="/register" element={<PublicRoute isAuth={isAuth}><Register /></PublicRoute>} />
+                <WalletProvider>
+                  <Routes>
+                    <Route path="/login" element={<PublicRoute isAuth={isAuth}><Login /></PublicRoute>} />
+                    <Route path="/register" element={<PublicRoute isAuth={isAuth}><Register /></PublicRoute>} />
 
-                  <Route path="/" element={<PublicRoute isAuth={isAuth}><HomePage /></PublicRoute>} />
-                  <Route path="/dashboard" element={<PrivateRoute isAuth={isAuth}><Home /></PrivateRoute>} />
-                  <Route path="/history" element={<PrivateRoute isAuth={isAuth}><History /></PrivateRoute>} />
-                  <Route path="/reports/transactions" element={<PrivateRoute isAuth={isAuth}><TransactionHistory /></PrivateRoute>} />
-                  <Route path="/reports/ledger" element={<PrivateRoute isAuth={isAuth}><WalletLedger /></PrivateRoute>} />
-                  <Route path="/recharge" element={<PrivateRoute isAuth={isAuth}><Recharge /></PrivateRoute>} />
+                    <Route path="/" element={<PublicRoute isAuth={isAuth}><HomePage /></PublicRoute>} />
+                    <Route path="/dashboard" element={<PrivateRoute isAuth={isAuth}><Home /></PrivateRoute>} />
+                    <Route path="/history" element={<PrivateRoute isAuth={isAuth}><History /></PrivateRoute>} />
+                    <Route path="/reports/transactions" element={<PrivateRoute isAuth={isAuth}><TransactionHistory /></PrivateRoute>} />
+                    <Route path="/reports/ledger" element={<PrivateRoute isAuth={isAuth}><WalletLedger /></PrivateRoute>} />
+                    <Route path="/recharge" element={<PrivateRoute isAuth={isAuth}><Recharge /></PrivateRoute>} />
 
-                  <Route path="/recharge/mobile-prepaid" element={<PrivateRoute isAuth={isAuth}><MobilePrepaid /></PrivateRoute>} />
-                  <Route path="/recharge/mobile-postpaid" element={<PrivateRoute isAuth={isAuth}><MobilePostpaid /></PrivateRoute>} />
-                  <Route path="/recharge/dth" element={<PrivateRoute isAuth={isAuth}><DTHRecharge /></PrivateRoute>} />
-                  <Route path="/recharge/electricity" element={<PrivateRoute isAuth={isAuth}><ElectricityRecharge /></PrivateRoute>} />
-                  <Route path="/recharge/water" element={<PrivateRoute isAuth={isAuth}><WaterRecharge /></PrivateRoute>} />
-                  <Route path="/recharge/gas" element={<PrivateRoute isAuth={isAuth}><GasRecharge /></PrivateRoute>} />
-                  <Route path="/recharge/broadband" element={<PrivateRoute isAuth={isAuth}><BroadbandRecharge /></PrivateRoute>} />
-                  <Route path="/recharge/loan" element={<PrivateRoute isAuth={isAuth}><LoanRecharge /></PrivateRoute>} />
+                    <Route path="/recharge/mobile-prepaid" element={<PrivateRoute isAuth={isAuth}><MobilePrepaid /></PrivateRoute>} />
+                    <Route path="/recharge/mobile-postpaid" element={<PrivateRoute isAuth={isAuth}><MobilePostpaid /></PrivateRoute>} />
+                    <Route path="/recharge/dth" element={<PrivateRoute isAuth={isAuth}><DTHRecharge /></PrivateRoute>} />
+                    <Route path="/recharge/electricity" element={<PrivateRoute isAuth={isAuth}><ElectricityRecharge /></PrivateRoute>} />
+                    <Route path="/recharge/water" element={<PrivateRoute isAuth={isAuth}><WaterRecharge /></PrivateRoute>} />
+                    <Route path="/recharge/gas" element={<PrivateRoute isAuth={isAuth}><GasRecharge /></PrivateRoute>} />
+                    <Route path="/recharge/broadband" element={<PrivateRoute isAuth={isAuth}><BroadbandRecharge /></PrivateRoute>} />
+                    <Route path="/recharge/loan" element={<PrivateRoute isAuth={isAuth}><LoanRecharge /></PrivateRoute>} />
 
-                  <Route path="/status" element={<PrivateRoute isAuth={isAuth}><Status /></PrivateRoute>} />
-                  <Route path="/profile" element={<PrivateRoute isAuth={isAuth}><Profile /></PrivateRoute>} />
-                  <Route path="/profile/security" element={<PrivateRoute isAuth={isAuth}><Security /></PrivateRoute>} />
-                  <Route path="/profile/support" element={<PrivateRoute isAuth={isAuth}><Support /></PrivateRoute>} />
-                  <Route path="/earned-coins" element={<PrivateRoute isAuth={isAuth}><EarnedCoins /></PrivateRoute>} />
-                  <Route path="/payment-success" element={<PrivateRoute isAuth={isAuth}><PaymentSuccess /></PrivateRoute>} />
-                  <Route path="/developer" element={<PrivateRoute isAuth={isAuth}><DeveloperPortal /></PrivateRoute>} />
+                    <Route path="/status" element={<PrivateRoute isAuth={isAuth}><Status /></PrivateRoute>} />
+                    <Route path="/profile" element={<PrivateRoute isAuth={isAuth}><Profile /></PrivateRoute>} />
+                    <Route path="/profile/security" element={<PrivateRoute isAuth={isAuth}><Security /></PrivateRoute>} />
+                    <Route path="/profile/support" element={<PrivateRoute isAuth={isAuth}><Support /></PrivateRoute>} />
+                    <Route path="/earned-coins" element={<PrivateRoute isAuth={isAuth}><EarnedCoins /></PrivateRoute>} />
+                    <Route path="/payment-success" element={<PrivateRoute isAuth={isAuth}><PaymentSuccess /></PrivateRoute>} />
+                    <Route path="/developer" element={<PrivateRoute isAuth={isAuth}><DeveloperPortal /></PrivateRoute>} />
 
-                  {/* iMart Marketplace Routes */}
-                  <Route path="/imart" element={<PrivateRoute isAuth={isAuth}><Catalog /></PrivateRoute>} />
-                  <Route path="/imart/wishlist" element={<PrivateRoute isAuth={isAuth}><Wishlist /></PrivateRoute>} />
-                  <Route path="/imart/product/:slug" element={<PrivateRoute isAuth={isAuth}><ProductDetails /></PrivateRoute>} />
+                    {/* iMart Marketplace Routes */}
+                    <Route path="/imart" element={<PrivateRoute isAuth={isAuth}><Catalog /></PrivateRoute>} />
+                    <Route path="/imart/wishlist" element={<PrivateRoute isAuth={isAuth}><Wishlist /></PrivateRoute>} />
+                    <Route path="/imart/product/:slug" element={<PrivateRoute isAuth={isAuth}><ProductDetails /></PrivateRoute>} />
 
-                  <Route path="*" element={<Navigate to="/" />} />
-                </Routes>
+                    <Route path="*" element={<Navigate to="/" />} />
+                  </Routes>
+                </WalletProvider>
               </Layout>
               </div>
             </div>

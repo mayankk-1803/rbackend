@@ -43,8 +43,10 @@ router.get("/wallet", async (req, res) => {
 
     res.json({
       success: true,
-      balance: wallet.balance,
-      currency: wallet.currency
+      data: {
+        balance: wallet.balance,
+        currency: wallet.currency
+      }
     });
   } catch (err) {
     res.status(500).json({ success: false, message: "Internal server error" });
@@ -82,9 +84,29 @@ router.get("/status/:id", async (req, res) => {
 });
 
 /**
+ * Custom wrapper to transform standard recharge controller output into developer format
+ */
+const devRechargeWrapper = async (req, res, next) => {
+  const originalJson = res.json.bind(res);
+  res.json = (body) => {
+    if (body && body.success && body.transactionId) {
+      return originalJson({
+        success: true,
+        message: body.message || "Recharge initiated",
+        data: {
+          transactionId: body.transactionId
+        }
+      });
+    }
+    return originalJson(body);
+  };
+  return recharge(req, res, next);
+};
+
+/**
  * @route POST /api/v1/recharge
  * @desc Execute SYNC recharge (Apibox)
  */
-router.post("/recharge", validateRechargeInput, idempotency, fraudDetectionMiddleware, recharge);
+router.post("/recharge", validateRechargeInput, idempotency, fraudDetectionMiddleware, devRechargeWrapper);
 
 export default router;

@@ -196,6 +196,17 @@ export const initSocket = (server) => {
     }
   });
 
+  eventBus.on("payment_processing", (data) => {
+    console.log(`[SOCKET_EVENT] Emitting payment_processing for User: ${data.userId} | Payment: ${data.paymentId}`);
+    if (data.userId) {
+      io.to(data.userId.toString()).emit("payment_processing", {
+        orderId: data.paymentId || data.id,
+        status: "PROCESSING",
+        message: "Payment verification in progress"
+      });
+    }
+  });
+
   eventBus.on("earned_coins_awarded", (data) => {
     console.log(`[SOCKET_EVENT] Emitting earned_coins_awarded to User: ${data.userId}`);
     if (data.userId) {

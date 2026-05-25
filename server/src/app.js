@@ -27,6 +27,8 @@ import { globalErrorHandler } from "./middlewares/errorHandler.js";
 import { idempotency } from "./middlewares/idempotency.js";
 import path from "path";
 import imartRoutes from "./routes/imartRoutes.js";
+import disputesRoutes from "./routes/disputesRoutes.js";
+import apiSettingsRoutes from "./routes/apiSettingsRoutes.js";
 
 const app = express();
 
@@ -40,20 +42,41 @@ const allowedOrigins = [
   "https://irecharge.in",
   "https://www.irecharge.in",
   "https://rchserver.irecharge.in",
+  "https://nexgate.in",
   "http://localhost:3000",
   "http://localhost:5173"
 ];
 
 const corsOptions = {
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Allow server-to-server requests, mobile webviews, redirects
+    if (!origin) {
       return callback(null, true);
     }
+
+    // Allow trusted origins
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
     console.error("CORS BLOCKED:", origin);
-    return callback(new Error(`CORS not allowed for origin: ${origin}`));
+
+    return callback(
+      new Error(`CORS not allowed for origin: ${origin}`)
+    );
   },
+
   credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+
+  methods: [
+    "GET",
+    "POST",
+    "PUT",
+    "PATCH",
+    "DELETE",
+    "OPTIONS"
+  ],
+
   allowedHeaders: [
     "Content-Type",
     "Authorization",
@@ -64,11 +87,17 @@ const corsOptions = {
     "x-api-secret",
     "Cookie"
   ],
-  exposedHeaders: ["Authorization", "Set-Cookie"],
+
+  exposedHeaders: [
+    "Authorization",
+    "Set-Cookie"
+  ],
+
   optionsSuccessStatus: 200
 };
 
 app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
 
 /**
  * =========================================================
@@ -161,6 +190,10 @@ app.all("/payment-success", async (req, res) => {
   const orderId = params.get("order_id") || params.get("paymentId");
   const status = params.get("status");
 
+  console.log(
+    `[PAYMENT_SUCCESS_REDIRECT] Origin=${req.headers.origin} | Referer=${req.headers.referer} | Order=${orderId}`
+  );
+
   console.log(`[Redirector] Processing ${req.method} | Order: ${orderId} | Status: ${status}`);
 
   if (orderId && (status === "SUCCESS" || status === "PAID")) {
@@ -211,6 +244,8 @@ app.use("/api/developer", developerRoutes);
 app.use("/api/v1/dev", apiDevRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/imart", imartRoutes);
+app.use("/api/disputes", disputesRoutes);
+app.use("/api/admin/api-settings", apiSettingsRoutes);
 app.use("/api", apiRoutes);
 
 

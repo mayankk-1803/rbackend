@@ -3,6 +3,7 @@ import { Queue } from "bullmq";
 import { redis } from "../config/redis.js";
 import { Prisma } from "@prisma/client";
 import { createNexgateOrder } from "./providers/nexgateService.js";
+import eventBus from "../config/eventBus.js";
 
 // Ensure queue name matches the worker
 export const paymentQueue = new Queue("paymentQueue", { connection: redis });
@@ -72,12 +73,14 @@ export const createPaymentOrder = async (userId, amount, idempotencyKey, upiId, 
 
       console.log(`[PAYMENT SERVICE] NexGate Resp: success=${nexgateOrder.success} | url=${!!nexgateOrder.payment_url} | qr=${!!nexgateOrder.qr_image}`);
 
-      if (nexgateOrder.success && (nexgateOrder.payment_url || nexgateOrder.qr_image)) {
+      const paymentUrl = nexgateOrder.paymentUrl || nexgateOrder.payment_url;
+
+      if (nexgateOrder.success && (paymentUrl || nexgateOrder.qr_image)) {
          // Persist gateway specific fields
          const updatedPayment = await prisma.payment.update({
            where: { id: payment.id },
            data: { 
-             gatewayUrl: nexgateOrder.payment_url || null,
+             gatewayUrl: paymentUrl || null,
              qrCode: nexgateOrder.qr_image || null,
              gatewayTxnId: nexgateOrder.order_id?.toString() || null,
              status: "PENDING"
@@ -86,9 +89,13 @@ export const createPaymentOrder = async (userId, amount, idempotencyKey, upiId, 
 
          return { 
            ...updatedPayment,
-           payment_url: nexgateOrder.payment_url,
+           paymentUrl,
+           payment_url: paymentUrl,
            qr_image: nexgateOrder.qr_image,
-           success: true 
+           success: true,
+           status: "PENDING",
+           orderId: payment.id,
+           provider: "NEXGATE"
          };
       } else {
          const errorMsg = nexgateOrder.message || "Gateway failed to return payment links";
@@ -107,6 +114,46 @@ export const createPaymentOrder = async (userId, amount, idempotencyKey, upiId, 
       }
     } catch (gatewayErr) {
       console.error("[PAYMENT SERVICE] Gateway Error:", gatewayErr.message);
+      
+      const isTimeout = gatewayErr.code === "ETIMEDOUT" || 
+                        gatewayErr.message?.toLowerCase().includes("timeout") ||
+                        gatewayErr.message?.toLowerCase().includes("network error") ||
+                        gatewayErr.message?.toLowerCase().includes("connreset") ||
+                        gatewayErr.message?.toLowerCase().includes("socket hang up");
+
+      if (isTimeout) {
+        const updatedPayment = await prisma.payment.update({
+          where: { id: payment.id },
+          data: { errorMessage: gatewayErr.message, status: "PROCESSING" }
+        }).catch(e => console.error("Critical: Failed to update error status", e.message));
+
+        eventBus.emit("payment_processing", {
+          userId: Number(userId),
+          paymentId: payment.id,
+          status: "PROCESSING"
+        });
+
+        const existingJobs = await paymentQueue.getJobs(["delayed", "waiting", "active"]);
+        const alreadyEnqueued = existingJobs.some(
+          (j) => j.data?.paymentId === payment.id && j.name === "verifyNexgateStatus"
+        );
+
+        if (!alreadyEnqueued) {
+          await paymentQueue.add(
+            "verifyNexgateStatus",
+            { paymentId: payment.id, attempt: 1 },
+            { delay: 15000, removeOnComplete: true }
+          );
+        }
+
+        return {
+          ...updatedPayment,
+          success: true,
+          status: "PROCESSING",
+          isTimeout: true,
+          message: "Payment is being verified"
+        };
+      }
       
       await prisma.payment.update({
         where: { id: payment.id },

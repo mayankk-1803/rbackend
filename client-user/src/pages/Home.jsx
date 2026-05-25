@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../api';
+import { useWallet } from '../context/WalletContext';
 import { API_ROUTES } from '../api/routes';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -230,9 +231,10 @@ const QRModal = memo(({ qrCode, amount, onClose }) => {
 });
 
 export default function Home() {
+  const navigate = useNavigate();
   const [recentTransactions, setRecentTransactions] = useState([]);
   const [allTransactions, setAllTransactions] = useState([]);
-  const [wallet, setWallet] = useState(null);
+  const { wallet, fetchWallet } = useWallet();
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
@@ -280,16 +282,10 @@ export default function Home() {
     } catch (err) {}
   }, [user.cashbackBalance]);
 
-  const fetchWallet = useCallback(async () => {
-    try {
-      const res = await api.get('/wallet');
-      if (res.data && res.data.wallet) {
-        setWallet(res.data.wallet);
-      }
-    } catch (err) {}
-  }, []);
+  // fetchWallet is provided by useWallet context
 
   const handleAddMoney = async () => {
+    if (loading) return; // Add loading protection
     if (!amount || Number(amount) <= 0) {
       return toast.error("Please enter a valid amount");
     }
@@ -297,6 +293,7 @@ export default function Home() {
   };
 
   const handlePaymentFlow = async () => {
+    if (loading) return; // Prevent duplicate clicks during active request
     setLoading(true);
     try {
       const res = await api.post('/payment/create-order', { 
@@ -311,17 +308,33 @@ export default function Home() {
       
       if (!res?.data?.success) throw new Error(res?.data?.message || "Gateway failed");
 
-      const paymentData = res.data.data || res.data.payload || res.data;
-      const paymentUrl = paymentData?.paymentUrl || paymentData?.payment_url || paymentData?.gatewayUrl;
-      const qrImage = paymentData?.qrImage || paymentData?.qr_image;
+      // Extract payment URL from ALL possible locations
+      const paymentUrl =
+        res.data?.paymentUrl ||
+        res.data?.data?.paymentUrl ||
+        res.data?.data?.data?.payment_url ||
+        res.data?.data?.payment_url ||
+        res.data?.payment_url ||
+        res.data?.data?.gatewayUrl ||
+        null;
 
       if (paymentUrl) {
         toast.success("Redirecting...");
         setShowAddMoney(false);
         window.location.href = paymentUrl;
-      } else if (qrImage) {
+        return;
+      }
+
+      const paymentData = res.data.data || res.data.payload || res.data;
+      const qrImage = paymentData?.qrImage || paymentData?.qr_image;
+
+      if (qrImage) {
         setShowAddMoney(false);
         setQrPreview(qrImage);
+      } else if (paymentData?.status === "PROCESSING" || paymentData?.isTimeout) {
+        toast.success("Gateway is taking longer than expected. Verification is in progress.");
+        setShowAddMoney(false);
+        navigate(`/payment-success?order_id=${paymentData.id || paymentData.paymentId || res.data?.orderId}`);
       } else {
         toast.error("Payment could not be completed.");
       }
@@ -756,8 +769,8 @@ export default function Home() {
                   >
                     {loading ? (
                       <>
-                        <div className="w-4 h-4 border-2 border-[var(--bg-primary)] border-t-transparent rounded-full animate-spin"></div>
-                        Processing...
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Redirecting to secure payment gateway...
                       </>
                     ) : (
                       "Add Money"

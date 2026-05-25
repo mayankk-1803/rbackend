@@ -21,7 +21,10 @@ export const recordFinancialEntry = async ({
   metadata = {},
   allowNegative = false,
   context = {}, // For audit logging: ipAddress, userAgent, requestHash, correlationId
-  tx = null // Optional Prisma transaction client
+  tx = null, // Optional Prisma transaction client
+  skipWalletUpdate = false,
+  overrideBalanceBefore = null,
+  overrideBalanceAfter = null
 }) => {
   const execute = async (client) => {
     // 0. Check soft/hard freeze mode
@@ -43,8 +46,8 @@ export const recordFinancialEntry = async ({
     const wallet = wallets[0];
 
     const amountDecimal = new Prisma.Decimal(amount);
-    const balanceBefore = new Prisma.Decimal(wallet.balance);
-    const balanceAfter = balanceBefore.plus(amountDecimal);
+    const balanceBefore = overrideBalanceBefore !== null ? new Prisma.Decimal(overrideBalanceBefore) : new Prisma.Decimal(wallet.balance);
+    const balanceAfter = overrideBalanceAfter !== null ? new Prisma.Decimal(overrideBalanceAfter) : balanceBefore.plus(amountDecimal);
 
     // 2. Check for insufficient balance on debits
     if (!allowNegative && amountDecimal.isNegative() && balanceAfter.isNegative()) {
@@ -64,10 +67,12 @@ export const recordFinancialEntry = async ({
     };
 
     // 3. Update Wallet Balance
-    await client.wallet.update({
-      where: { userId },
-      data: { balance: balanceAfter }
-    });
+    if (!skipWalletUpdate) {
+      await client.wallet.update({
+        where: { userId },
+        data: { balance: balanceAfter }
+      });
+    }
 
     // 4. Create Immutable Ledger Entry
     const financialSequenceId = generateSequenceId("FIN");

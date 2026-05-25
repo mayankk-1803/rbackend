@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { motion } from 'framer-motion';
 import { 
   Zap, 
@@ -18,8 +18,6 @@ import {
   Smartphone
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://rchserver.irecharge.in/api';
 
 export const CashbackSettings = () => {
   const [loading, setLoading] = useState(true);
@@ -48,11 +46,12 @@ export const CashbackSettings = () => {
   }, []);
 
   const fetchSettings = async () => {
+    if (!localStorage.getItem('dizipay_admin_token')) {
+      setLoading(false);
+      return;
+    }
     try {
-      const token = localStorage.getItem('dizipay_admin_token');
-      const response = await axios.get(`${API_BASE_URL}/admin/cashback/settings`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get('/admin/cashback/settings');
       if (response.data.success) {
         const data = response.data.data;
         setSettings(data);
@@ -67,12 +66,10 @@ export const CashbackSettings = () => {
   };
 
   const handleSave = async () => {
+    if (!localStorage.getItem('dizipay_admin_token')) return;
     setSaving(true);
     try {
-      const token = localStorage.getItem('dizipay_admin_token');
-      const response = await axios.patch(`${API_BASE_URL}/admin/cashback/settings`, settings, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.patch('/admin/cashback/settings', settings);
       if (response.data.success) {
         toast.success("Settings updated successfully");
       }

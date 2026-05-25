@@ -21,6 +21,24 @@ const Navbar = () => {
   const handleLogout = () => {
     localStorage.removeItem("dizipay_user_token");
     localStorage.removeItem("dizipay_user_data");
+    sessionStorage.removeItem("dizipay_developer_token");
+    localStorage.removeItem("dizipay_developer_token");
+    sessionStorage.removeItem("developer_verified");
+    localStorage.removeItem("developer_verified");
+    sessionStorage.removeItem("developer_session");
+    localStorage.removeItem("developer_session");
+    sessionStorage.removeItem("developer_auth_cache");
+    localStorage.removeItem("developer_auth_cache");
+    for (let key in localStorage) {
+      if (key.includes("developer")) {
+        localStorage.removeItem(key);
+      }
+    }
+    for (let key in sessionStorage) {
+      if (key.includes("developer")) {
+        sessionStorage.removeItem(key);
+      }
+    }
     window.location.href = "/";
   };
 

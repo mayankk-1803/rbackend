@@ -406,6 +406,8 @@ model coinTransaction {
 
 enum payment_status {
   PENDING
+  PROCESSING
+  PROCESSING_REVIEW
   SUCCESS
   FAILED
 }

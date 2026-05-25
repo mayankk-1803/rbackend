@@ -5,51 +5,38 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
 import socket from '../services/socket';
+import { useWallet } from '../context/WalletContext';
 
 export default function Profile() {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('dizipay_user_data')) || { name: 'User Account', phone: '+91 9876543210' });
-  const [wallet, setWallet] = useState({ coinBalance: 0 });
+  const { wallet } = useWallet();
   const [isEditing, setIsEditing] = useState(false);
   const [newName, setNewName] = useState(user.name || '');
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
-  React.useEffect(() => {
-    const fetchWallet = () => {
-      api.get("/wallet")
-        .then(res => setWallet(res.data.wallet))
-        .catch(err => {
-          if (import.meta.env.DEV) {
-            if (import.meta.env.DEV) console.error(err);
-          }
-        });
-    };
-    fetchWallet();
-
-    const handleCoinsAwarded = (data) => {
-      setWallet(prev => {
-        if (!prev) return { coinBalance: data.newBalance };
-        return { ...prev, coinBalance: data.newBalance };
-      });
-    };
-
-    const handleWalletUpdate = () => {
-      fetchWallet();
-    };
-    
-    socket.on('earned_coins_awarded', handleCoinsAwarded);
-    socket.on('wallet_updated', handleWalletUpdate);
-
-    return () => {
-      socket.off('earned_coins_awarded', handleCoinsAwarded);
-      socket.off('wallet_updated', handleWalletUpdate);
-    };
-  }, []);
-
   const handleLogout = () => {
     localStorage.removeItem('dizipay_user_token');
     localStorage.removeItem('dizipay_user_data');
+    sessionStorage.removeItem('dizipay_developer_token');
+    localStorage.removeItem('dizipay_developer_token');
+    sessionStorage.removeItem('developer_verified');
+    localStorage.removeItem('developer_verified');
+    sessionStorage.removeItem('developer_session');
+    localStorage.removeItem('developer_session');
+    sessionStorage.removeItem('developer_auth_cache');
+    localStorage.removeItem('developer_auth_cache');
+    for (let key in localStorage) {
+      if (key.includes('developer')) {
+        localStorage.removeItem(key);
+      }
+    }
+    for (let key in sessionStorage) {
+      if (key.includes('developer')) {
+        sessionStorage.removeItem(key);
+      }
+    }
     toast.success('Logged out successfully');
     window.location.href = '/login';
   };

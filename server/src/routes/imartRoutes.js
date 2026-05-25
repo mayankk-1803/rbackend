@@ -1,5 +1,6 @@
 import express from "express";
 import { auth } from "../middlewares/auth.js";
+import { isAdmin } from "../middlewares/admin.js";
 import {
   upload,
   uploadImages,
@@ -44,17 +45,17 @@ router.get("/orders", auth, getUserOrders);
 
 // Note: Because these routes start with /admin or are checked under /api/admin, 
 // the auth middleware will verify they are accessed with ADMIN_PANEL tokenType.
-router.post("/admin/upload", auth, upload.array("images", 10), uploadImages);
+router.post("/admin/upload", auth, isAdmin, upload.array("images", 10), uploadImages);
 
-router.post("/admin/categories", auth, createCategory);
-router.put("/admin/categories/:id", auth, updateCategory);
-router.delete("/admin/categories/:id", auth, deleteCategory);
+router.post("/admin/categories", auth, isAdmin, createCategory);
+router.put("/admin/categories/:id", auth, isAdmin, updateCategory);
+router.delete("/admin/categories/:id", auth, isAdmin, deleteCategory);
 
-router.post("/admin/products", auth, createProduct);
-router.put("/admin/products/:id", auth, updateProduct);
-router.delete("/admin/products/:id", auth, deleteProduct);
+router.post("/admin/products", auth, isAdmin, createProduct);
+router.put("/admin/products/:id", auth, isAdmin, updateProduct);
+router.delete("/admin/products/:id", auth, isAdmin, deleteProduct);
 
-router.get("/admin/orders", auth, getAdminOrders);
-router.put("/admin/orders/:id/status", auth, updateOrderStatus);
+router.get("/admin/orders", auth, isAdmin, getAdminOrders);
+router.put("/admin/orders/:id/status", auth, isAdmin, updateOrderStatus);
 
 export default router;

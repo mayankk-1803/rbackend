@@ -17,7 +17,7 @@ import {
 import api from '../../api';
 import toast from 'react-hot-toast';
 
-export default function ApiKeyManager() {
+export default function ApiKeyManager({ isDeveloperVerified }) {
   const [keys, setKeys] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showSecret, setShowSecret] = useState({});
@@ -34,8 +34,9 @@ export default function ApiKeyManager() {
   };
 
   useEffect(() => {
+    if (!isDeveloperVerified) return;
     fetchKeys();
-  }, []);
+  }, [isDeveloperVerified]);
 
   const generateNewKey = async () => {
     try {

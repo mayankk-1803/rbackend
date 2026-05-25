@@ -6,23 +6,16 @@ export const auth = async (req, res, next) => {
   const clientId = req.headers["x-client-id"];
   const cookieToken = req.cookies?.token || req.cookies?.dizipay_token;
   
-  let token = null;
-
-  // 1. EXTRACT TOKEN
-  if (authHeader?.startsWith("Bearer ")) {
-    token = authHeader.split(" ")[1];
-    console.log("[AUTH][TRACE] → Token extracted from Authorization Header");
-  } else if (cookieToken) {
-    token = cookieToken;
-    console.log("[AUTH][TRACE] → Token extracted from Cookie");
-  }
+  const token = authHeader?.startsWith('Bearer ')
+    ? authHeader.split(' ')[1]
+    : (cookieToken || null);
 
   if (token) {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback_secret");
       
       if (decoded && decoded.id) {
-        const isAdminRoute = req.originalUrl.includes('/api/admin');
+        const isAdminRoute = req.originalUrl.includes('/admin') || req.originalUrl.includes('/admin/');
         const tokenType = decoded.tokenType;
 
         // Stage-based Log

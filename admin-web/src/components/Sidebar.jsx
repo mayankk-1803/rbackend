@@ -21,7 +21,6 @@ const navItems = [
   { name: 'Cashback Settings', path: '/settings/cashback', icon: Zap },
   { name: 'Complaints', path: '/reports/disputes', icon: ShieldAlert },
   { name: 'Operators', path: '/providers', icon: Server },
-  { name: 'API Settings', path: '/api-docs', icon: Code2 },
   { name: 'iMart Products', path: '/imart/products', icon: ShoppingBag },
   { name: 'iMart Categories', path: '/imart/categories', icon: Tag },
   { name: 'iMart Orders', path: '/imart/orders', icon: ClipboardList },

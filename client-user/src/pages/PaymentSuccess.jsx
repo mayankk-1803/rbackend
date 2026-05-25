@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, XCircle, Clock, ArrowRight, Wallet, ShieldCheck, RefreshCw } from 'lucide-react';
@@ -6,6 +6,7 @@ import api from '../api';
 import { API_ROUTES } from '../api/routes';
 import { formatAmount } from '../utils/helpers';
 import toast from 'react-hot-toast';
+import socket from '../services/socket';
 
 const STATUS_STATES = {
   VERIFYING: 'VERIFYING',
@@ -23,89 +24,140 @@ export default function PaymentSuccess() {
   const [state, setState] = useState(STATUS_STATES.VERIFYING);
   const [paymentData, setPaymentData] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
-  const [countdown, setCountdown] = useState(5);
+  const [countdown, setCountdown] = useState(2);
+  const [isSlow, setIsSlow] = useState(false);
+  const redirectingRef = useRef(false);
 
   const fetchStatus = useCallback(async () => {
-    if (!orderId) {
+    if (!orderId || orderId === "undefined") {
       if (import.meta.env.DEV) {
-        if (import.meta.env.DEV) console.error("[Status] Missing orderId");
+        console.log("[Status] Missing or invalid orderId");
       }
-      setState(STATUS_STATES.FAILED);
+      setState(STATUS_STATES.PENDING);
       return;
     }
 
     try {
       const res = await api.get(API_ROUTES.PAYMENT.VERIFY_STATUS(orderId));
       
-      // SAFE ACCESS: Support both direct data and .payload wrapper
       const data = res?.data;
       const payload = data?.payload || (data?.success ? data : null);
-      const status = payload?.status;
+      const status = data?.status || data?.paymentStatus || payload?.status || payload?.paymentStatus;
       const success = data?.success || payload?.success;
 
-      if (success && payload) {
-        setPaymentData(payload);
+      if (success && (status || payload)) {
+        setPaymentData({
+          amount: data?.amount ?? payload?.amount,
+          walletBalance: data?.walletBalance ?? payload?.walletBalance,
+          ...payload
+        });
         
-        if (status === 'SUCCESS') {
+        const normalizedStatus = String(status || "").trim().toUpperCase();
+        
+        const SUCCESS_STATES = ["SUCCESS", "COMPLETED", "PAID"];
+        const FAILED_STATES = ["FAILED", "EXPIRED", "CANCELLED", "REJECTED"];
+
+        if (SUCCESS_STATES.includes(normalizedStatus)) {
           setState(STATUS_STATES.SUCCESS);
-          toast.success("Payment Verified!");
-        } else if (status === 'FAILED') {
+          toast.success("Payment successful");
+          window.dispatchEvent(new Event("wallet-refresh"));
+        } else if (FAILED_STATES.includes(normalizedStatus)) {
           setState(STATUS_STATES.FAILED);
         } else {
+          // Default all other values (including intermediate states like PENDING/PROCESSING) to PENDING
           setState(STATUS_STATES.PENDING);
         }
       } else {
         if (import.meta.env.DEV) {
-          if (import.meta.env.DEV) console.warn("[Status] Backend reported failure or missing payload:", data?.message);
+          console.warn("[Status] Backend reported success: false or missing payload. Retrying...");
         }
-        if (status === 'FAILED') setState(STATUS_STATES.FAILED);
+        // Protect against temporary API failures or empty payloads -> NEVER treat as FAILED!
+        setState(STATUS_STATES.PENDING);
       }
     } catch (err) {
       if (import.meta.env.DEV) {
-        if (import.meta.env.DEV) console.error("[Status Fetch Error]:", err.message);
+        console.error("[Status Fetch Error]:", err.message);
       }
-      // We don't fail immediately on network error, we let polling continue
+      // Protect against temporary API/Network failures -> NEVER treat as FAILED!
+      setState(STATUS_STATES.PENDING);
     }
   }, [orderId]);
 
-  // Polling Logic with Progressive Backoff
+  // Slow verification timer
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsSlow(true);
+    }, 15000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Listen for realtime payment_processing event
+  useEffect(() => {
+    const handleProcessing = (data) => {
+      if (data.orderId && Number(data.orderId) === Number(orderId)) {
+        setIsSlow(true);
+        setState(STATUS_STATES.PENDING);
+      }
+    };
+    
+    socket.on('payment_processing', handleProcessing);
+    return () => {
+      socket.off('payment_processing', handleProcessing);
+    };
+  }, [orderId]);
+
+  // Polling Logic: flat 3 seconds, max 120 seconds (40 retries)
   useEffect(() => {
     let timer;
     if (state === STATUS_STATES.VERIFYING || state === STATUS_STATES.PENDING) {
-      // Extended window for SUCCESS redirects (20 retries ~ 2 mins)
-      const isSuccessRedirect = searchParams.get('status') === 'SUCCESS' || searchParams.get('status') === 'PAID';
-      const maxRetries = 3;
+      const maxRetries = 40;
 
       if (retryCount >= maxRetries) {
         setState(STATUS_STATES.EXPIRED);
         return;
       }
 
-      const backoff = Math.min(2000 + retryCount * 1000, 10000); // 2s, 3s, 4s... max 10s
       timer = setTimeout(() => {
         setRetryCount(prev => prev + 1);
         fetchStatus();
-      }, backoff);
+      }, 3000);
     }
     return () => clearTimeout(timer);
-  }, [state, retryCount, fetchStatus, searchParams]);
+  }, [state, retryCount, fetchStatus]);
 
   // Initial Fetch
   useEffect(() => {
     fetchStatus();
   }, [fetchStatus]);
 
-  // Redirect Countdown
+  // Redirect Countdown: Auto-redirect only on confirmed SUCCESS
   useEffect(() => {
     let timer;
-    if (state === STATUS_STATES.SUCCESS && countdown > 0) {
-      timer = setInterval(() => {
-        setCountdown(prev => prev - 1);
-      }, 1000);
-    } else if (state === STATUS_STATES.SUCCESS && countdown === 0) {
-      navigate('/dashboard');
+    let fallbackTimer;
+    if (state === STATUS_STATES.SUCCESS) {
+      if (countdown > 0) {
+        timer = setInterval(() => {
+          setCountdown(prev => prev - 1);
+        }, 1000);
+      } else if (countdown === 0) {
+        if (!redirectingRef.current) {
+          redirectingRef.current = true;
+          window.dispatchEvent(new Event("wallet-refresh"));
+          navigate('/dashboard', { replace: true });
+        }
+      }
+      fallbackTimer = setTimeout(() => {
+        if (!redirectingRef.current) {
+          redirectingRef.current = true;
+          window.dispatchEvent(new Event("wallet-refresh"));
+          window.location.replace("/dashboard");
+        }
+      }, 2500);
     }
-    return () => clearInterval(timer);
+    return () => {
+      if (timer) clearInterval(timer);
+      if (fallbackTimer) clearTimeout(fallbackTimer);
+    };
   }, [state, countdown, navigate]);
 
   const renderContent = () => {
@@ -118,12 +170,25 @@ export default function PaymentSuccess() {
               <div className="w-20 h-20 border-4 border-cyan-500/10 border-t-cyan-400 rounded-full animate-spin"></div>
               <Clock className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 text-cyan-400 cyan-glow" />
             </div>
-            <div className="text-center space-y-2">
+            <div className="text-center space-y-2 flex flex-col items-center">
               <h2 className="text-xl font-black text-[var(--text-color)] uppercase tracking-tight italic">Verifying <span className="text-cyan-400 cyan-glow">Payment</span></h2>
-              <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-[0.2em]">Synchronizing with banking infrastructure...</p>
+              
+              {isSlow ? (
+                <div className="space-y-1 bg-amber-500/5 border border-amber-500/10 rounded-2xl p-4 max-w-xs mt-1">
+                  <p className="text-[10px] text-amber-500 font-bold uppercase tracking-wider animate-pulse">
+                    Provider is taking longer than expected.
+                  </p>
+                  <p className="text-[9px] text-[var(--text-secondary)] font-medium uppercase tracking-wide">
+                    Your payment is still being verified automatically.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-[0.2em]">Synchronizing with banking infrastructure...</p>
+              )}
+
               {retryCount > 0 && (
-                <p className="text-[8px] text-amber-405 font-black text-amber-500 uppercase tracking-widest animate-pulse">
-                  Waiting for bank confirmation (Attempt {retryCount}/3)
+                <p className="text-[8px] text-amber-500 font-black uppercase tracking-widest animate-pulse mt-2">
+                  Waiting for bank confirmation (Attempt {retryCount}/15)
                 </p>
               )}
             </div>
@@ -165,7 +230,10 @@ export default function PaymentSuccess() {
 
             <div className="w-full space-y-4">
                <button 
-                onClick={() => navigate('/dashboard')}
+                onClick={() => {
+                  window.dispatchEvent(new Event("wallet-refresh"));
+                  navigate('/dashboard');
+                }}
                 className="w-full py-4 bg-purple-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl hover:bg-purple-400 transition-all group cursor-pointer"
               >
                 Go to Dashboard

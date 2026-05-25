@@ -148,3 +148,128 @@
   --card-border-gradient: linear-gradient(to bottom right, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
   --card-border-hover-gradient: linear-gradient(to bottom right, rgba(0, 217, 255, 0.4), rgba(123, 97, 255, 0.4));
 }
+
+/* ==========================================================================
+   DEVELOPER PORTAL LIGHT THEME CONTRAST & VISIBILITY OVERRIDES
+   ========================================================================== */
+:root:not(.dark) .developer-portal-main {
+  /* Overall Text Overrides */
+  --text-color: #0f172a !important;
+  --text-secondary: #334155 !important;
+}
+
+:root:not(.dark) .developer-portal-main h1,
+:root:not(.dark) .developer-portal-main h2,
+:root:not(.dark) .developer-portal-main h3,
+:root:not(.dark) .developer-portal-main h4,
+:root:not(.dark) .developer-portal-main h5,
+:root:not(.dark) .developer-portal-main h6,
+:root:not(.dark) .developer-portal-main .text-white {
+  color: #0f172a !important;
+}
+
+:root:not(.dark) .developer-portal-main p,
+:root:not(.dark) .developer-portal-main span,
+:root:not(.dark) .developer-portal-main label,
+:root:not(.dark) .developer-portal-main .text-slate-400,
+:root:not(.dark) .developer-portal-main .text-slate-300 {
+  color: #334155 !important;
+}
+
+:root:not(.dark) .developer-portal-main .text-slate-500 {
+  color: #475569 !important;
+}
+
+:root:not(.dark) .developer-portal-main .text-cyan-400 {
+  color: #0284c7 !important;
+}
+
+:root:not(.dark) .developer-portal-main .bg-slate-950,
+:root:not(.dark) .developer-portal-main .bg-slate-950\/40,
+:root:not(.dark) .developer-portal-main .bg-slate-950\/20,
+:root:not(.dark) .developer-portal-main .bg-slate-950\/60 {
+  background-color: #f1f5f9 !important;
+}
+
+:root:not(.dark) .developer-portal-main .border-white\/5,
+:root:not(.dark) .developer-portal-main .border-white\/10,
+:root:not(.dark) .developer-portal-main .border {
+  border-color: rgba(15, 23, 42, 0.15) !important;
+}
+
+/* Glass Card styling in light mode */
+:root:not(.dark) .developer-portal-main .glass-card {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+  border-color: rgba(15, 23, 42, 0.15) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Sidebar navigation */
+:root:not(.dark) .developer-portal-main nav button {
+  background-color: transparent !important;
+  border-color: transparent !important;
+}
+:root:not(.dark) .developer-portal-main nav button.bg-cyan-400 {
+  background-color: #0284c7 !important;
+  color: #ffffff !important;
+}
+:root:not(.dark) .developer-portal-main nav button.bg-cyan-400 span,
+:root:not(.dark) .developer-portal-main nav button.bg-cyan-400 svg {
+  color: #ffffff !important;
+}
+:root:not(.dark) .developer-portal-main nav button:not(.bg-cyan-400) {
+  color: #334155 !important;
+}
+:root:not(.dark) .developer-portal-main nav button:not(.bg-cyan-400):hover {
+  background-color: rgba(15, 23, 42, 0.05) !important;
+  color: #0f172a !important;
+}
+
+/* Code Snippet and syntax highlighter overrides */
+:root:not(.dark) .developer-portal-main pre,
+:root:not(.dark) .developer-portal-main code {
+  color: #0f172a !important;
+  background-color: #f8fafc !important;
+}
+
+:root:not(.dark) .developer-portal-main pre span {
+  color: inherit !important;
+}
+
+/* Specific Prism token adjustments for high contrast */
+:root:not(.dark) .developer-portal-main .token.keyword {
+  color: #0f766e !important; /* teal */
+  font-weight: 700 !important;
+}
+:root:not(.dark) .developer-portal-main .token.string {
+  color: #b45309 !important; /* amber */
+}
+:root:not(.dark) .developer-portal-main .token.number,
+:root:not(.dark) .developer-portal-main .token.boolean {
+  color: #d97706 !important;
+}
+:root:not(.dark) .developer-portal-main .token.comment {
+  color: #64748b !important;
+  font-style: italic !important;
+}
+:root:not(.dark) .developer-portal-main .token.function {
+  color: #1e3a8a !important; /* navy */
+}
+:root:not(.dark) .developer-portal-main .token.operator,
+:root:not(.dark) .developer-portal-main .token.punctuation {
+  color: #334155 !important;
+}
+:root:not(.dark) .developer-portal-main .token.property {
+  color: #4338ca !important; /* indigo */
+}
+
+/* Buttons inside the code generator and pages */
+:root:not(.dark) .developer-portal-main button:not(.bg-cyan-400):not(nav button) {
+  background-color: rgba(15, 23, 42, 0.05) !important;
+  border-color: rgba(15, 23, 42, 0.1) !important;
+  color: #334155 !important;
+}
+:root:not(.dark) .developer-portal-main button:not(.bg-cyan-400):not(nav button):hover {
+  background-color: rgba(15, 23, 42, 0.1) !important;
+  color: #0f172a !important;
+}

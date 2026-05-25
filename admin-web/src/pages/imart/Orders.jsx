@@ -47,6 +47,10 @@ export const Orders = () => {
   const invoiceRef = useRef(null);
 
   const fetchOrders = async () => {
+    if (!localStorage.getItem("dizipay_admin_token")) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const res = await api.get("/imart/admin/orders");
@@ -198,7 +202,7 @@ export const Orders = () => {
 
       <div className="rounded-2xl border border-[var(--glass-border)] bg-[var(--glass-card-bg)] overflow-hidden shadow-[var(--glass-shadow)]">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse min-w-[1000px]">
             <thead>
               <tr className="border-b border-[var(--glass-border)] bg-[var(--glass-button-bg)]">
                 {["Order ID", "Customer", "Subtotal", "GST 18%", "Final Amount", "Payment", "Gateway Ref", "Fulfillment", "Date & Time", "Actions"].map((head) => (

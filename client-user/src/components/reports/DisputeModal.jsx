@@ -13,24 +13,37 @@ export const DisputeModal = ({ isOpen, onClose, transaction }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!reason.trim()) return toast.error("Please provide a reason for the dispute");
+    if (loading) return; // Prevent double clicks
+    
+    if (!transaction?.id) {
+      return toast.error("Invalid transaction selection");
+    }
+
+    const trimmedReason = reason.trim();
+    if (!trimmedReason) {
+      return toast.error("Please provide a reason for the dispute");
+    }
+
+    if (trimmedReason.length < 10) {
+      return toast.error("Dispute reason must be at least 10 characters long");
+    }
 
     setLoading(true);
     try {
-      await api.post('/disputes', {
+      const res = await api.post('/disputes', {
         transactionId: transaction.id,
-        reason: reason,
+        reason: trimmedReason,
         type: 'TRANSACTION_ISSUE'
       });
       setSuccess(true);
-      toast.success("Dispute raised successfully");
+      toast.success(res?.data?.message || "Dispute raised successfully");
       setTimeout(() => {
         setSuccess(false);
         setReason('');
         onClose();
       }, 2000);
     } catch (err) {
-      toast.error(err?.safeMessage || 'Something went wrong. Please try again.');
+      toast.error(err?.safeMessage || err?.response?.data?.message || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }

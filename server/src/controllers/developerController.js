@@ -1,5 +1,7 @@
 import prisma from "../config/prisma.js";
 import crypto from "crypto";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -217,5 +219,97 @@ export const getLogs = async (req, res) => {
     res.json({ success: true, data: logs });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * Verify Developer Access credentials
+ */
+export const verifyDevAccess = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const userId = Number(req.user.id);
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and password are required"
+      });
+    }
+
+    let isMatch = false;
+
+    // 1. Check environment-configured developer credentials
+    const envEmail = process.env.DEV_PORTAL_EMAIL || "developer@dizipay.in";
+    const envHash = process.env.DEV_PORTAL_PASSWORD_HASH;
+
+    if (email.toLowerCase() === envEmail.toLowerCase() && envHash) {
+      isMatch = await bcrypt.compare(password, envHash);
+    }
+
+    // 2. Fallback to existing authenticated user's credentials
+    if (!isMatch) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId }
+      });
+      if (user && user.email && user.email.toLowerCase() === email.toLowerCase()) {
+        isMatch = await bcrypt.compare(password, user.password);
+      }
+    }
+
+    if (!isMatch) {
+      return res.status(455).json({
+        success: false,
+        message: "Invalid credentials"
+      });
+    }
+
+    // Pick first active key if it exists, to associate with this developer session
+    const matchedKey = await prisma.apiKey.findFirst({
+      where: { userId, isActive: true }
+    });
+
+    const devToken = jwt.sign(
+      {
+        userId,
+        clientId: matchedKey ? matchedKey.clientId : "dummy_client",
+        apiKeyId: matchedKey ? matchedKey.id : null,
+        sessionType: "DEVELOPER"
+      },
+      process.env.DEVELOPER_JWT_SECRET || process.env.JWT_SECRET || "fallback_secret",
+      { expiresIn: "15m" }
+    );
+
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "Lax",
+      maxAge: 15 * 60 * 1000 // 15 mins
+    };
+    res.cookie("dizipay_developer_token", devToken, cookieOptions);
+
+    res.json({
+      success: true,
+      message: "Developer access verified",
+      devToken
+    });
+  } catch (err) {
+    console.error("[DEV_VERIFY_ERR]", err);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+/**
+ * Revoke Developer Access session
+ */
+export const revokeDevAccess = async (req, res) => {
+  try {
+    res.clearCookie("dizipay_developer_token");
+    res.json({
+      success: true,
+      message: "Developer session cleared"
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 };

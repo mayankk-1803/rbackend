@@ -122,3 +122,66 @@ export const getAllDisputes = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+/**
+ * Create a new dispute (used by POST /api/disputes)
+ */
+export const createDispute = async (req, res) => {
+  try {
+    const { transactionId, type, reason } = req.body;
+    const userId = req.user.id;
+
+    if (!transactionId) {
+      return res.status(400).json({ success: false, message: "Transaction ID is required" });
+    }
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ success: false, message: "Please provide a reason for the dispute" });
+    }
+
+    const txn = await prisma.transaction.findUnique({
+      where: { id: parseInt(transactionId) }
+    });
+
+    if (!txn || txn.userId !== userId) {
+      return res.status(404).json({ success: false, message: "Transaction not found or access denied" });
+    }
+
+    // Recharge existence validation
+    const rechargeExists = await prisma.recharge.findUnique({
+      where: { transactionId: txn.id }
+    });
+    if (!rechargeExists) {
+      return res.status(400).json({ success: false, message: "Only recharge transactions can be disputed" });
+    }
+
+    // Duplicate dispute prevention
+    const existing = await prisma.dispute.findFirst({
+      where: { 
+        transactionId: txn.id, 
+        status: { in: ['OPEN', 'UNDER_REVIEW', 'PROVIDER_ESCALATED'] } 
+      }
+    });
+
+    if (existing) {
+      return res.status(400).json({ success: false, message: "A dispute is already active for this transaction" });
+    }
+
+    await prisma.dispute.create({
+      data: {
+        userId,
+        transactionId: txn.id,
+        type: type || 'TRANSACTION_ISSUE',
+        description: reason.trim(),
+        status: 'OPEN'
+      }
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Dispute submitted successfully"
+    });
+  } catch (err) {
+    console.error("[Dispute Controller Error]:", err.message);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};

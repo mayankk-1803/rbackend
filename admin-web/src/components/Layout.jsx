@@ -27,7 +27,7 @@ export const Layout = () => {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10">
         <Topbar toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
         <main className="flex-1 overflow-y-auto relative p-4 md:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto h-full">
+          <div className="max-w-[1600px] mx-auto h-full px-4 md:px-6 lg:px-8">
             <AnimatePresence mode="wait">
               <motion.div
                 key={location.pathname}

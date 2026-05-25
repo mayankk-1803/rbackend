@@ -35,6 +35,9 @@ router.get("/wallet", async (req, res) => {
       where: { userId: req.user.id }
     });
 
+    const settings = await prisma.cashbackSettings.findFirst();
+    const rate = settings?.coinConversionRate || 100;
+
     if (!wallet) {
       // If no wallet exists yet, just return 0 balance
       return res.json({
@@ -42,17 +45,29 @@ router.get("/wallet", async (req, res) => {
         message: "Wallet fetched",
         data: {
           walletBalance: 0,
-          cashbackBalance: 0
+          cashbackBalance: 0,
+          coinBalance: 0,
+          totalCoins: 0,
+          availableCoins: 0,
+          earnedCoins: 0,
+          redemptionBalance: 0
         }
       });
     }
+
+    const coinsVal = Number(wallet.coinBalance) || 0;
 
     res.json({
       success: true,
       message: "Wallet fetched",
       data: {
         walletBalance: wallet.balance,
-        cashbackBalance: wallet.cashbackBalance
+        cashbackBalance: wallet.cashbackBalance,
+        coinBalance: coinsVal,
+        totalCoins: coinsVal,
+        availableCoins: coinsVal,
+        earnedCoins: coinsVal,
+        redemptionBalance: Math.floor(coinsVal / rate)
       }
     });
   } catch (err) {

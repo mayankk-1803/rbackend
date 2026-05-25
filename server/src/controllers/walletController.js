@@ -32,14 +32,23 @@ export const getWallet = async (req, res) => {
       });
     }
 
+    const settings = await prisma.cashbackSettings.findFirst();
+    const rate = settings?.coinConversionRate || 100;
+    const coinsVal = Number(wallet.coinBalance) || 0;
+
     return res.json({
       success: true,
       wallet: {
         id: wallet.id,
         userId: wallet.userId,
         balance: Number(wallet.balance) || 0,
-        coinBalance: Number(wallet.coinBalance) || 0,
-        currency: wallet.currency || "INR"
+        cashbackBalance: Number(wallet.cashbackBalance) || 0,
+        coinBalance: coinsVal,
+        currency: wallet.currency || "INR",
+        totalCoins: coinsVal,
+        availableCoins: coinsVal,
+        earnedCoins: coinsVal,
+        redemptionBalance: Math.floor(coinsVal / rate)
       }
     });
 
@@ -53,8 +62,13 @@ export const getWallet = async (req, res) => {
         id: null,
         userId,
         balance: 0,
+        cashbackBalance: 0,
         coinBalance: 0,
-        currency: "INR"
+        currency: "INR",
+        totalCoins: 0,
+        availableCoins: 0,
+        earnedCoins: 0,
+        redemptionBalance: 0
       }
     });
   }

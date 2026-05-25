@@ -5,41 +5,42 @@ import toast from 'react-hot-toast';
 import { Coins, ArrowRight, Loader, Info, History, Zap, Sparkles, ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import socket from '../services/socket';
+import { useWallet } from '../context/WalletContext';
 
 export default function EarnedCoins() {
-  const [wallet, setWallet] = useState(null);
+  const { wallet, fetchWallet } = useWallet();
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [redeeming, setRedeeming] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, pages: 1 });
   const navigate = useNavigate();
 
-  const fetchData = useCallback(async (page = 1) => {
+  const fetchHistory = useCallback(async (page = 1) => {
     setLoading(true);
     try {
-      const [walletRes, historyRes] = await Promise.all([
-        api.get('/user/wallet'),
-        api.get(`/user/wallet/coins-history?page=${page}&limit=10`)
-      ]);
-      
-      setWallet(walletRes.data.data);
+      const historyRes = await api.get(`/user/wallet/coins-history?page=${page}&limit=10`);
       if (historyRes.data.success) {
         setHistory(historyRes.data.data);
         setPagination(historyRes.data.pagination);
       }
     } catch (err) {
-      if (import.meta.env.DEV) console.error("Failed to fetch data:", err);
+      if (import.meta.env.DEV) console.error("Failed to fetch history:", err);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchData();
-    const handleWalletUpdate = () => fetchData(pagination.page);
+    fetchHistory();
+    fetchWallet();
+    const handleWalletUpdate = () => fetchHistory(pagination.page);
     socket.on('wallet_updated', handleWalletUpdate);
-    return () => socket.off('wallet_updated', handleWalletUpdate);
-  }, [fetchData]);
+    socket.on('earned_coins_awarded', handleWalletUpdate);
+    return () => {
+      socket.off('wallet_updated', handleWalletUpdate);
+      socket.off('earned_coins_awarded', handleWalletUpdate);
+    };
+  }, [fetchHistory, fetchWallet, pagination.page]);
 
   const handleRedeem = async () => {
     if (!wallet || wallet.coinBalance < 100) {
@@ -52,7 +53,8 @@ export default function EarnedCoins() {
       const { data } = await api.post('/user/wallet/redeem-coins');
       if (data.success) {
         toast.success("Coins redeemed successfully", { id: redeemToast });
-        fetchData(1);
+        await fetchWallet();
+        fetchHistory(1);
       }
     } catch (err) {
       toast.error(err.safeMessage || 'Redemption failed', { id: redeemToast });
