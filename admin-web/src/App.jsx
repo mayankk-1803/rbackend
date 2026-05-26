@@ -12,6 +12,7 @@ import AdminTransactionHistory from './pages/reports/TransactionHistory';
 import CommissionReport from './pages/reports/CommissionReport';
 import DisputeManagement from './pages/reports/DisputeManagement';
 import { CashbackSettings } from './pages/CashbackSettings';
+import { Users } from './pages/users/Users';
 import ErrorBoundary from './components/ErrorBoundary';
 
 // iMart E-commerce Management Views
@@ -19,13 +20,43 @@ import { Categories } from './pages/imart/Categories';
 import { Products } from './pages/imart/Products';
 import { Orders } from './pages/imart/Orders';
 
+const getDecodedToken = (token) => {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payload = parts[1];
+    const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    return decoded;
+  } catch (e) {
+    return null;
+  }
+};
+
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem("dizipay_admin_token");
-  if (import.meta.env.DEV) {
-    console.log(" [Auth Guard] Token Check:", token ? "Exists" : "MISSING");
+  
+  let isAuthenticated = false;
+  
+  if (token) {
+    const decoded = getDecodedToken(token);
+    if (decoded) {
+      const isExpired = decoded.exp && (decoded.exp * 1000 < Date.now());
+      const hasAdminRole = decoded.role === 'ADMIN' || decoded.role === 'ROOT_ADMIN' || decoded.role === 'SYSTEM_MANAGER';
+      const isTokenTypeAdmin = decoded.tokenType === 'ADMIN_PANEL';
+      
+      if (!isExpired && hasAdminRole && isTokenTypeAdmin) {
+        isAuthenticated = true;
+      }
+    }
   }
 
-  if (!token) {
+  if (import.meta.env.DEV) {
+    console.log(" [Auth Guard] Status Check:", isAuthenticated ? "AUTHENTICATED" : "REJECTED");
+  }
+
+  if (!isAuthenticated) {
+    localStorage.removeItem("dizipay_admin_token");
+    localStorage.removeItem("dizipay_admin_data");
     return <Navigate to="/login" replace />;
   }
 
@@ -58,6 +89,7 @@ function App() {
           <Route index element={<Dashboard />} />
           <Route path="settings/cashback" element={<CashbackSettings />} />
           <Route path="transactions" element={<Transactions />} />
+          <Route path="users" element={<Users />} />
           <Route path="alerts" element={<Alerts />} />
           <Route path="providers" element={<Operators />} />
           <Route path="reports/transactions" element={<AdminTransactionHistory />} />

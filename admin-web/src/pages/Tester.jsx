@@ -112,34 +112,6 @@ export const Tester = () => {
     }
   };
 
-  const handleCompare = async () => {
-    if (mobileNumber.length !== 10) return toast.error('Enter valid 10-digit number');
-    const amt = Number(amount);
-    if (!amt || amt <= 0) return toast.error('Enter valid amount');
-    if (selectedForCompare.length === 0) return toast.error('Select providers to compare');
-
-    const loadingToast = toast.loading("Benchmarking APIs...");
-    try {
-      setLoading(true);
-      setCompareResults(null);
-      const { data } = await api.post('/admin/compare-recharge', {
-        mobile: mobileNumber,
-        amount: amt,
-        operator: 'Jio',
-        providers: selectedForCompare,
-        testMode: isTestMode
-      });
-      
-      setCompareResults(data.data);
-      toast.success("Benchmark completed", { id: loadingToast });
-    } catch (err) {
-      const msg = err.response?.data?.message || err.message;
-      toast.error(msg, { id: loadingToast });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleTopUp = async () => {
     const loadingToast = toast.loading("Adding balance...");
     try {
@@ -150,84 +122,69 @@ export const Tester = () => {
     }
   };
 
-  const toggleCompareOperator = (code) => {
-    setSelectedForCompare(prev => 
-      prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]
-    );
-  };
-
-  const getBestOperator = (results) => {
-    if (!results || results.length === 0) return null;
-    const successOnly = results.filter(r => r.status === 'SUCCESS');
-    if (successOnly.length === 0) return null;
-    return successOnly.reduce((prev, curr) => prev.responseTime < curr.responseTime ? prev : curr);
-  };
-
-  const bestOperator = compareResults ? getBestOperator(compareResults.results) : null;
-
   return (
-    <div className="max-w-7xl mx-auto space-y-8">
-      <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-black text-[var(--text-color)] tracking-tight drop-shadow-sm uppercase italic">RECHARGE <span className="text-cyan-600">Engine</span></h1>
-          <p className="text-[10px] md:text-sm text-[var(--text-secondary)] mt-1 font-bold uppercase tracking-widest">Benchmark and debug provider routing in real-time</p>
+    <div className="max-w-7xl mx-auto space-y-6">
+      <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-xl md:text-2xl font-bold text-[var(--text-primary)] tracking-tight">Recharge Engine</h1>
+          <p className="text-xs text-[var(--text-secondary)] font-medium">Benchmark and debug provider routing in real-time</p>
         </div>
         <div className="flex items-center gap-4">
           <motion.button 
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             onClick={() => handleTopUp()}
-            className="w-full lg:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-purple-500/10 border border-purple-500/20 text-purple-400 text-[10px] font-black rounded-xl hover:bg-purple-500/20 transition-all shadow-sm uppercase tracking-[0.2em]"
+            className="w-full lg:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-[var(--color-primary-glow)] border border-[var(--border-soft)] text-[var(--color-primary)] text-xs font-semibold rounded-xl hover:opacity-90 transition-all shadow-sm uppercase tracking-wider cursor-pointer"
           >
-            <Zap className="w-4 h-4 fill-current" />
+            <Zap className="w-3.5 h-3.5" />
             + ₹1000 Credits
           </motion.button>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* LEFT PANEL: Inputs (5 cols) */}
         <div className="lg:col-span-5 space-y-6">
-          <section className="glass-card border border-[var(--glass-border)] rounded-2xl p-8 shadow-xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <Activity className="w-12 h-12 text-cyan-600" />
+          <section className="bg-[var(--card-bg)] border border-[var(--border-soft)] rounded-xl p-6 shadow-soft relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+              <Activity className="w-12 h-12 text-[var(--color-primary)]" />
             </div>
             
-            <h2 className="text-sm font-black text-[var(--text-muted)] uppercase tracking-widest mb-8 flex items-center gap-3">
-              <span className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.8)]"></span>
+            <h2 className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-6 flex items-center gap-2">
+              <span className="w-2 h-2 bg-[var(--color-primary)] rounded-full animate-pulse"></span>
               Request Parameters
             </h2>
 
-            <form onSubmit={handleTest} className="space-y-6">
-              <div className="space-y-2">
-                <label className="block text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Target Mobile</label>
+            <form onSubmit={handleTest} className="space-y-5">
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Target Mobile</label>
                 <input 
                   type="tel"
                   value={mobileNumber}
                   onChange={(e) => setMobileNumber(e.target.value.replace(/[^0-9]/g, ''))}
                   maxLength={10}
                   placeholder="98********"
-                  className="w-full px-4 py-3 glass-input text-[var(--text-color)] font-bold tracking-widest outline-none focus:ring-2 focus:ring-cyan-500/10 focus:border-cyan-500 transition-all placeholder:text-[var(--text-muted)]"
+                  className="w-full px-3.5 py-2.5 bg-[var(--admin-input-bg)] border border-[var(--border-soft)] text-[var(--text-primary)] rounded-xl text-xs font-medium tracking-wider outline-none focus:ring-2 focus:ring-[var(--admin-focus-ring)] focus:border-[var(--color-primary)] transition-all placeholder:text-[var(--text-muted)]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="block text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Amount (₹)</label>
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Amount (₹)</label>
                   <input 
                     type="number"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="10"
-                    className="w-full px-4 py-3 glass-input text-[var(--text-color)] font-bold outline-none focus:ring-2 focus:ring-purple-500/10 focus:border-purple-500 transition-all placeholder:text-[var(--text-muted)]"
+                    className="w-full px-3.5 py-2.5 bg-[var(--admin-input-bg)] border border-[var(--border-soft)] text-[var(--text-primary)] rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-[var(--admin-focus-ring)] focus:border-[var(--color-primary)] transition-all placeholder:text-[var(--text-muted)]"
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="block text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Operator</label>
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Operator</label>
                   <select 
                     value={operator}
                     onChange={(e) => setOperator(e.target.value)}
-                    className="w-full px-4 py-3 glass-input text-[var(--text-color)] font-bold outline-none focus:ring-2 focus:ring-cyan-500/10 focus:border-cyan-500 transition-all"
+                    className="w-full px-3.5 py-2.5 bg-[var(--admin-input-bg)] border border-[var(--border-soft)] text-[var(--text-primary)] rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-[var(--admin-focus-ring)] focus:border-[var(--color-primary)] transition-all"
                   >
                     <option value="Jio">Jio</option>
                     <option value="Airtel">Airtel</option>
@@ -237,33 +194,33 @@ export const Tester = () => {
                 </div>
               </div>
 
-              <div className="space-y-4 pt-4">
-                <label className="block text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Priority Routing</label>
-                <div className="space-y-3">
-                  <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all ${selectedOperators.length === 0 ? 'bg-cyan-500/10 border-cyan-500/30 shadow-sm' : 'bg-[var(--bg-tertiary)] border-[var(--glass-border)] hover:border-[var(--glass-border-hover)]'}`}>
+              <div className="space-y-3.5 pt-2">
+                <label className="block text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Priority Routing</label>
+                <div className="space-y-2.5">
+                  <label className={`flex items-center p-3.5 border rounded-xl cursor-pointer transition-all ${selectedOperators.length === 0 ? 'bg-[var(--color-primary-glow)] border-[var(--border-soft)]' : 'bg-[var(--bg-secondary)] border-[var(--border-soft)]'}`}>
                     <input 
                       type="checkbox" 
                       checked={selectedOperators.length === 0} 
                       onChange={() => setSelectedOperators([])}
                       className="hidden"
                     />
-                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${selectedOperators.length === 0 ? 'border-cyan-600 bg-cyan-600' : 'border-[var(--text-muted)]'}`}>
-                      {selectedOperators.length === 0 && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
+                    <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center transition-all ${selectedOperators.length === 0 ? 'border-[var(--color-primary)] bg-[var(--color-primary)]' : 'border-[var(--text-muted)]'}`}>
+                      {selectedOperators.length === 0 && <div className="w-1.5 h-1.5 bg-[var(--bg-primary)] rounded-full"></div>}
                     </div>
-                    <span className="ml-4 text-xs font-black text-[var(--text-color)] uppercase tracking-widest">Smart Failover</span>
-                    <span className="ml-auto text-[8px] bg-cyan-600 text-white px-2 py-0.5 rounded-full font-black uppercase tracking-tighter">AI Driven</span>
+                    <span className="ml-3 text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wider">Smart Failover</span>
+                    <span className="ml-auto text-[8px] bg-[var(--color-primary)] text-[var(--bg-primary)] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">AI Driven</span>
                   </label>
                   
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-2.5">
                     {providers.map((p) => (
                       <button
                         key={p.code}
                         type="button"
                         onClick={() => setSelectedOperators(prev => prev.includes(p.code) ? prev.filter(c => c !== p.code) : [...prev, p.code])}
-                        className={`p-3 text-[10px] font-black uppercase tracking-widest border rounded-xl transition-all ${
+                        className={`p-2.5 text-[10px] font-bold uppercase tracking-wider border rounded-xl transition-all cursor-pointer ${
                           selectedOperators.includes(p.code) 
-                          ? 'bg-purple-500/10 border-purple-500/30 text-purple-400 shadow-sm' 
-                          : 'bg-[var(--bg-tertiary)] border-[var(--glass-border)] text-[var(--text-muted)] hover:border-[var(--glass-border-hover)]'
+                          ? 'bg-[var(--color-primary-glow)] border-[var(--border-soft)] text-[var(--color-primary)]' 
+                          : 'bg-[var(--bg-secondary)] border-[var(--border-soft)] text-[var(--text-secondary)] hover:border-[var(--color-primary)]/30'
                         }`}
                       >
                         {p.name}
@@ -278,47 +235,47 @@ export const Tester = () => {
                 whileTap={{ scale: 0.98 }}
                 type="submit"
                 disabled={loading || mobileNumber.length !== 10}
-                className="w-full py-4 bg-gradient-to-r from-cyan-600 to-purple-600 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-cyan-600/10 disabled:opacity-50 flex items-center justify-center gap-3"
+                className="w-full py-3 bg-[var(--color-primary)] text-[var(--bg-primary)] text-xs font-bold uppercase tracking-wider rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow-sm"
               >
                 {loading ? (
-                  <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
-                ) : <Zap className="w-4 h-4 fill-current" />}
+                  <span className="animate-spin h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full"></span>
+                ) : <Zap className="w-4 h-4" />}
                 {loading ? 'Executing...' : 'Fire Recharge'}
               </motion.button>
             </form>
           </section>
 
           <div className="grid grid-cols-2 gap-4">
-            <button onClick={() => setMobileNumber('9999999999')} className="text-[10px] py-3 px-4 bg-[var(--bg-tertiary)] border border-[var(--glass-border)] rounded-xl text-[var(--text-color)] font-black uppercase tracking-widest hover:bg-[var(--glass-button-bg)] transition-all shadow-sm">Mock Success</button>
-            <button onClick={() => setMobileNumber('8888888888')} className="text-[10px] py-3 px-4 bg-[var(--bg-tertiary)] border border-[var(--glass-border)] rounded-xl text-[var(--text-color)] font-black uppercase tracking-widest hover:bg-[var(--glass-button-bg)] transition-all shadow-sm">Mock Failure</button>
+            <button onClick={() => setMobileNumber('9999999999')} className="text-[10px] py-2.5 px-4 bg-[var(--bg-secondary)] border border-[var(--border-soft)] rounded-xl text-[var(--text-primary)] font-bold uppercase tracking-wider hover:bg-[var(--accent-hover)] transition-all cursor-pointer">Mock Success</button>
+            <button onClick={() => setMobileNumber('8888888888')} className="text-[10px] py-2.5 px-4 bg-[var(--bg-secondary)] border border-[var(--border-soft)] rounded-xl text-[var(--text-primary)] font-bold uppercase tracking-wider hover:bg-[var(--accent-hover)] transition-all cursor-pointer">Mock Failure</button>
           </div>
         </div>
 
         {/* RIGHT PANEL: Debug Console + Session History */}
         <div className="lg:col-span-7 space-y-6">
-          <section className="bg-slate-900 rounded-2xl h-[450px] flex flex-col shadow-2xl relative overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-white/[0.02]">
+          <section className="bg-[var(--bg-secondary)] border border-[var(--border-soft)] rounded-xl h-[450px] flex flex-col shadow-soft relative overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-[var(--border-soft)] flex items-center justify-between bg-[var(--bg-tertiary)]/30">
               <div className="flex items-center gap-2">
                 <div className="flex gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-rose-500/50"></div>
-                  <div className="w-2.5 h-2.5 rounded-full bg-amber-500/50"></div>
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/50"></div>
+                  <div className="w-2 h-2 rounded-full bg-rose-500/40"></div>
+                  <div className="w-2 h-2 rounded-full bg-amber-500/40"></div>
+                  <div className="w-2 h-2 rounded-full bg-emerald-500/40"></div>
                 </div>
-                <span className="ml-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Debug Console</span>
+                <span className="ml-3 text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Debug Console</span>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 font-mono space-y-6 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-5 font-mono space-y-5 custom-scrollbar text-xs">
               {!result && !loading && (
-                <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-30">
-                  <Clock className="w-12 h-12 text-slate-400" />
-                  <p className="text-xs font-black uppercase tracking-widest text-slate-500">Awaiting Signal...</p>
+                <div className="h-full flex flex-col items-center justify-center text-center space-y-3 opacity-40">
+                  <Clock className="w-10 h-10 text-[var(--text-secondary)]" />
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Awaiting Signal...</p>
                 </div>
               )}
 
               {loading && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 text-cyan-400 text-xs">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-[var(--color-primary)]">
                     <span className="animate-pulse">▶</span>
                     <span>Initializing transaction sequence...</span>
                   </div>
@@ -326,34 +283,34 @@ export const Tester = () => {
               )}
 
               {result && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                  <div className={`p-6 rounded-2xl border ${result.status === 'success' ? 'bg-emerald-500/5 border-emerald-500/30 shadow-[0_0_30px_rgba(16,185,129,0.15)]' : 'bg-rose-500/5 border-rose-500/30'}`}>
-                    <div className="flex justify-between items-start mb-6">
-                      <h3 className={`text-xl font-black uppercase tracking-tighter ${result.status === 'success' ? 'text-emerald-400' : 'text-rose-400'}`}>{result.status}</h3>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
+                  <div className={`p-5 rounded-xl border ${result.status === 'success' ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-rose-500/5 border-rose-500/20'}`}>
+                    <div className="flex justify-between items-start mb-4">
+                      <h3 className={`text-base font-bold uppercase tracking-wider ${result.status === 'success' ? 'text-emerald-500' : 'text-rose-500'}`}>{result.status}</h3>
                       <div className="text-right">
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Time</p>
-                        <p className="text-lg font-black text-white">{result.details?.attempts?.reduce((acc, curr) => acc + (curr.latency || 0), 0) || 0}ms</p>
+                        <p className="text-[9px] font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-0.5">Total Time</p>
+                        <p className="text-base font-bold text-[var(--text-primary)]">{result.details?.attempts?.reduce((acc, curr) => acc + (curr.latency || 0), 0) || 0}ms</p>
                       </div>
                     </div>
-                    <div className="space-y-3 border-t border-white/5 pt-4">
-                      <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-                        <span className="text-slate-500">Final Operator</span>
-                        <span className="text-cyan-400">{result.details?.provider || 'N/A'}</span>
+                    <div className="space-y-2 border-t border-[var(--border-soft)] pt-3">
+                      <div className="flex justify-between items-center text-[10px] font-semibold uppercase tracking-wider">
+                        <span className="text-[var(--text-secondary)]">Final Operator</span>
+                        <span className="text-[var(--color-primary)]">{result.details?.provider || 'N/A'}</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Failover Trace</h4>
+                  <div className="space-y-3.5">
+                    <h4 className="text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Failover Trace</h4>
                     <div className="space-y-2">
                       {result.details?.attempts?.map((step, i) => (
-                        <div key={i} className="flex items-center gap-4 bg-white/[0.02] p-3 rounded-xl border border-white/5">
-                          <div className="w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center text-[10px] text-slate-500 font-black">{i+1}</div>
+                        <div key={i} className="flex items-center gap-3 bg-[var(--bg-primary)] p-3 rounded-lg border border-[var(--border-soft)]">
+                          <div className="w-5.5 h-5.5 rounded bg-[var(--bg-secondary)] flex items-center justify-center text-[9px] text-[var(--text-secondary)] font-bold">{i+1}</div>
                           <div className="flex-1">
-                            <p className="text-[10px] font-black text-white uppercase tracking-widest">{step.provider}</p>
-                            <p className="text-[8px] text-slate-500 font-medium">{step.reason || `Latency: ${step.latency}ms`}</p>
+                            <p className="text-[10px] font-bold text-[var(--text-primary)] uppercase tracking-wider">{step.provider}</p>
+                            <p className="text-[8px] text-[var(--text-secondary)] font-medium">{step.reason || `Latency: ${step.latency}ms`}</p>
                           </div>
-                          <span className={`text-[10px] font-black uppercase tracking-widest ${step.status === 'SUCCESS' ? 'text-emerald-400' : 'text-rose-400'}`}>{step.status}</span>
+                          <span className={`text-[10px] font-bold uppercase tracking-wider ${step.status === 'SUCCESS' ? 'text-emerald-500' : 'text-rose-500'}`}>{step.status}</span>
                         </div>
                       ))}
                     </div>
@@ -364,25 +321,25 @@ export const Tester = () => {
           </section>
 
           {/* Session History Table */}
-          <section className="glass-card border border-[var(--glass-border)] rounded-2xl shadow-xl overflow-hidden">
-            <div className="p-4 border-b border-[var(--glass-border)] flex justify-between items-center bg-[var(--bg-tertiary)]">
-              <h2 className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Session History</h2>
-              <span className="text-[8px] font-black text-[var(--text-muted)] uppercase">{history.length} Records</span>
+          <section className="bg-[var(--card-bg)] border border-[var(--border-soft)] rounded-xl shadow-soft overflow-hidden">
+            <div className="p-4 border-b border-[var(--border-soft)] flex justify-between items-center bg-[var(--bg-secondary)]/50">
+              <h2 className="text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Session History</h2>
+              <span className="text-[9px] font-bold text-[var(--text-secondary)] uppercase">{history.length} Records</span>
             </div>
             <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
               {history.length === 0 ? (
-                <div className="p-8 text-center text-[var(--text-color)] text-[10px] font-black uppercase tracking-widest">No activity yet</div>
+                <div className="p-6 text-center text-[var(--text-secondary)] text-[10px] font-bold uppercase tracking-wider">No activity yet</div>
               ) : (
                 <table className="w-full text-left">
-                  <tbody className="divide-y divide-[var(--glass-border)]">
+                  <tbody className="divide-y divide-[var(--border-soft)]">
                     {history.map((tx, idx) => (
-                      <tr key={idx} className="hover:bg-[var(--glass-button-bg)] transition-all">
-                        <td className="px-6 py-4">
-                          <div className="text-xs font-black text-[var(--text-color)]">{tx.mobile}</div>
-                          <div className="text-[8px] text-[var(--text-muted)] font-black uppercase tracking-tighter">{tx.provider || 'Smart Route'}</div>
+                      <tr key={idx} className="hover:bg-[var(--accent-hover)] transition-all">
+                        <td className="px-5 py-3">
+                          <div className="text-xs font-bold text-[var(--text-primary)]">{tx.mobile}</div>
+                          <div className="text-[8px] text-[var(--text-secondary)] font-semibold uppercase tracking-wider">{tx.provider || 'Smart Route'}</div>
                         </td>
-                        <td className="px-6 py-4 text-right">
-                          <span className={`text-[9px] font-black px-3 py-1 rounded-lg uppercase ${
+                        <td className="px-5 py-3 text-right">
+                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase ${
                             tx.status?.toLowerCase() === 'success' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'
                           }`}>
                             {tx.status?.toUpperCase()}
@@ -400,5 +357,3 @@ export const Tester = () => {
     </div>
   );
 };
-
-

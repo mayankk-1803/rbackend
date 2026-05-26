@@ -8,10 +8,11 @@
     "server": "nodemon server.js",
     "worker": "node worker.js",
     "dev": "concurrently \"npm run server\" \"npm run worker\"",
-    "keywords": [],
-    "author": "",
-    "license": "ISC"
+    "build": "prisma generate"
   },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "axios": "^1.15.0",

@@ -15,6 +15,22 @@ export const auth = async (req, res, next) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback_secret");
       
       if (decoded && decoded.id) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: decoded.id },
+          select: {
+            id: true,
+            isActive: true,
+            role: true
+          }
+        });
+
+        if (!dbUser || dbUser.isActive === false) {
+          return res.status(403).json({
+            success: false,
+            message: "Your account has been deactivated. Please contact support."
+          });
+        }
+
         const isAdminRoute = req.originalUrl.includes('/admin') || req.originalUrl.includes('/admin/');
         const tokenType = decoded.tokenType;
 

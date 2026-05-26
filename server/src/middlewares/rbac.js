@@ -5,10 +5,9 @@ import AppError from "../utils/AppError.js";
  */
 const ROLE_LEVELS = {
   USER: 1,
-  RETAILER: 2,
-  DISTRIBUTOR: 3,
-  ADMIN: 4,
-  SUPER_ADMIN: 5
+  API_USER: 2,
+  ADMIN: 3,
+  SUPER_ADMIN: 4
 };
 
 /**

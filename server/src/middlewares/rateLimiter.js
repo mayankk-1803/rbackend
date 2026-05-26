@@ -60,3 +60,40 @@ export const apiLimiter = (req, res, next) => {
   return isAdmin ? adminApiLimiter(req, res, next) : userApiLimiter(req, res, next);
 };
 
+export const apiKeyRateLimiter = async (req, res, next) => {
+  const apiKey = req.headers["x-api-key"] || req.headers["x-client-id"];
+  
+  if (apiKey) {
+    try {
+      const key = `ratelimit:apikey:${apiKey}`;
+      const limit = 100; // 100 req/min default
+      const windowSeconds = 60;
+
+      const multi = redisClient.multi();
+      multi.incr(key);
+      multi.ttl(key);
+
+      const result = await multi.exec();
+      if (result) {
+        const requestCount = Number(result[0]?.[1] || 0);
+        const ttl = Number(result[1]?.[1] || 0);
+
+        if (ttl < 0) {
+          await redisClient.expire(key, windowSeconds);
+        }
+
+        if (requestCount > limit) {
+          console.warn(`[RATE_LIMIT] API Key ${apiKey} exceeded limit (${requestCount}/${limit})`);
+          return res.status(429).json({
+            success: false,
+            message: "API rate limit exceeded. Max 100 requests per minute."
+          });
+        }
+      }
+    } catch (err) {
+      console.error("[API Key Rate Limiter Error]:", err);
+    }
+  }
+  next();
+};
+

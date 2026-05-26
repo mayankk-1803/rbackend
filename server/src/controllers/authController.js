@@ -106,6 +106,13 @@ export const loginEmail = async (req, res) => {
       return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
 
+    if (user.isActive === false) {
+      return res.status(403).json({
+        success: false,
+        message: "Your account has been deactivated. Please contact support."
+      });
+    }
+
     console.log("[AUTH][JWT_STAGE] Generating token...");
     const tokenType = req.headers['x-admin-request'] === 'true' ? "ADMIN_PANEL" : "USER_PANEL";
     const token = generateToken(user, tokenType);
@@ -234,6 +241,14 @@ export const verifyOtp = async (req, res) => {
     console.log(`[OTP][VERIFY_SUCCESS] → OTP successfully verified for ${normalizedPhone}`);
 
     let user = await prisma.user.findUnique({ where: { phone: normalizedPhone } });
+
+    if (user && user.isActive === false) {
+      return res.status(403).json({
+        success: false,
+        message: "Your account has been deactivated. Please contact support."
+      });
+    }
+
     let isNewUser = false;
 
     if (!user) {

@@ -64,7 +64,7 @@ export default function ApiKeyManager() {
 
   if (loading) return (
     <div className="flex items-center justify-center p-20">
-      <div className="w-8 h-8 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin"></div>
+      <div className="w-8 h-8 border-3 border-[var(--color-primary-glow)] border-t-[var(--color-primary)] rounded-full animate-spin"></div>
     </div>
   );
 
@@ -72,13 +72,13 @@ export default function ApiKeyManager() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic">Manage <span className="text-cyan-600">Credentials</span></h2>
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Securely manage your API access tokens</p>
+          <h2 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">Manage Credentials</h2>
+          <p className="text-xs text-[var(--text-secondary)] font-medium">Securely manage your API access client tokens</p>
         </div>
         <button 
           onClick={generateNewKey}
           disabled={keys.length >= 2}
-          className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-4 py-2.5 bg-[var(--color-primary)] text-[var(--bg-primary)] rounded-xl text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm border border-[var(--border-soft)]"
         >
           <Plus className="w-4 h-4" />
           Generate New Keys
@@ -91,18 +91,18 @@ export default function ApiKeyManager() {
             key={idx}
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white border border-slate-200 rounded-[2rem] overflow-hidden shadow-xl shadow-slate-200/50"
+            className="bg-[var(--card-bg)] border border-[var(--border-soft)] rounded-xl overflow-hidden shadow-soft"
           >
-            <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-slate-900 rounded-2xl flex items-center justify-center">
-                  <Key className="w-5 h-5 text-cyan-400" />
+            <div className="p-4 border-b border-[var(--border-soft)] bg-[var(--bg-secondary)]/50 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-[var(--color-primary-glow)] rounded-lg flex items-center justify-center">
+                  <Key className="w-4 h-4 text-[var(--color-primary)]" />
                 </div>
                 <div>
-                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Production Key #{idx + 1}</h3>
-                  <div className="flex items-center gap-2">
-                     <span className={`w-1.5 h-1.5 rounded-full ${key.isActive ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
-                     <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                  <h3 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Production Key #{idx + 1}</h3>
+                  <div className="flex items-center gap-2 mt-0.5">
+                     <span className={`w-1.5 h-1.5 rounded-full ${key.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
+                     <span className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
                        {key.isActive ? 'Active' : 'Deactivated'}
                      </span>
                   </div>
@@ -111,10 +111,10 @@ export default function ApiKeyManager() {
               <div className="flex items-center gap-2">
                  <button 
                   onClick={() => toggleStatus(key.clientId)}
-                  className={`px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-[9px] font-bold uppercase tracking-wider border transition-all cursor-pointer ${
                     key.isActive 
-                      ? 'bg-rose-50 text-rose-600 hover:bg-rose-100' 
-                      : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                      ? 'bg-rose-500/10 text-rose-500 border-rose-500/20 hover:bg-rose-500/20' 
+                      : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20'
                   }`}
                  >
                    {key.isActive ? 'Disable' : 'Enable'}
@@ -122,47 +122,47 @@ export default function ApiKeyManager() {
               </div>
             </div>
 
-            <div className="p-8 space-y-6">
+            <div className="p-6 space-y-4">
               {/* Client ID */}
-              <div className="space-y-2">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Client ID</label>
-                <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <Lock className="w-4 h-4 text-slate-300" />
-                  <code className="flex-1 text-[11px] font-bold text-slate-900">{key.clientId}</code>
-                  <button onClick={() => copyToClipboard(key.clientId, 'Client ID')} className="p-2 hover:bg-slate-200 rounded-lg transition-all">
-                    <Copy className="w-4 h-4 text-slate-500" />
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider ml-0.5">Client ID</label>
+                <div className="flex items-center gap-3 p-3 bg-[var(--admin-input-bg)] rounded-xl border border-[var(--border-soft)]">
+                  <Lock className="w-4 h-4 text-[var(--text-secondary)]" />
+                  <code className="flex-1 text-xs font-mono font-bold text-[var(--text-primary)] break-all">{key.clientId}</code>
+                  <button onClick={() => copyToClipboard(key.clientId, 'Client ID')} className="p-1.5 hover:bg-[var(--bg-secondary)] rounded-lg transition-all cursor-pointer border border-transparent hover:border-[var(--border-soft)]">
+                    <Copy className="w-4 h-4 text-[var(--text-secondary)]" />
                   </button>
                 </div>
               </div>
 
               {/* API Key */}
-              <div className="space-y-2">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">API Key</label>
-                <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <Zap className="w-4 h-4 text-slate-300" />
-                  <code className="flex-1 text-[11px] font-bold text-slate-900">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider ml-0.5">API Key</label>
+                <div className="flex items-center gap-3 p-3 bg-[var(--admin-input-bg)] rounded-xl border border-[var(--border-soft)]">
+                  <Zap className="w-4 h-4 text-[var(--text-secondary)]" />
+                  <code className="flex-1 text-xs font-mono font-bold text-[var(--text-primary)] break-all">
                     {showSecret[key.clientId] ? key.apiKey : '••••••••••••••••••••••••••••••••'}
                   </code>
-                  <button onClick={() => setShowSecret(prev => ({ ...prev, [key.clientId]: !prev[key.clientId] }))} className="p-2 hover:bg-slate-200 rounded-lg transition-all">
-                    {showSecret[key.clientId] ? <EyeOff className="w-4 h-4 text-slate-500" /> : <Eye className="w-4 h-4 text-slate-500" />}
+                  <button onClick={() => setShowSecret(prev => ({ ...prev, [key.clientId]: !prev[key.clientId] }))} className="p-1.5 hover:bg-[var(--bg-secondary)] rounded-lg transition-all cursor-pointer border border-transparent hover:border-[var(--border-soft)]">
+                    {showSecret[key.clientId] ? <EyeOff className="w-4 h-4 text-[var(--text-secondary)]" /> : <Eye className="w-4 h-4 text-[var(--text-secondary)]" />}
                   </button>
-                  <button onClick={() => copyToClipboard(key.apiKey, 'API Key')} className="p-2 hover:bg-slate-200 rounded-lg transition-all">
-                    <Copy className="w-4 h-4 text-slate-500" />
+                  <button onClick={() => copyToClipboard(key.apiKey, 'API Key')} className="p-1.5 hover:bg-[var(--bg-secondary)] rounded-lg transition-all cursor-pointer border border-transparent hover:border-[var(--border-soft)]">
+                    <Copy className="w-4 h-4 text-[var(--text-secondary)]" />
                   </button>
                 </div>
               </div>
 
                {/* Meta Info */}
-               <div className="pt-4 flex items-center gap-6 border-t border-slate-100">
+               <div className="pt-4 flex items-center gap-6 border-t border-[var(--border-soft)]">
                   <div className="flex items-center gap-2">
-                    <Calendar className="w-3.5 h-3.5 text-slate-300" />
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                    <Calendar className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                    <span className="text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
                       Created: {new Date(key.createdAt).toLocaleDateString()}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <RefreshCw className="w-3.5 h-3.5 text-slate-300" />
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                    <RefreshCw className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                    <span className="text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
                       Last Used: {key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleString() : 'Never'}
                     </span>
                   </div>
@@ -172,13 +172,13 @@ export default function ApiKeyManager() {
         ))}
 
         {keys.length === 0 && (
-          <div className="p-12 border-4 border-dashed border-slate-100 rounded-[2.5rem] flex flex-col items-center justify-center text-center gap-4">
-             <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center">
-                <ShieldAlert className="w-8 h-8 text-slate-300" />
+          <div className="p-12 border border-dashed border-[var(--border-soft)] rounded-xl flex flex-col items-center justify-center text-center gap-4 bg-[var(--card-bg)] shadow-soft">
+             <div className="w-12 h-12 bg-rose-500/10 rounded-full flex items-center justify-center border border-rose-500/20">
+                <ShieldAlert className="w-5 h-5 text-rose-500" />
              </div>
              <div className="space-y-1">
-                <p className="text-xs font-black text-slate-900 uppercase tracking-widest">No API Keys Generated</p>
-                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.2em]">Generate keys to start building your integration</p>
+                <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">No API Keys Generated</p>
+                <p className="text-[10px] text-[var(--text-secondary)] font-medium">Generate keys to start building your API integration</p>
              </div>
           </div>
         )}

@@ -241,6 +241,14 @@ export const initSocket = (server) => {
   eventBus.on("provider_health_update", (data) => adminNamespace.emit("provider_health_update", data));
   eventBus.on("provider_down_alert", (data) => adminNamespace.emit("provider_down_alert", data));
   eventBus.on("provider_blacklisted", (data) => adminNamespace.emit("provider_blacklisted", data));
+
+  // Socket safety: emit api_access_updated events to user and admin namespaces
+  eventBus.on("api_access_updated", (data) => {
+    if (data.userId) {
+      io.to(data.userId.toString()).emit("api_access_updated", data);
+    }
+    adminNamespace.emit("api_access_updated", data);
+  });
   
   return io;
 };

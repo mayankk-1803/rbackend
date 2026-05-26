@@ -39,7 +39,7 @@ const LANGUAGES = [
 ];
 
 const Skeleton = ({ className }) => (
-  <div className={`animate-pulse bg-slate-200 rounded-2xl ${className}`}></div>
+  <div className={`animate-pulse bg-[var(--bg-secondary)] rounded-xl ${className}`}></div>
 );
 
 const generateCode = (endpoint, lang) => {
@@ -70,7 +70,7 @@ const generateCode = (endpoint, lang) => {
 
     case 'javascript':
       return `import axios from 'axios';
-
+ 
 const response = await axios({
   method: '${method}',
   url: '${url}',
@@ -81,13 +81,13 @@ const response = await axios({
   },
   ${method === 'POST' ? `data: ${JSON.stringify(body || {}, null, 2)}` : ''}
 });
-
+ 
 console.log(response.data);`;
 
     case 'php':
       return `<?php
 $client = new \\GuzzleHttp\\Client();
-
+ 
 $response = $client->request('${method}', '${url}', [
   'headers' => [
     'x-client-id' => 'YOUR_CLIENT_ID',
@@ -96,21 +96,21 @@ $response = $client->request('${method}', '${url}', [
   ],
   ${method === 'POST' ? `'json' => ${JSON.stringify(body || {}, null, 2)}` : ''}
 ]);
-
+ 
 echo $response->getBody();`;
 
     case 'python':
       return `import requests
-
+ 
 url = "${url}"
 headers = {
     "x-client-id": "YOUR_CLIENT_ID",
     "x-api-key": "YOUR_API_KEY",
     "x-api-secret": "YOUR_API_SECRET"
 }
-
+ 
 response = requests.request("${method}", url, headers=headers${method === 'POST' ? `, json=${JSON.stringify(body || {}, null, 2)}` : ''})
-
+ 
 print(response.json())`;
 
     default:
@@ -169,34 +169,34 @@ export default function ApiDocs({ searchQuery }) {
   };
 
   if (loading) return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-      <div className="space-y-8">
-         <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 space-y-6">
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="space-y-6">
+         <div className="bg-[var(--card-bg)] border border-[var(--border-soft)] rounded-xl p-6 space-y-6">
             <Skeleton className="h-6 w-24" />
             <Skeleton className="h-10 w-3/4" />
             <Skeleton className="h-20 w-full" />
-            <div className="pt-10 space-y-6">
-              <Skeleton className="h-40 w-full" />
-              <Skeleton className="h-40 w-full" />
+            <div className="pt-8 space-y-4">
+              <Skeleton className="h-32 w-full" />
+              <Skeleton className="h-32 w-full" />
             </div>
          </div>
       </div>
-      <div className="bg-slate-900 rounded-[2.5rem] h-[600px] animate-pulse"></div>
+      <div className="bg-[var(--card-bg)] border border-[var(--border-soft)] rounded-xl h-[550px] animate-pulse"></div>
     </div>
   );
 
   if (error) return (
-    <div className="flex flex-col items-center justify-center p-20 text-center gap-6 bg-white border border-slate-200 rounded-[2.5rem]">
-      <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center">
-        <AlertCircle className="w-8 h-8 text-rose-500" />
+    <div className="flex flex-col items-center justify-center p-20 text-center gap-6 bg-[var(--card-bg)] border border-[var(--border-soft)] rounded-xl shadow-soft">
+      <div className="w-12 h-12 bg-rose-500/10 rounded-full flex items-center justify-center">
+        <AlertCircle className="w-5 h-5 text-rose-500" />
       </div>
-      <div className="space-y-2">
-        <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight italic">Oops! Something went wrong</h3>
-        <p className="text-sm text-slate-500 max-w-xs">{error}</p>
+      <div className="space-y-1">
+        <h3 className="text-base font-bold text-[var(--text-primary)]">Something went wrong</h3>
+        <p className="text-xs text-[var(--text-secondary)] max-w-xs">{error}</p>
       </div>
       <button 
         onClick={fetchManifest}
-        className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all"
+        className="flex items-center gap-2 px-4 py-2 bg-[var(--color-primary)] text-[var(--bg-primary)] rounded-xl text-xs font-bold hover:opacity-90 transition-all cursor-pointer border border-[var(--border-soft)]"
       >
         <RefreshCw className="w-4 h-4" />
         Retry Loading
@@ -207,36 +207,36 @@ export default function ApiDocs({ searchQuery }) {
   if (!selectedEndpoint) return null;
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
       {/* Left Column: API Details */}
-      <div className="space-y-8">
-        <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-xl shadow-slate-200/50">
+      <div className="space-y-6">
+        <div className="bg-[var(--card-bg)] border border-[var(--border-soft)] rounded-xl p-6 shadow-soft">
            <div className="space-y-4">
               <div className="flex items-center gap-3">
-                 <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
-                   selectedEndpoint.method === 'GET' ? 'bg-emerald-50 text-emerald-600' : 'bg-cyan-50 text-cyan-600'
+                 <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
+                   selectedEndpoint.method === 'GET' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-[var(--color-primary-glow)] text-[var(--color-primary)] border border-[var(--color-primary)]/10'
                  }`}>
                    {selectedEndpoint.method}
                  </span>
-                 <code className="text-sm font-black text-slate-400 tracking-tight">{selectedEndpoint.path}</code>
+                 <code className="text-xs font-mono font-bold text-[var(--text-secondary)] tracking-tight break-all">{selectedEndpoint.path}</code>
               </div>
               
-              <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter italic">{selectedEndpoint.name}</h2>
-              <p className="text-slate-500 text-sm font-medium leading-relaxed">
+              <h2 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">{selectedEndpoint.name}</h2>
+              <p className="text-[var(--text-secondary)] text-xs font-medium leading-relaxed">
                 {selectedEndpoint.description}
               </p>
            </div>
 
-           <div className="mt-10 space-y-8">
+           <div className="mt-8 space-y-6">
               {/* Request Parameters */}
               {selectedEndpoint.body && (
-                <div className="space-y-4">
-                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                    <Braces className="w-4 h-4 text-cyan-500" />
+                <div className="space-y-2">
+                  <h3 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
+                    <Braces className="w-4 h-4 text-[var(--color-primary)]" />
                     Request Body
                   </h3>
-                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 overflow-x-auto">
-                    <pre className="text-[11px] font-bold text-slate-600">
+                  <div className="bg-[var(--bg-secondary)] rounded-xl p-4 border border-[var(--border-soft)] overflow-x-auto">
+                    <pre className="text-xs font-mono text-[var(--text-primary)]">
                       {JSON.stringify(selectedEndpoint.body, null, 2)}
                     </pre>
                   </div>
@@ -244,13 +244,13 @@ export default function ApiDocs({ searchQuery }) {
               )}
 
               {/* Response Schema */}
-              <div className="space-y-4">
-                <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-emerald-500" />
+              <div className="space-y-2">
+                <h3 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-[var(--color-primary)]" />
                   Success Response
                 </h3>
-                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 overflow-x-auto">
-                   <pre className="text-[11px] font-bold text-slate-600">
+                <div className="bg-[var(--bg-secondary)] rounded-xl p-4 border border-[var(--border-soft)] overflow-x-auto">
+                   <pre className="text-xs font-mono text-[var(--text-primary)]">
                       {JSON.stringify(selectedEndpoint.responses.success.body, null, 2)}
                     </pre>
                 </div>
@@ -264,19 +264,19 @@ export default function ApiDocs({ searchQuery }) {
             <button
               key={ep.id}
               onClick={() => setSelectedEndpoint(ep)}
-              className={`p-5 rounded-3xl text-left transition-all border ${
+              className={`p-4 rounded-xl text-left transition-all border cursor-pointer ${
                 selectedEndpoint.id === ep.id 
-                  ? 'bg-slate-900 border-slate-900 shadow-lg shadow-slate-900/20' 
-                  : 'bg-white border-slate-200 hover:border-cyan-500/50'
+                  ? 'bg-[var(--color-primary-glow)] border-[var(--color-primary)]/30 shadow-sm' 
+                  : 'bg-[var(--card-bg)] border-[var(--border-soft)] hover:border-[var(--color-primary)]/20'
               }`}
             >
-               <span className={`text-[8px] font-black uppercase tracking-widest mb-2 block ${
-                 selectedEndpoint.id === ep.id ? 'text-cyan-400' : 'text-slate-400'
+               <span className={`text-[9px] font-bold uppercase tracking-wider mb-1 block ${
+                 selectedEndpoint.id === ep.id ? 'text-[var(--color-primary)]' : 'text-[var(--text-secondary)]'
                }`}>
                  {ep.method}
                </span>
-               <h4 className={`text-xs font-black uppercase tracking-tighter ${
-                 selectedEndpoint.id === ep.id ? 'text-white' : 'text-slate-900'
+               <h4 className={`text-xs font-bold tracking-tight ${
+                 selectedEndpoint.id === ep.id ? 'text-[var(--color-primary)]' : 'text-[var(--text-primary)]'
                }`}>
                  {ep.name}
                </h4>
@@ -286,20 +286,20 @@ export default function ApiDocs({ searchQuery }) {
       </div>
 
       {/* Right Column: Code Generator */}
-      <div className="sticky top-8 self-start">
-        <div className="bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/10">
+      <div className="sticky top-6 self-start">
+        <div className="bg-[#111D16] rounded-xl shadow-soft overflow-hidden border border-white/5">
            {/* Tab Header */}
-           <div className="flex items-center gap-1 p-4 bg-white/5 border-b border-white/10">
+           <div className="flex items-center gap-1 p-3 bg-black/20 border-b border-white/5">
               {LANGUAGES.map((lang) => {
                 const Icon = lang.icon;
                 return (
                   <button
                     key={lang.id}
                     onClick={() => setSelectedLang(lang.id)}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
                       selectedLang === lang.id 
-                        ? 'bg-white/10 text-white shadow-xl border border-white/10' 
-                        : 'text-slate-500 hover:text-slate-300'
+                        ? 'bg-[var(--color-primary-glow)] text-[var(--color-primary)] border border-[var(--color-primary)]/20' 
+                        : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5" />
@@ -313,7 +313,7 @@ export default function ApiDocs({ searchQuery }) {
            <div className="relative group">
               <button 
                 onClick={() => copyCode(generateCode(selectedEndpoint, selectedLang))}
-                className="absolute top-6 right-6 p-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-white/10 z-20"
+                className="absolute top-4 right-4 p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white opacity-0 group-hover:opacity-100 transition-all z-20 cursor-pointer"
               >
                 {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
               </button>
@@ -323,10 +323,10 @@ export default function ApiDocs({ searchQuery }) {
                 style={atomDark}
                 customStyle={{
                   backgroundColor: 'transparent',
-                  padding: '2.5rem',
-                  fontSize: '12px',
-                  lineHeight: '1.8',
-                  fontFamily: 'JetBrains Mono, monospace',
+                  padding: '1.5rem',
+                  fontSize: '11px',
+                  lineHeight: '1.6',
+                  fontFamily: 'SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace',
                   margin: 0
                 }}
               >
@@ -335,14 +335,14 @@ export default function ApiDocs({ searchQuery }) {
            </div>
            
            {/* Footer */}
-           <div className="p-6 bg-white/5 border-t border-white/10 flex items-center justify-between">
+           <div className="px-5 py-3 bg-black/25 border-t border-white/5 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                 <Shield className="w-3.5 h-3.5 text-cyan-400" />
-                 <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em]">End-to-End Secure Request</span>
+                 <Shield className="w-3.5 h-3.5 text-[var(--color-primary)]" />
+                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Secure HTTPS integration</span>
               </div>
               <div className="flex items-center gap-2">
                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
-                 <span className="text-[8px] font-black text-emerald-500/70 uppercase tracking-[0.2em]">Server Live</span>
+                 <span className="text-[9px] font-bold text-emerald-500/80 uppercase tracking-wider">Gateway active</span>
               </div>
            </div>
         </div>

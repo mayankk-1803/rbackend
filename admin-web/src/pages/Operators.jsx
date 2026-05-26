@@ -76,10 +76,10 @@ export const Operators = () => {
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'HEALTHY': return <CheckCircle2 className="w-4 h-4 text-emerald-400" />;
-      case 'DEGRADED': return <AlertCircle className="w-4 h-4 text-amber-400" />;
-      case 'DOWN': return <XCircle className="w-4 h-4 text-rose-400" />;
-      default: return <AlertCircle className="w-4 h-4 text-slate-500" />;
+      case 'HEALTHY': return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />;
+      case 'DEGRADED': return <AlertCircle className="w-3.5 h-3.5 text-amber-500" />;
+      case 'DOWN': return <XCircle className="w-3.5 h-3.5 text-rose-500" />;
+      default: return <AlertCircle className="w-3.5 h-3.5 text-slate-500" />;
     }
   };
 
@@ -87,30 +87,29 @@ export const Operators = () => {
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="space-y-10"
+      className="space-y-6"
     >
-      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 glass-card p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-[var(--glass-border)] shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-full bg-gradient-to-l from-purple-500/5 to-transparent"></div>
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-2">
-            <Settings className="w-4 h-4 md:w-5 md:h-5 text-purple-600" />
-            <h1 className="text-xl md:text-3xl font-black text-[var(--text-color)] tracking-tighter uppercase italic">API Routing <span className="text-purple-600 text-shadow-glow">Engine</span></h1>
+      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-[var(--card-bg)] p-6 rounded-xl border border-[var(--border-soft)] shadow-soft">
+        <div>
+          <div className="flex items-center gap-2 mb-1.5">
+            <Settings className="w-5 h-5 text-[var(--color-primary)]" />
+            <h1 className="text-xl md:text-2xl font-bold text-[var(--text-primary)] tracking-tight">API Routing <span className="text-[var(--color-primary)]">Engine</span></h1>
           </div>
-          <p className="text-[8px] md:text-[10px] text-[var(--text-secondary)] font-black uppercase tracking-[0.2em]">Configuring active failover and primary execution sequence</p>
+          <p className="text-xs text-[var(--text-secondary)] font-medium">Configuring active failover and primary execution sequence</p>
         </div>
         <button 
           onClick={handleSaveSelection}
           disabled={saving || loading || selectedOperators.length === 0}
-          className="relative z-10 w-full lg:w-auto bg-purple-600 hover:bg-purple-700 text-white shadow-sm hover:shadow-md transition-all px-8 py-4 rounded-xl md:rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest disabled:opacity-30"
+          className="w-full lg:w-auto bg-[var(--color-primary)] text-[var(--bg-primary)] shadow-sm transition-all px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider disabled:opacity-30 cursor-pointer"
         >
           {saving ? 'Syncing...' : 'Save Configuration'}
         </button>
       </header>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
           Array(3).fill(0).map((_, i) => (
-            <div key={i} className="h-64 bg-[var(--bg-tertiary)] animate-pulse rounded-[2.5rem] border border-[var(--glass-border)]"></div>
+            <div key={i} className="h-64 bg-[var(--bg-secondary)] animate-pulse rounded-xl border border-[var(--border-soft)]"></div>
           ))
         ) : (
           providers.map((prov) => {
@@ -120,93 +119,93 @@ export const Operators = () => {
             return (
               <motion.div 
                 key={prov.id}
-                whileHover={{ y: -5 }}
+                whileHover={{ y: -2 }}
                 onClick={() => handleToggleSelect(prov.code)}
-                className={`relative cursor-pointer rounded-[2.5rem] border backdrop-blur-3xl transition-all duration-500 overflow-hidden flex flex-col justify-between group ${
+                className={`cursor-pointer rounded-xl border transition-all duration-300 overflow-hidden flex flex-col justify-between group ${
                   isSelected 
-                    ? 'bg-[var(--bg-primary)] border-purple-500/40 shadow-[var(--shadow-glow)]' 
-                    : 'bg-[var(--bg-tertiary)] border-[var(--glass-border)] grayscale opacity-50 hover:grayscale-0 hover:opacity-100 hover:bg-[var(--bg-primary)]'
+                    ? 'bg-[var(--card-bg)] border-[var(--color-primary)] shadow-soft' 
+                    : 'bg-[var(--bg-secondary)]/50 border-[var(--border-soft)] opacity-40 grayscale hover:opacity-90 hover:grayscale-0 hover:bg-[var(--card-bg)]'
                 }`}
               >
-                <div className="p-8">
-                  <div className="flex justify-between items-start mb-8">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-6 h-6 rounded-lg flex items-center justify-center border transition-all ${
-                        isSelected ? 'bg-purple-600 border-purple-500 shadow-sm' : 'bg-transparent border-[var(--glass-border)]'
+                <div className="p-6">
+                  <div className="flex justify-between items-start mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-5 h-5 rounded flex items-center justify-center border transition-all ${
+                        isSelected ? 'bg-[var(--color-primary)] border-[var(--color-primary)] shadow-sm' : 'bg-transparent border-[var(--border-soft)]'
                       }`}>
-                        {isSelected && <CheckCircle2 className="w-4 h-4 text-white" />}
+                        {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-[var(--bg-primary)]" />}
                       </div>
                       <div>
-                        <h3 className="text-lg font-black text-[var(--text-color)] tracking-tight flex items-center gap-2 group-hover:text-purple-600 transition-colors">
+                        <h3 className="text-sm font-bold text-[var(--text-primary)] tracking-tight flex items-center gap-1.5 group-hover:text-[var(--color-primary)] transition-colors">
                           {prov.name}
                           {getStatusIcon(prov.healthStatus)}
                         </h3>
-                        <p className="text-[10px] text-[var(--text-muted)] font-black uppercase tracking-widest mt-1">{prov.code}</p>
+                        <p className="text-[9px] text-[var(--text-secondary)] font-semibold uppercase tracking-wider mt-0.5">{prov.code}</p>
                       </div>
                     </div>
                     {isSelected && !isPrimary && (
-                      <span className="px-3 py-1 bg-amber-500/10 text-amber-500 text-[8px] font-black rounded-lg border border-amber-500/20 uppercase tracking-widest">Backup</span>
+                      <span className="px-2 py-0.5 bg-amber-500/10 text-amber-500 text-[8px] font-bold rounded border border-amber-500/20 uppercase tracking-wider">Backup</span>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div className="bg-[var(--bg-tertiary)] rounded-2xl p-4 border border-[var(--glass-border)] group-hover:border-[var(--glass-border-hover)] transition-colors">
-                      <div className="text-[9px] text-[var(--text-muted)] font-black uppercase tracking-widest mb-2 flex items-center gap-2">
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div className="bg-[var(--bg-secondary)]/40 rounded-xl p-3 border border-[var(--border-soft)]">
+                      <div className="text-[9px] text-[var(--text-secondary)] font-semibold uppercase tracking-wider mb-1">
                         Success
                       </div>
-                      <div className="text-xl font-black text-[var(--text-color)]">{Number(prov.successRate || 0).toFixed(1)}%</div>
+                      <div className="text-lg font-bold text-[var(--text-primary)]">{Number(prov.successRate || 0).toFixed(1)}%</div>
                     </div>
-                    <div className="bg-[var(--bg-tertiary)] rounded-2xl p-4 border border-[var(--glass-border)] group-hover:border-[var(--glass-border-hover)] transition-colors">
-                      <div className="text-[9px] text-[var(--text-muted)] font-black uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <div className="bg-[var(--bg-secondary)]/40 rounded-xl p-3 border border-[var(--border-soft)]">
+                      <div className="text-[9px] text-[var(--text-secondary)] font-semibold uppercase tracking-wider mb-1">
                         Latency
                       </div>
-                      <div className="text-xl font-black text-[var(--text-color)]">{prov.avgResponseTime || '120'}ms</div>
+                      <div className="text-lg font-bold text-[var(--text-primary)]">{prov.avgResponseTime || '120'}ms</div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 mb-8">
-                    <div className="bg-purple-500/10 rounded-2xl p-4 border border-purple-500/20 group-hover:border-purple-500/30 transition-colors">
-                      <div className="text-[9px] text-purple-400 font-black uppercase tracking-widest mb-2 flex items-center gap-2">
+                  <div className="grid grid-cols-2 gap-3 mb-6">
+                    <div className="bg-[var(--color-primary-glow)] rounded-xl p-3 border border-[var(--border-soft)]">
+                      <div className="text-[9px] text-[var(--color-primary)] font-semibold uppercase tracking-wider mb-1">
                         Balance
                       </div>
-                      <div className="text-xl font-black text-[var(--text-color)]">₹{Number(prov.balance || 0).toLocaleString()}</div>
+                      <div className="text-lg font-bold text-[var(--text-primary)]">₹{Number(prov.balance || 0).toLocaleString()}</div>
                     </div>
-                    <div className="bg-rose-500/10 rounded-2xl p-4 border border-rose-500/20 group-hover:border-rose-500/30 transition-colors">
-                      <div className="text-[9px] text-rose-400 font-black uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <div className="bg-rose-500/10 rounded-xl p-3 border border-rose-500/20">
+                      <div className="text-[9px] text-rose-500 font-semibold uppercase tracking-wider mb-1">
                         Failures
                       </div>
-                      <div className="text-xl font-black text-[var(--text-color)]">{prov.failureCount || 0}</div>
+                      <div className="text-lg font-bold text-[var(--text-primary)]">{prov.failureCount || 0}</div>
                     </div>
                   </div>
 
                   <div className="flex gap-2">
-                    <span className="px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Secure</span>
-                    <span className="px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest bg-blue-500/10 text-blue-400 border border-blue-500/20">Global</span>
+                    <span className="px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">Secure</span>
+                    <span className="px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-[var(--bg-secondary)] text-[var(--text-secondary)] border border-[var(--border-soft)]">Global</span>
                   </div>
                 </div>
 
-                <div className={`px-8 py-6 border-t flex justify-between items-center transition-all ${
-                  isSelected ? 'bg-purple-500/5 border-purple-500/20' : 'bg-[var(--bg-tertiary)] border-[var(--glass-border)]'
+                <div className={`px-6 py-4 border-t border-[var(--border-soft)] flex justify-between items-center transition-all ${
+                  isSelected ? 'bg-[var(--bg-secondary)]/30' : 'bg-[var(--bg-secondary)]'
                 }`}>
                   {isSelected ? (
                     isPrimary ? (
                       <motion.div 
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="w-full text-center py-3 bg-purple-500/20 text-purple-400 text-[9px] font-black tracking-[0.2em] uppercase rounded-xl border border-purple-500/30 shadow-[0_0_15px_rgba(168,85,247,0.1)]"
+                        className="w-full text-center py-2 bg-[var(--color-primary-glow)] text-[var(--color-primary)] text-[9px] font-bold tracking-wider uppercase rounded-xl border border-[var(--border-soft)]"
                       >
                         🌟 Primary API
                       </motion.div>
                     ) : (
                       <button 
                         onClick={(e) => handleSetPrimary(e, prov.code)}
-                        className="w-full text-center py-3 bg-[var(--bg-primary)] border border-[var(--glass-border)] text-[var(--text-color)] text-[9px] font-black tracking-[0.2em] uppercase rounded-xl hover:bg-[var(--glass-button-bg)] hover:border-purple-300 transition-all flex items-center justify-center gap-2"
+                        className="w-full text-center py-2 bg-[var(--bg-primary)] border border-[var(--border-soft)] text-[var(--text-primary)] text-[9px] font-bold tracking-wider uppercase rounded-xl hover:bg-[var(--accent-hover)] transition-all flex items-center justify-center gap-1 cursor-pointer"
                       >
-                        Promote to Primary <ChevronRight className="w-3 h-3" />
+                        Promote to Primary <ChevronRight className="w-3 h-3 text-[var(--color-primary)]" />
                       </button>
                     )
                   ) : (
-                    <div className="w-full text-center py-3 text-[var(--text-muted)] text-[9px] font-black tracking-[0.2em] uppercase">
+                    <div className="w-full text-center py-2 text-[var(--text-muted)] text-[9px] font-bold tracking-wider uppercase">
                       Inactive Node
                     </div>
                   )}

@@ -20,11 +20,11 @@ const PrintableAdminInvoice = React.forwardRef(({ transaction, snapshot, display
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '40px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ width: '48px', height: '48px', backgroundColor: '#6366f1', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyCenter: 'center' }}>
+          <div style={{ width: '48px', height: '48px', backgroundColor: '#16a34a', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Smartphone style={{ color: '#ffffff', width: '28px', height: '28px' }} />
           </div>
           <div>
-            <h1 style={{ fontSize: '24px', fontWeight: '900', margin: 0, color: '#0f172a' }}>DIZIPAY <span style={{ color: '#4f46e5' }}>VAULT</span></h1>
+            <h1 style={{ fontSize: '24px', fontWeight: '900', margin: 0, color: '#0f172a' }}>DIZIPAY <span style={{ color: '#16a34a' }}>VAULT</span></h1>
             <p style={{ fontSize: '10px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '2px', margin: 0 }}>Administrative Audit Receipt</p>
           </div>
         </div>
@@ -82,13 +82,13 @@ const PrintableAdminInvoice = React.forwardRef(({ transaction, snapshot, display
             <span>GROSS AMOUNT</span>
             <span style={{ color: '#0f172a' }}>₹{formatAmount(displayAmount)}</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: '800', color: '#6366f1', marginBottom: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: '800', color: '#16a34a', marginBottom: '12px' }}>
             <span>COMMISSION/PROFIT</span>
             <span>₹{formatAmount(transaction.profit || 0)}</span>
           </div>
           <div style={{ borderTop: '2px solid #f1f5f9', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '12px', fontWeight: '900', color: '#0f172a' }}>SETTLEMENT</span>
-            <span style={{ fontSize: '24px', fontWeight: '900', color: '#4f46e5' }}>₹{formatAmount(displayAmount)}</span>
+            <span style={{ fontSize: '24px', fontWeight: '900', color: '#16a34a' }}>₹{formatAmount(displayAmount)}</span>
           </div>
         </div>
       </div>
@@ -96,7 +96,7 @@ const PrintableAdminInvoice = React.forwardRef(({ transaction, snapshot, display
       <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '40px', display: 'grid', gridTemplateColumns: '1fr 1fr', alignItems: 'flex-end' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>
-            <ShieldCheck style={{ width: '14px', height: '14px', color: '#6366f1' }} /> Internal Administrative Record
+            <ShieldCheck style={{ width: '14px', height: '14px', color: '#16a34a' }} /> Internal Administrative Record
           </div>
           <p style={{ fontSize: '9px', color: '#94a3b8', margin: 0, fontWeight: '700', lineHeight: '1.5' }}>
             This document serves as proof of reconciliation within the Dizipay Administrative Panel. Authorized access only.
@@ -194,56 +194,56 @@ export const InvoiceModal = ({ isOpen, onClose, transaction }) => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
-              className="relative w-full max-w-2xl bg-white rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+              className="relative w-full max-w-2xl bg-[var(--card-bg)] text-[var(--text-primary)] rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-[var(--border-soft)]"
             >
               {/* Header Actions - STICKY */}
-              <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+              <div className="px-6 py-4 border-b border-[var(--border-soft)] flex justify-between items-center bg-[var(--card-bg)] sticky top-0 z-10">
                 <div className="flex gap-2">
                   <button 
                     onClick={handleDownload}
                     disabled={isGenerating}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20 disabled:opacity-50"
+                    className="flex items-center gap-2 px-4 py-2.5 bg-[var(--color-primary)] text-[var(--bg-primary)] rounded-xl text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50 cursor-pointer"
                   >
                     <Download className={`w-4 h-4 ${isGenerating ? 'animate-spin' : ''}`} /> 
                     {isGenerating ? 'Processing...' : 'Download PDF'}
                   </button>
                   <button 
                     onClick={handlePrint}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
+                    className="flex items-center gap-2 px-4 py-2.5 bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-soft)] rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[var(--bg-tertiary)] transition-all cursor-pointer"
                   >
                     <Printer className="w-4 h-4" /> Print
                   </button>
                 </div>
                 <button 
                   onClick={onClose}
-                  className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-400 hover:text-slate-900"
+                  className="p-2 hover:bg-[var(--bg-secondary)] rounded-full transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
                 >
                   <X className="w-6 h-6" />
                 </button>
               </div>
 
               {/* Modal View Content */}
-              <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-slate-50/50">
-                <div className="bg-white p-8 md:p-10 rounded-2xl border border-slate-100 shadow-sm">
+              <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-[var(--bg-secondary)]/50">
+                <div className="bg-[var(--card-bg)] p-8 md:p-10 rounded-2xl border border-[var(--border-soft)] shadow-sm">
                   {/* Branding */}
                   <div className="flex flex-col md:flex-row justify-between items-start gap-6 mb-10">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                        <Smartphone className="w-6 h-6 text-white" />
+                      <div className="w-12 h-12 bg-[var(--color-primary)] rounded-xl flex items-center justify-center shadow-lg">
+                        <Smartphone className="w-6 h-6 text-[var(--bg-primary)]" />
                       </div>
                       <div>
-                        <h2 className="text-xl font-black tracking-tight uppercase italic">Admin <span className="text-indigo-600">Wallet</span></h2>
-                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Administrative Audit</p>
+                        <h2 className="text-xl font-black tracking-tight uppercase italic text-[var(--text-primary)]">Admin <span className="text-[var(--color-primary)]">Wallet</span></h2>
+                        <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Administrative Audit</p>
                       </div>
                     </div>
                     <div className="md:text-right">
                       <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                        transaction.status === 'SUCCESS' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+                        transaction.status === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
                       }`}>
                         {transaction.status === 'SUCCESS' ? <CheckCircle2 className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
                         {transaction.status}
                       </span>
-                      <p className="text-[9px] text-slate-400 font-bold uppercase mt-2 tracking-widest">
+                      <p className="text-[9px] text-[var(--text-secondary)] font-bold uppercase mt-2 tracking-widest">
                         {new Date(displayDate).toLocaleString()}
                       </p>
                     </div>
@@ -251,34 +251,34 @@ export const InvoiceModal = ({ isOpen, onClose, transaction }) => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
                     <div>
-                      <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">System User</h4>
-                      <p className="text-sm font-black text-slate-900">{customer.name || 'Account Holder'}</p>
-                      <p className="text-xs text-slate-500 font-bold mt-0.5">Audit ID: #{transaction.id}</p>
+                      <h4 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-2">System User</h4>
+                      <p className="text-sm font-black text-[var(--text-primary)]">{customer.name || 'Account Holder'}</p>
+                      <p className="text-xs text-[var(--text-secondary)] font-bold mt-0.5">Audit ID: #{transaction.id}</p>
                     </div>
                     <div className="md:text-right">
-                      <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Operator</h4>
-                      <p className="text-sm font-black text-slate-900 uppercase tracking-tight">{displayOperator}</p>
-                      <p className="text-xs text-slate-500 font-bold mt-0.5">{displayMobile}</p>
+                      <h4 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-2">Operator</h4>
+                      <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">{displayOperator}</p>
+                      <p className="text-xs text-[var(--text-secondary)] font-bold mt-0.5">{displayMobile}</p>
                     </div>
                   </div>
 
                   {/* Summary Box */}
-                  <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100">
+                  <div className="bg-[var(--bg-secondary)] rounded-2xl p-6 border border-[var(--border-soft)]">
                     <div className="flex justify-between items-center mb-4">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Value</span>
-                      <span className="text-lg font-black text-slate-900">₹{formatAmount(displayAmount)}</span>
+                      <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Total Value</span>
+                      <span className="text-lg font-black text-[var(--text-primary)]">₹{formatAmount(displayAmount)}</span>
                     </div>
-                    <div className="flex justify-between items-center pt-4 border-t border-slate-200">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Audit Ref</span>
-                      <span className="text-[10px] font-mono font-bold text-slate-600 truncate max-w-[150px]">{displayRef}</span>
+                    <div className="flex justify-between items-center pt-4 border-t border-[var(--border-soft)]">
+                      <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Audit Ref</span>
+                      <span className="text-[10px] font-mono font-bold text-[var(--text-secondary)] truncate max-w-[150px]">{displayRef}</span>
                     </div>
                   </div>
 
-                  <div className="mt-8 pt-8 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4">
-                    <div className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                      <ShieldCheck className="w-4 h-4 text-indigo-500" /> Internal Audit Log
+                  <div className="mt-8 pt-8 border-t border-[var(--border-soft)] flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-2 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                      <ShieldCheck className="w-4 h-4 text-[var(--color-primary)]" /> Internal Audit Log
                     </div>
-                    <p className="text-[8px] text-slate-300 font-medium uppercase tracking-[0.2em]">Dizipay Admin Core</p>
+                    <p className="text-[8px] text-[var(--text-muted)] font-medium uppercase tracking-[0.2em]">Dizipay Admin Core</p>
                   </div>
                 </div>
               </div>

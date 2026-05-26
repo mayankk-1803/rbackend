@@ -11,8 +11,21 @@ import {
   getLogs,
   getApiManifest,
   verifyDevAccess,
-  revokeDevAccess
+  revokeDevAccess,
+  getApiAccess,
+  generateApiAccess,
+  rotateApiAccessSecret,
+  updateWebhookSettings,
+  toggleApiAccess,
+  updateEnvironment,
+  getWebhookEvents,
+  replayWebhookEvent,
+  requestApiAccess,
+  getApiAccessUsage,
+  getRequestStatus
 } from "../controllers/developerController.js";
+
+import { requireApiUser } from "../middlewares/requireApiUser.js";
 
 const router = express.Router();
 
@@ -28,7 +41,13 @@ router.get("/manifest", getApiManifest);
 // Verify Developer credentials (runs prior to developerAuth guard)
 router.post("/verify-access", devVerifyLimiter, verifyDevAccess);
 
-// Protect all subsequent routes with active developer session guard
+// Submit Upgrade Request to API Partner (requires user authentication but runs before developerAuth session)
+router.post("/api-access/upgrade", requestApiAccess);
+router.post("/request-access", auth, requestApiAccess);
+router.get("/api-access/request-status", getRequestStatus);
+
+// Protect all subsequent routes with requireApiUser role guard and active developer session guard
+router.use(requireApiUser);
 router.use(developerAuth);
 
 router.post("/revoke-access", revokeDevAccess);
@@ -45,6 +64,7 @@ const requireDeveloperVerification = (req, res, next) => {
   next();
 };
 
+// Legacy keys management
 router.post("/keys/generate", requireDeveloperVerification, generateKeys);
 router.get("/keys", requireDeveloperVerification, getKeys);
 router.post("/keys/rotate", requireDeveloperVerification, rotateSecret);
@@ -52,5 +72,16 @@ router.put("/keys/:clientId/toggle", requireDeveloperVerification, toggleKeyStat
 
 router.get("/analytics", requireDeveloperVerification, getAnalytics);
 router.get("/logs", requireDeveloperVerification, getLogs);
+
+// New ApiAccess / Fintech Developer Portal Routes
+router.get("/api-access", requireDeveloperVerification, getApiAccess);
+router.post("/api-access/generate", requireDeveloperVerification, generateApiAccess);
+router.post("/api-access/rotate", requireDeveloperVerification, rotateApiAccessSecret);
+router.put("/api-access/webhook", requireDeveloperVerification, updateWebhookSettings);
+router.put("/api-access/toggle", requireDeveloperVerification, toggleApiAccess);
+router.put("/api-access/environment", requireDeveloperVerification, updateEnvironment);
+router.get("/api-access/webhook-events", requireDeveloperVerification, getWebhookEvents);
+router.post("/api-access/webhook-events/replay", requireDeveloperVerification, replayWebhookEvent);
+router.get("/api-access/usage", requireDeveloperVerification, getApiAccessUsage);
 
 export default router;

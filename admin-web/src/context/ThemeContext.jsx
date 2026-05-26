@@ -28,7 +28,7 @@ export const ThemeProvider = ({ children }) => {
       return;
     }
 
-    const overlayColor = nextResolved === "dark" ? "#030012" : "#ffffff";
+    const overlayColor = nextResolved === "dark" ? "#07110C" : "#F4F6F2";
     gsap.set(overlayRef.current, {
       backgroundColor: overlayColor,
       opacity: 1,
@@ -116,7 +116,7 @@ export const ThemeProvider = ({ children }) => {
         className="fixed inset-0 pointer-events-none z-[99999]"
         style={{
           clipPath: "circle(0% at 50% 50%)",
-          backgroundColor: "#030012"
+          backgroundColor: "#07110C"
         }}
       />
     </ThemeContext.Provider>

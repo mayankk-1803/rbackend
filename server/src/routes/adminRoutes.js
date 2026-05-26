@@ -15,9 +15,22 @@ import {
   topUpWallet,
   getAdminWallet,
   getUsers,
+  getUsersStats,
+  getSingleUser,
+  toggleUserStatus,
   getCashbackSettings,
   updateCashbackSettings,
-  retryReconciliation
+  retryReconciliation,
+  approveApiAccess,
+  rejectApiAccess,
+  getApiPartnersSummary,
+  togglePartnerActiveState,
+  rotatePartnerKeys,
+  updatePartnerRateLimit,
+  updatePartnerEnvironment,
+  getPartnerWebhookEvents,
+  replayPartnerWebhookEvent,
+  getPartnerUsageLogs
 } from "../controllers/adminController.js";
 import { getCommissionReport } from "../controllers/reportController.js";
 import { resolveDispute, getAllDisputes } from "../controllers/disputeController.js";
@@ -35,6 +48,9 @@ router.use(auth, isAdmin);
 
 router.get("/dashboard", getDashboard);
 router.get("/users", getUsers);
+router.get("/users/stats", getUsersStats);
+router.get("/users/:id", getSingleUser);
+router.patch("/users/:id/status", toggleUserStatus);
 router.get("/top-users", getTopUsers);
 router.post("/retry/:id", retryTxn);
 router.post("/reconcile/:id", retryReconciliation);
@@ -47,6 +63,16 @@ router.get("/charts", getCharts);
 router.post("/compare-recharge", compareRecharge);
 router.post("/topup", topUpWallet);
 router.get("/wallet", getAdminWallet);
+router.post("/api-access/approve", approveApiAccess);
+router.get("/api-access/partners", getApiPartnersSummary);
+router.post("/api-access/reject", rejectApiAccess);
+router.put("/api-access/toggle-active", togglePartnerActiveState);
+router.post("/api-access/rotate", rotatePartnerKeys);
+router.put("/api-access/rate-limit", updatePartnerRateLimit);
+router.put("/api-access/environment", updatePartnerEnvironment);
+router.get("/api-access/webhook-events", getPartnerWebhookEvents);
+router.post("/api-access/webhook-events/replay", replayPartnerWebhookEvent);
+router.get("/api-access/usage", getPartnerUsageLogs);
 
 // New Modular Wallet Routes
 router.get("/wallet/stats", getAdminWalletStats);

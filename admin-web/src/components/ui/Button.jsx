@@ -3,24 +3,24 @@ import { motion } from 'framer-motion';
 
 export const Button = ({ children, variant = 'primary', size = 'md', className = '', loading = false, ...props }) => {
   const variants = {
-    primary: 'bg-[#2563EB] text-white hover:bg-[#1D4ED8] shadow-sm',
-    secondary: 'bg-[#F1F5F9] text-[#0F172A] hover:bg-[#E2E8F0]',
-    outline: 'border border-[#E2E8F0] text-[#0F172A] hover:bg-[#F8FAFC]',
-    ghost: 'text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#0F172A]',
-    danger: 'bg-red-500 text-white hover:bg-red-600 shadow-sm',
+    primary: 'bg-[var(--color-primary)] text-[var(--bg-primary)] hover:opacity-90 shadow-sm',
+    secondary: 'bg-[var(--bg-secondary)] text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]',
+    outline: 'border border-[var(--border-soft)] text-[var(--text-primary)] hover:bg-[var(--accent-hover)]',
+    ghost: 'text-[var(--text-secondary)] hover:bg-[var(--accent-hover)] hover:text-[var(--text-primary)]',
+    danger: 'bg-rose-600 text-white hover:bg-rose-700 shadow-sm',
   };
 
   const sizes = {
-    sm: 'px-3 py-1.5 text-xs',
-    md: 'px-4 py-2 text-sm',
-    lg: 'px-6 py-3 text-base',
+    sm: 'px-3 py-1.5 text-xs rounded-lg',
+    md: 'px-4 py-2 text-sm rounded-xl',
+    lg: 'px-6 py-3 text-base rounded-xl',
   };
 
   return (
     <motion.button
       whileTap={{ scale: props.disabled || loading ? 1 : 0.98 }}
       className={`
-        inline-flex items-center justify-center rounded-md font-medium transition-all duration-150
+        inline-flex items-center justify-center font-medium transition-all duration-150
         disabled:opacity-50 disabled:cursor-not-allowed
         ${variants[variant]} ${sizes[size]} ${className}
       `}

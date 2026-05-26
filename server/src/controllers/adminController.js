@@ -7,6 +7,8 @@ import { Prisma } from "@prisma/client";
 import eventBus from "../config/eventBus.js";
 import { logTransactionEvent, TXN_EVENTS } from "../services/transactionEventService.js";
 import { reconcileSingleTransaction } from "../services/reconciliationService.js";
+import crypto from "crypto";
+import bcrypt from "bcryptjs";
 
 export const getDashboard = async (req, res) => {
   try {
@@ -86,13 +88,205 @@ export const getDashboard = async (req, res) => {
 
 export const getUsers = async (req, res) => {
   try {
-    const users = await prisma.user.findMany({
-      include: {
-        wallet: true
-      },
-      orderBy: { createdAt: "desc" }
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const search = req.query.search || "";
+    const role = req.query.role;
+    const status = req.query.status;
+    const sortBy = req.query.sortBy || "createdAt";
+    const sortOrder = req.query.sortOrder || "desc";
+
+    const where = {};
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search } },
+        { email: { contains: search } },
+        { phone: { contains: search } }
+      ];
+    }
+
+    if (role && role !== "ALL") {
+      where.role = role;
+    }
+
+    if (status === "active") {
+      where.isActive = true;
+    } else if (status === "inactive") {
+      where.isActive = false;
+    }
+
+    const orderBy = {};
+    if (sortBy === "balance") {
+      orderBy.wallet = { balance: sortOrder };
+    } else {
+      orderBy[sortBy] = sortOrder;
+    }
+
+    const [users, total] = await prisma.$transaction([
+      prisma.user.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          role: true,
+          isActive: true,
+          profileImage: true,
+          createdAt: true,
+          wallet: {
+            select: {
+              balance: true,
+              cashbackBalance: true,
+              coinBalance: true
+            }
+          }
+        }
+      }),
+      prisma.user.count({ where })
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        users,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit)
+        }
+      }
     });
-    res.json({ success: true, data: users });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const getUsersStats = async (req, res) => {
+  try {
+    const totalUsers = await prisma.user.count();
+    const activeUsers = await prisma.user.count({ where: { isActive: true } });
+    const inactiveUsers = await prisma.user.count({ where: { isActive: false } });
+
+    const walletSum = await prisma.wallet.aggregate({
+      _sum: {
+        balance: true
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        totalUsers,
+        activeUsers,
+        inactiveUsers,
+        totalWalletBalance: Number(walletSum._sum.balance || 0)
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const getSingleUser = async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    if (isNaN(userId)) {
+      return res.status(400).json({ success: false, message: "Invalid user ID" });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        profileImage: true,
+        createdAt: true,
+        wallet: true,
+        _count: {
+          select: {
+            transaction: true,
+            orders: true
+          }
+        }
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    res.json({ success: true, data: user });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const toggleUserStatus = async (req, res) => {
+  try {
+    const targetUserId = parseInt(req.params.id);
+    const { isActive } = req.body;
+
+    if (isNaN(targetUserId)) {
+      return res.status(400).json({ success: false, message: "Invalid user ID" });
+    }
+
+    if (isActive === undefined || typeof isActive !== 'boolean') {
+      return res.status(400).json({ success: false, message: "isActive state is required and must be boolean" });
+    }
+
+    if (req.user.id === targetUserId && !isActive) {
+      return res.status(400).json({ success: false, message: "You cannot deactivate your own account." });
+    }
+
+    const targetUser = await prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true, role: true }
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    if (targetUser.role === 'SUPER_ADMIN' && !isActive) {
+      return res.status(400).json({ success: false, message: "Super Admin accounts cannot be deactivated." });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: targetUserId },
+      data: { isActive },
+      select: {
+        id: true,
+        name: true,
+        isActive: true,
+        role: true
+      }
+    });
+
+    await logAction({
+      action: isActive ? AUDIT_ACTIONS.USER_ACTIVATE || "USER_ACTIVATE" : AUDIT_ACTIONS.USER_DEACTIVATE || "USER_DEACTIVATE",
+      adminId: req.user.id,
+      userId: targetUserId,
+      entity: "user",
+      details: { isActive },
+      req
+    });
+
+    res.json({
+      success: true,
+      message: `User account has been successfully ${isActive ? 'activated' : 'deactivated'}`,
+      data: updatedUser
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -638,5 +832,432 @@ export const retryReconciliation = async (req, res) => {
     }
 
     res.status(statusCode).json({ success: false, message: err.message });
+  }
+};
+
+export const approveApiAccess = async (req, res) => {
+  try {
+    const { targetUserId } = req.body;
+    if (!targetUserId) return res.status(400).json({ success: false, message: "Target User ID is required" });
+
+    const userToUpgrade = await prisma.user.findUnique({ where: { id: Number(targetUserId) } });
+    if (!userToUpgrade) return res.status(404).json({ success: false, message: "User not found" });
+
+    let newSecret = null;
+    let newApiKey = null;
+    
+    // Serializable Prisma transaction to prevent duplicate creations or double approvals
+    await prisma.$transaction(async (tx) => {
+      const request = await tx.apiAccessRequest.findFirst({
+        where: { userId: userToUpgrade.id, status: "PENDING" }
+      });
+
+      if (!request) {
+        throw new Error("No pending API Access request found for this user");
+      }
+
+      await tx.apiAccessRequest.update({
+        where: { id: request.id },
+        data: {
+          status: "APPROVED",
+          approvedBy: req.user.id,
+          approvedAt: new Date()
+        }
+      });
+
+      await tx.user.update({
+        where: { id: userToUpgrade.id },
+        data: { role: "API_USER" }
+      });
+
+      const existingAccess = await tx.apiAccess.findFirst({ where: { userId: userToUpgrade.id } });
+      if (!existingAccess) {
+        newApiKey = `ak_live_${crypto.randomBytes(16).toString('hex')}`;
+        newSecret = `sec_live_${crypto.randomBytes(32).toString('hex')}`;
+        const salt = await bcrypt.genSalt(10);
+        const apiSecretHash = await bcrypt.hash(newSecret, salt);
+
+        await tx.apiAccess.create({
+          data: {
+            userId: userToUpgrade.id,
+            apiKey: newApiKey,
+            apiSecretHash,
+            isActive: true,
+            environment: "PRODUCTION"
+          }
+        });
+      } else {
+        await tx.apiAccess.update({
+          where: { id: existingAccess.id },
+          data: { isActive: true }
+        });
+      }
+
+      await tx.auditLog.create({
+        data: {
+          action: "API_ACCESS_APPROVED",
+          userId: userToUpgrade.id,
+          adminId: req.user.id,
+          entity: "user",
+          entityId: userToUpgrade.id,
+          details: { upgradedTo: "API_USER", apiKey: newApiKey || existingAccess?.apiKey }
+        }
+      });
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+    });
+
+    // Emit event bus notification AFTER transaction commit successfully
+    eventBus.emit("api_access_updated", {
+      userId: userToUpgrade.id,
+      status: "APPROVED"
+    });
+
+    res.json({ 
+      success: true, 
+      message: "API Access upgrade approved successfully", 
+      apiSecret: newSecret 
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const rejectApiAccess = async (req, res) => {
+  try {
+    const { targetUserId, reason } = req.body;
+    if (!targetUserId) return res.status(400).json({ success: false, message: "Target User ID is required" });
+
+    const user = await prisma.user.findUnique({ where: { id: Number(targetUserId) } });
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    await prisma.$transaction(async (tx) => {
+      const request = await tx.apiAccessRequest.findFirst({
+        where: { userId: user.id, status: "PENDING" }
+      });
+
+      if (!request) {
+        throw new Error("No pending API Access request found for this user");
+      }
+
+      await tx.apiAccessRequest.update({
+        where: { id: request.id },
+        data: {
+          status: "REJECTED",
+          reason: reason || "Insufficient business verification"
+        }
+      });
+
+      await tx.auditLog.create({
+        data: {
+          action: "API_ACCESS_REJECTED",
+          userId: user.id,
+          adminId: req.user.id,
+          entity: "user",
+          entityId: user.id,
+          details: { reason }
+        }
+      });
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+    });
+
+    eventBus.emit("api_access_updated", {
+      userId: user.id,
+      status: "REJECTED"
+    });
+
+    res.json({ success: true, message: "API Access upgrade request rejected successfully" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const getApiPartnersSummary = async (req, res) => {
+  try {
+    const pendingRequests = await prisma.apiAccessRequest.findMany({
+      where: { status: "PENDING" },
+      include: { user: { select: { id: true, name: true, phone: true, email: true, role: true } } },
+      orderBy: { createdAt: "desc" }
+    });
+
+    const approvedUsers = await prisma.user.findMany({
+      where: { role: "API_USER" },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        apiAccesses: {
+          select: {
+            id: true,
+            apiKey: true,
+            isActive: true,
+            rateLimit: true,
+            environment: true,
+            createdAt: true
+          }
+        }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    const suspendedUsers = await prisma.user.findMany({
+      where: {
+        role: "API_USER",
+        apiAccesses: {
+          some: { isActive: false }
+        }
+      },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        email: true,
+        role: true,
+        apiAccesses: {
+          select: {
+            id: true,
+            apiKey: true,
+            isActive: true
+          }
+        }
+      }
+    });
+
+    const rejectedRequests = await prisma.apiAccessRequest.findMany({
+      where: { status: "REJECTED" },
+      include: { user: { select: { id: true, name: true, phone: true, email: true } } },
+      orderBy: { createdAt: "desc" }
+    });
+
+    const totalApiUsers = await prisma.user.count({ where: { role: "API_USER" } });
+    const pendingCount = await prisma.apiAccessRequest.count({ where: { status: "PENDING" } });
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const approvedToday = await prisma.apiAccessRequest.count({
+      where: { status: "APPROVED", approvedAt: { gte: today } }
+    });
+
+    const activeKeysCount = await prisma.apiAccess.count({ where: { isActive: true } });
+    const sandboxUsageCount = await prisma.apiUsage.count();
+
+    const analytics = {
+      totalApiUsers,
+      pendingRequests: pendingCount,
+      approvedToday,
+      activeKeys: activeKeysCount,
+      sandboxUsage: sandboxUsageCount
+    };
+
+    res.json({
+      success: true,
+      pendingRequests,
+      approvedUsers,
+      suspendedUsers,
+      rejectedRequests,
+      analytics
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const togglePartnerActiveState = async (req, res) => {
+  try {
+    const { targetUserId } = req.body;
+    const access = await prisma.apiAccess.findFirst({ where: { userId: Number(targetUserId) } });
+    if (!access) return res.status(404).json({ success: false, message: "API credentials not found" });
+
+    const updated = await prisma.apiAccess.update({
+      where: { id: access.id },
+      data: { isActive: !access.isActive }
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        action: "API_ACCESS_TOGGLED",
+        userId: Number(targetUserId),
+        adminId: req.user.id,
+        entity: "ApiAccess",
+        entityId: Number(targetUserId),
+        details: { isActive: updated.isActive }
+      }
+    });
+
+    eventBus.emit("api_access_updated", { userId: Number(targetUserId), status: "UPDATED" });
+
+    res.json({ success: true, message: `Access state toggled to ${updated.isActive ? 'Active' : 'Inactive'}`, data: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const rotatePartnerKeys = async (req, res) => {
+  try {
+    const { targetUserId } = req.body;
+    const access = await prisma.apiAccess.findFirst({ where: { userId: Number(targetUserId) } });
+    if (!access) return res.status(404).json({ success: false, message: "API credentials not found" });
+
+    const newSecret = `sec_live_${crypto.randomBytes(32).toString('hex')}`;
+    const salt = await bcrypt.genSalt(10);
+    const apiSecretHash = await bcrypt.hash(newSecret, salt);
+
+    await prisma.apiAccess.update({
+      where: { id: access.id },
+      data: { apiSecretHash }
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        action: "API_ACCESS_SECRET_ROTATED",
+        userId: Number(targetUserId),
+        adminId: req.user.id,
+        entity: "ApiAccess",
+        entityId: Number(targetUserId)
+      }
+    });
+
+    res.json({ success: true, message: "API secret rotated successfully", apiSecret: newSecret });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const updatePartnerRateLimit = async (req, res) => {
+  try {
+    const { targetUserId, rateLimit } = req.body;
+    const access = await prisma.apiAccess.findFirst({ where: { userId: Number(targetUserId) } });
+    if (!access) return res.status(404).json({ success: false, message: "API credentials not found" });
+
+    const updated = await prisma.apiAccess.update({
+      where: { id: access.id },
+      data: { rateLimit: Number(rateLimit) }
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        action: "API_ACCESS_RATELIMIT_UPDATED",
+        userId: Number(targetUserId),
+        adminId: req.user.id,
+        entity: "ApiAccess",
+        entityId: Number(targetUserId),
+        details: { rateLimit }
+      }
+    });
+
+    res.json({ success: true, message: "Rate limit updated successfully", data: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const updatePartnerEnvironment = async (req, res) => {
+  try {
+    const { targetUserId, environment } = req.body;
+    if (!["PRODUCTION", "SANDBOX"].includes(environment)) {
+      return res.status(400).json({ success: false, message: "Invalid environment" });
+    }
+
+    const access = await prisma.apiAccess.findFirst({ where: { userId: Number(targetUserId) } });
+    if (!access) return res.status(404).json({ success: false, message: "API credentials not found" });
+
+    const updated = await prisma.apiAccess.update({
+      where: { id: access.id },
+      data: { environment }
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        action: "ENVIRONMENT_TOGGLED",
+        userId: Number(targetUserId),
+        adminId: req.user.id,
+        entity: "ApiAccess",
+        entityId: Number(targetUserId),
+        details: { environment }
+      }
+    });
+
+    res.json({ success: true, message: `Environment switched to ${environment}`, data: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const getPartnerWebhookEvents = async (req, res) => {
+  try {
+    const userId = Number(req.query.userId);
+    const access = await prisma.apiAccess.findFirst({ where: { userId } });
+    if (!access) return res.json({ success: true, data: [] });
+
+    const events = await prisma.webhookEvent.findMany({
+      where: { apiAccessId: access.id },
+      orderBy: { createdAt: 'desc' },
+      take: 50
+    });
+
+    res.json({ success: true, data: events });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+import axios from "axios";
+
+export const replayPartnerWebhookEvent = async (req, res) => {
+  try {
+    const { eventId } = req.body;
+    const event = await prisma.webhookEvent.findUnique({ where: { id: eventId } });
+    if (!event) return res.status(404).json({ success: false, message: "Event not found" });
+
+    const access = await prisma.apiAccess.findUnique({ where: { id: event.apiAccessId } });
+    if (!access || !access.webhookUrl) return res.status(400).json({ success: false, message: "No active webhook URL registered" });
+
+    await prisma.webhookEvent.update({
+      where: { id: event.id },
+      data: { retryCount: { increment: 1 } }
+    });
+
+    axios.post(access.webhookUrl, event.payload, {
+      headers: {
+        "Content-Type": "application/json",
+        "x-webhook-signature": "admin_signature_replay"
+      }
+    }).then(response => {
+      prisma.webhookEvent.update({
+        where: { id: event.id },
+        data: { deliveryStatus: "SUCCESS", responseCode: response.status }
+      }).catch(() => {});
+    }).catch(err => {
+      prisma.webhookEvent.update({
+        where: { id: event.id },
+        data: { deliveryStatus: "FAILED", responseCode: err.response?.status || 500 }
+      }).catch(() => {});
+    });
+
+    res.json({ success: true, message: "Webhook replay event queued" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const getPartnerUsageLogs = async (req, res) => {
+  try {
+    const userId = Number(req.query.userId);
+    const access = await prisma.apiAccess.findFirst({ where: { userId } });
+    if (!access) return res.json({ success: true, data: [] });
+
+    const usages = await prisma.apiUsage.findMany({
+      where: { apiAccessId: access.id },
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    });
+
+    res.json({ success: true, data: usages });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };

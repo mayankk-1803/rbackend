@@ -29,6 +29,7 @@ import path from "path";
 import imartRoutes from "./routes/imartRoutes.js";
 import disputesRoutes from "./routes/disputesRoutes.js";
 import apiSettingsRoutes from "./routes/apiSettingsRoutes.js";
+import { requireApiUser } from "./middlewares/requireApiUser.js";
 
 const app = express();
 
@@ -242,6 +243,9 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/admin/reports", adminReportRoutes);
 app.use("/api/developer", developerRoutes);
 app.use("/api/v1/dev", apiDevRoutes);
+app.use("/api/keys", requireApiUser, developerRoutes);
+app.use("/api/webhooks", requireApiUser, developerRoutes);
+app.use("/api/docs", requireApiUser, developerRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/imart", imartRoutes);
 app.use("/api/disputes", disputesRoutes);

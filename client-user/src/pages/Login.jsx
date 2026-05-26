@@ -127,7 +127,6 @@ export default function Login() {
         if (import.meta.env.DEV) console.log("[AUTH][REDIRECT_SUCCESS] → Navigating to Home...");
       }
       
-      toast.success('Welcome back!');
       window.location.href = '/dashboard';
     } else {
       if (import.meta.env.DEV) {

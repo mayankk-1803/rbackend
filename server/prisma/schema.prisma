@@ -286,15 +286,18 @@ model user {
   isPhoneVerified  Boolean   @default(false)
   isEmailVerified  Boolean   @default(false)
   authType         String    @default("phone")
-  role             user_role @default(USER)
+  role             UserRole  @default(USER)
   referralCode     String?   @unique
   referredBy       Int?
   referralEarnings Decimal   @default(0) @db.Decimal(10, 2)
   tier             String    @default("Standard")
   profileImage     String?
+  isActive         Boolean   @default(true)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
+  apiAccesses      ApiAccess[]
+  apiAccessRequests ApiAccessRequest[]
   apiKeys          apiKey[]
   apiLogs          apiLog[]
   fraudlog         fraudlog[]
@@ -438,10 +441,9 @@ enum transaction_status {
   REFUNDED
 }
 
-enum user_role {
+enum UserRole {
   USER
-  RETAILER
-  DISTRIBUTOR
+  API_USER
   ADMIN
   SUPER_ADMIN
 }
@@ -610,4 +612,66 @@ model OrderItem {
 
   @@index([orderId])
   @@index([productId])
+}
+
+model ApiAccess {
+  id            String     @id @default(cuid())
+  userId        Int
+  apiKey        String     @unique
+  apiSecretHash String
+  webhookUrl    String?
+  isActive      Boolean    @default(true)
+  rateLimit     Int        @default(100)
+  environment   String     @default("PRODUCTION")
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  user          user       @relation(fields: [userId], references: [id])
+  usages        ApiUsage[]
+
+  @@index([userId])
+}
+
+model ApiUsage {
+  id          String    @id @default(cuid())
+  apiAccessId String
+  endpoint    String
+  method      String
+  statusCode  Int
+  latency     Int
+  ipAddress   String?
+  createdAt   DateTime  @default(now())
+
+  apiAccess   ApiAccess @relation(fields: [apiAccessId], references: [id])
+
+  @@index([apiAccessId])
+  @@index([createdAt])
+}
+
+model WebhookEvent {
+  id             String   @id @default(cuid())
+  apiAccessId    String
+  eventType      String
+  payload        Json
+  deliveryStatus String
+  responseCode   Int?
+  retryCount     Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  @@index([apiAccessId])
+}
+
+model ApiAccessRequest {
+  id          String   @id @default(cuid())
+  userId      Int
+  status      String   @default("PENDING")
+  reason      String?
+  approvedBy  Int?
+  approvedAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  user user @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
 }

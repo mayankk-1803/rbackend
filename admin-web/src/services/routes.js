@@ -12,8 +12,8 @@ export const API_ROUTES = {
     STATUS: (id) => `/status/${id}`,
   },
   ADMIN: {
-    DASHBOARD: "/admin/dashboard",
-    PROVIDERS: "/admin/providers",
-    COMPARE: "/admin/compare-recharge",
+    DASHBOARD: "/87564/admin/dashboard",
+    PROVIDERS: "/87564/admin/providers",
+    COMPARE: "/87564/admin/compare-recharge",
   },
 };

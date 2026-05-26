@@ -8,7 +8,7 @@ export const Categories = () => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [currentCategory, setCurrentCategory] = useState(null); // null for create, object for edit
+  const [currentCategory, setCurrentCategory] = useState(null);
   const [categoryName, setCategoryName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
@@ -33,21 +33,20 @@ export const Categories = () => {
     fetchCategories();
   }, []);
 
-  // GSAP animation for list items
   useEffect(() => {
     if (loading || categories.length === 0) return;
 
     const ctx = gsap.context(() => {
       gsap.fromTo(
         ".category-card",
-        { opacity: 0, y: 30, scale: 0.95 },
+        { opacity: 0, y: 15, scale: 0.98 },
         {
           opacity: 1,
           y: 0,
           scale: 1,
-          stagger: 0.05,
-          duration: 0.5,
-          ease: "power3.out",
+          stagger: 0.04,
+          duration: 0.35,
+          ease: "power2.out",
         }
       );
     }, containerRef);
@@ -83,7 +82,6 @@ export const Categories = () => {
     try {
       setSubmitting(true);
       if (currentCategory) {
-        // Edit
         const res = await api.put(`/imart/admin/categories/${currentCategory.id}`, {
           name: categoryName.trim(),
         });
@@ -95,7 +93,6 @@ export const Categories = () => {
           handleCloseModal();
         }
       } else {
-        // Create
         const res = await api.post("/imart/admin/categories", {
           name: categoryName.trim(),
         });
@@ -128,31 +125,33 @@ export const Categories = () => {
   };
 
   return (
-    <div ref={containerRef} className="space-y-6 min-h-screen pb-12">
+    <div ref={containerRef} className="space-y-6 pb-12">
       {/* Top Header Section */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-[var(--text-color)] tracking-tight uppercase italic flex items-center gap-2">
-            <Folder className="w-8 h-8 text-[var(--color-primary)] drop-shadow-[0_0_8px_var(--color-primary-glow)]" />
-            iMart <span className="text-[var(--color-primary)] cyan-glow">Categories</span>
-          </h1>
-          <p className="text-xs text-[var(--text-secondary)] uppercase tracking-widest font-black mt-1">
+          <div className="flex items-center gap-2 mb-1.5">
+            <Folder className="w-5 h-5 text-[var(--color-primary)]" />
+            <h1 className="text-xl md:text-2xl font-bold text-[var(--text-primary)] tracking-tight">
+              iMart <span className="text-[var(--color-primary)]">Categories</span>
+            </h1>
+          </div>
+          <p className="text-xs text-[var(--text-secondary)] font-medium">
             Organize & tag product lines inside the secure virtual network
           </p>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           <button
             onClick={fetchCategories}
-            className="p-3 bg-[var(--glass-button-bg)] hover:bg-[var(--glass-border)] border border-[var(--glass-border)] rounded-xl transition-all text-[var(--text-secondary)] cursor-pointer"
+            className="p-2.5 bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)]/50 border border-[var(--border-soft)] rounded-xl transition-all text-[var(--text-secondary)] cursor-pointer"
             title="Refresh Grid"
           >
-            <RefreshCw className={`w-5 h-5 ${loading ? "animate-spin text-[var(--color-accent)]" : ""}`} />
+            <RefreshCw className={`w-4.5 h-4.5 ${loading ? "animate-spin text-[var(--color-primary)]" : ""}`} />
           </button>
           
           <button
             onClick={handleOpenCreate}
-            className="flex items-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] text-white text-xs font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-[0_0_20px_var(--color-primary-glow)] border border-[var(--glass-border)] cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--color-primary)] text-[var(--bg-primary)] text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-all shadow-sm cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             Create Category
@@ -163,15 +162,15 @@ export const Categories = () => {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3].map(n => (
-            <div key={n} className="h-32 rounded-2xl border border-[var(--glass-border)] bg-[var(--glass-card-bg)] shimmer-element"></div>
+            <div key={n} className="h-32 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-secondary)]/50 animate-pulse"></div>
           ))}
         </div>
       ) : categories.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-16 rounded-3xl border border-dashed border-[var(--glass-border)] bg-[var(--glass-card-bg)] text-center">
-          <Folder className="w-16 h-16 text-[var(--text-secondary)] opacity-40 mb-4 animate-bounce" />
-          <h2 className="text-lg font-black uppercase tracking-wider text-[var(--text-color)]">No Categories Found</h2>
-          <p className="text-xs text-[var(--text-secondary)] tracking-wide mt-1 max-w-sm">
-            Categories must be established first before uploading products into the command center.
+        <div className="flex flex-col items-center justify-center p-16 rounded-xl border border-dashed border-[var(--border-soft)] bg-[var(--card-bg)] text-center shadow-soft">
+          <Folder className="w-12 h-12 text-[var(--text-secondary)] opacity-40 mb-3" />
+          <h2 className="text-sm font-bold uppercase tracking-wider text-[var(--text-primary)]">No Categories Found</h2>
+          <p className="text-xs text-[var(--text-secondary)] tracking-wide mt-1.5 max-w-xs">
+            Categories must be established first before uploading products.
           </p>
         </div>
       ) : (
@@ -179,27 +178,24 @@ export const Categories = () => {
           {categories.map((category) => (
             <div
               key={category.id}
-              className="category-card group relative p-6 rounded-2xl bg-[var(--glass-card-bg)] border border-[var(--glass-border)] hover:border-[var(--color-accent)]/40 transition-all duration-300 shadow-[var(--glass-shadow)] flex flex-col justify-between overflow-hidden"
+              className="category-card group relative p-5 rounded-xl bg-[var(--card-bg)] border border-[var(--border-soft)] hover:border-[var(--color-primary)]/40 transition-all duration-300 shadow-soft flex flex-col justify-between overflow-hidden"
             >
-              {/* Decorative side accent glow */}
-              <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-[var(--color-primary)] to-[var(--color-accent)] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-
               <div>
                 <div className="flex justify-between items-start mb-2">
-                  <div className="p-2.5 rounded-xl bg-[var(--glass-button-bg)] border border-[var(--glass-border)] group-hover:border-[var(--color-primary)]/20 transition-all">
-                    <Folder className="w-5 h-5 text-[var(--color-accent)]" />
+                  <div className="p-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-soft)] group-hover:border-[var(--color-primary)]/20 transition-all">
+                    <Folder className="w-4.5 h-4.5 text-[var(--color-primary)]" />
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1.5">
                     <button
                       onClick={() => handleOpenEdit(category)}
-                      className="p-2 rounded-lg bg-[var(--glass-button-bg)] hover:bg-[var(--glass-border)] text-[var(--text-secondary)] hover:text-[var(--text-color)] border border-[var(--glass-border)] transition-all cursor-pointer"
+                      className="p-1.5 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-soft)] transition-all cursor-pointer"
                       title="Edit Category"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => setDeleteConfirmId(category.id)}
-                      className="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 transition-all cursor-pointer"
+                      className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 transition-all cursor-pointer"
                       title="Delete Category"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -207,22 +203,22 @@ export const Categories = () => {
                   </div>
                 </div>
 
-                <h3 className="text-lg font-black uppercase tracking-tight text-[var(--text-color)] group-hover:text-[var(--color-accent)] transition-colors mt-2">
+                <h3 className="text-sm font-bold text-[var(--text-primary)] transition-colors mt-2">
                   {category.name}
                 </h3>
-                <p className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider font-mono mt-1">
+                <p className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider font-mono mt-0.5">
                   SLUG: {category.slug}
                 </p>
               </div>
 
               {/* Delete Confirmation Overlay */}
               {deleteConfirmId === category.id && (
-                <div className="absolute inset-0 bg-[var(--glass-modal-bg)] backdrop-blur-md p-6 flex flex-col justify-between z-10">
-                  <div className="flex items-start gap-3">
-                    <ShieldAlert className="w-6 h-6 text-rose-500 flex-shrink-0 animate-pulse" />
+                <div className="absolute inset-0 bg-[var(--card-bg)] p-4 flex flex-col justify-between z-10 rounded-xl">
+                  <div className="flex items-start gap-2.5">
+                    <ShieldAlert className="w-5 h-5 text-rose-500 shrink-0" />
                     <div>
-                      <h4 className="text-xs font-black uppercase tracking-widest text-rose-500">Confirm Deletion</h4>
-                      <p className="text-[10px] text-[var(--text-secondary)] tracking-wide mt-1">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-rose-500">Confirm Deletion</h4>
+                      <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed mt-1">
                         Are you sure you want to delete this category? This cannot be undone.
                       </p>
                     </div>
@@ -230,13 +226,13 @@ export const Categories = () => {
                   <div className="flex gap-2 justify-end">
                     <button
                       onClick={() => setDeleteConfirmId(null)}
-                      className="px-3 py-1.5 rounded-lg border border-[var(--glass-border)] hover:bg-[var(--glass-border)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer"
+                      className="px-2.5 py-1.5 rounded-lg border border-[var(--border-soft)] hover:bg-[var(--bg-secondary)] text-[9px] font-bold uppercase tracking-wider text-[var(--text-secondary)] cursor-pointer"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={() => handleDelete(category.id)}
-                      className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-[10px] font-black uppercase tracking-widest text-white cursor-pointer"
+                      className="px-2.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-[9px] font-bold uppercase tracking-wider text-white cursor-pointer"
                     >
                       Confirm
                     </button>
@@ -250,27 +246,24 @@ export const Categories = () => {
 
       {/* Slide-Up Category Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-[fadeIn_0.2s_ease-out]">
-          <div className="w-full max-w-md rounded-2xl bg-[var(--glass-modal-bg)] border border-[var(--glass-border)] shadow-[var(--glass-shadow)] p-6 relative overflow-hidden">
-            {/* Header glow */}
-            <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)]"></div>
-
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-black uppercase tracking-tight text-[var(--text-color)] flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-[var(--color-accent)] animate-pulse" />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="w-full max-w-md rounded-xl bg-[var(--card-bg)] border border-[var(--border-soft)] shadow-medium p-6 relative overflow-hidden">
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-base font-bold text-[var(--text-primary)] flex items-center gap-2">
+                <Sparkles className="w-4.5 h-4.5 text-[var(--color-primary)]" />
                 {currentCategory ? "Modify Category" : "New Category Protocol"}
               </h2>
               <button
                 onClick={handleCloseModal}
-                className="p-1.5 rounded-lg bg-[var(--glass-button-bg)] hover:bg-[var(--glass-border)] text-[var(--text-secondary)] transition-all cursor-pointer"
+                className="p-1.5 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)] transition-all cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
                   Category Name
                 </label>
                 <input
@@ -279,23 +272,23 @@ export const Categories = () => {
                   placeholder="e.g., Gaming Consoles, Digital Gift Cards"
                   value={categoryName}
                   onChange={(e) => setCategoryName(e.target.value)}
-                  className="w-full px-4 py-3 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] focus:border-[var(--color-accent)] text-xs font-black uppercase tracking-widest text-[var(--text-color)] rounded-xl outline-none transition-all focus:ring-4 focus:ring-[var(--color-accent)]/10"
+                  className="w-full px-3.5 py-2.5 bg-[var(--admin-input-bg)] border border-[var(--border-soft)] focus:border-[var(--color-primary)] text-xs text-[var(--text-primary)] rounded-xl outline-none transition-all focus:ring-2 focus:ring-[var(--admin-focus-ring)]"
                 />
               </div>
 
-              <div className="flex gap-3 justify-end pt-4">
+              <div className="flex gap-2.5 justify-end pt-3">
                 <button
                   type="button"
                   onClick={handleCloseModal}
                   disabled={submitting}
-                  className="px-4 py-2.5 rounded-xl border border-[var(--glass-border)] hover:bg-[var(--glass-border)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer disabled:opacity-50"
+                  className="px-3.5 py-2 rounded-xl border border-[var(--border-soft)] hover:bg-[var(--bg-secondary)] text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] cursor-pointer disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] text-white text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-[0_0_15px_var(--color-primary-glow)] border border-[var(--glass-border)] cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2 rounded-xl bg-[var(--color-primary)] text-[var(--bg-primary)] text-[10px] font-bold uppercase tracking-wider hover:opacity-90 transition-all shadow-sm border border-transparent cursor-pointer disabled:opacity-50"
                 >
                   {submitting ? "Processing..." : currentCategory ? "Update Category" : "Establish Category"}
                 </button>

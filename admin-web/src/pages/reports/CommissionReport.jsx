@@ -16,7 +16,7 @@ import { formatAmount, safeArray } from '../../utils/helpers';
 import { downloadFile } from '../../utils/downloadFile';
 import toast from 'react-hot-toast';
 
-const COLORS = ['#4f46e5', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+const COLORS = ['#1F7A4D', '#10B981', '#34D399', '#059669', '#6EE7B7', '#A7F3D0'];
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload || !payload.length || !payload[0] || !payload[0].payload) {
@@ -24,9 +24,9 @@ const CustomTooltip = ({ active, payload, label }) => {
   }
   
   return (
-    <div className="bg-white p-4 rounded-2xl shadow-[0_10px_15px_-3px_rgb(0,0,0,0.1)] text-xs border border-slate-100">
-      <p className="font-black text-slate-700 uppercase mb-2">Operator: {label}</p>
-      <p className="text-emerald-600 font-bold">Profit: ₹{formatAmount(payload[0].value)}</p>
+    <div className="bg-[var(--card-bg)] p-3 rounded-xl shadow-soft text-xs border border-[var(--border-soft)]">
+      <p className="font-semibold text-[var(--text-primary)] uppercase mb-1">Operator: {label}</p>
+      <p className="text-emerald-500 font-bold">Profit: ₹{formatAmount(payload[0].value)}</p>
     </div>
   );
 };
@@ -73,80 +73,81 @@ export default function CommissionReport() {
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="space-y-8 p-6 lg:p-8"
+      className="space-y-6"
     >
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic">Yield <span className="text-emerald-600">Analytics</span></h1>
-          <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em] mt-1">Network profit & commission distribution metrics</p>
+        <div className="space-y-0.5">
+          <h1 className="text-xl md:text-2xl font-bold text-[var(--text-primary)] tracking-tight">Yield <span className="text-[var(--color-primary)]">Analytics</span></h1>
+          <p className="text-xs text-[var(--text-secondary)] font-medium">Network profit & commission distribution metrics</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           <button 
             onClick={handleExport}
             disabled={isExporting}
-            className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:border-emerald-600 hover:text-emerald-600 transition-all shadow-sm disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border-soft)] rounded-xl text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--accent-hover)] transition-all cursor-pointer disabled:opacity-50"
           >
             <Download className={`w-4 h-4 ${isExporting ? 'animate-bounce' : ''}`} /> {isExporting ? 'Exporting...' : 'Export CSV'}
           </button>
           <button 
             onClick={fetchData}
-            className="p-3 bg-white border border-slate-200 rounded-2xl shadow-sm hover:border-emerald-600 transition-all"
+            className="p-2.5 bg-[var(--bg-secondary)] border border-[var(--border-soft)] hover:bg-[var(--accent-hover)] rounded-xl transition-all cursor-pointer"
           >
-            <RefreshCw className={`w-5 h-5 text-emerald-600 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4.5 h-4.5 text-[var(--color-primary)] ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
         <motion.div 
-          whileHover={{ y: -5 }}
-          className="bg-white border border-slate-200 p-8 rounded-[2.5rem] shadow-sm flex items-center gap-6"
+          whileHover={{ y: -1 }}
+          className="bg-[var(--card-bg)] border border-[var(--border-soft)] p-6 rounded-xl shadow-soft flex items-center gap-5"
         >
-          <div className="p-4 bg-emerald-50 rounded-2xl">
-            <TrendingUp className="w-8 h-8 text-emerald-600" />
+          <div className="p-3 bg-[var(--color-primary-glow)] rounded-xl text-[var(--color-primary)]">
+            <TrendingUp className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Net Profit</p>
-            <h3 className="text-4xl font-black text-slate-900 tracking-tighter">₹{formatAmount(totalEarnings)}</h3>
+            <p className="text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-0.5">Total Net Profit</p>
+            <h3 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">₹{formatAmount(totalEarnings)}</h3>
           </div>
         </motion.div>
+        
         <motion.div 
-          whileHover={{ y: -5 }}
-          className="bg-white border border-slate-200 p-8 rounded-[2.5rem] shadow-sm flex items-center gap-6"
+          whileHover={{ y: -1 }}
+          className="bg-[var(--card-bg)] border border-[var(--border-soft)] p-6 rounded-xl shadow-soft flex items-center gap-5"
         >
-          <div className="p-4 bg-indigo-50 rounded-2xl">
-            <BarChart3 className="w-8 h-8 text-indigo-600" />
+          <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-500">
+            <BarChart3 className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Flow Volume</p>
-            <h3 className="text-4xl font-black text-slate-900 tracking-tighter">₹{formatAmount(totalVolume)}</h3>
+            <p className="text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-0.5">Total Flow Volume</p>
+            <h3 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">₹{formatAmount(totalVolume)}</h3>
           </div>
         </motion.div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Chart */}
-        <div className="lg:col-span-8 bg-white border border-slate-200 p-8 rounded-[2.5rem] shadow-sm">
-          <div className="flex items-center justify-between mb-8">
-            <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Operator-wise Earnings</h3>
-            <PieChart className="w-4 h-4 text-slate-400" />
+        <div className="lg:col-span-8 bg-[var(--card-bg)] border border-[var(--border-soft)] p-6 rounded-xl shadow-soft">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wider">Operator-wise Earnings</h3>
+            <PieChart className="w-4 h-4 text-[var(--text-secondary)]" />
           </div>
           <div className="w-full h-full min-h-[400px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-soft)" />
                 <XAxis 
                   dataKey="operator" 
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{ fontSize: 10, fontWeight: 900, fill: '#64748b' }} 
+                  tick={{ fontSize: 9, fill: 'var(--text-secondary)' }} 
                 />
                 <YAxis 
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{ fontSize: 10, fontWeight: 900, fill: '#64748b' }}
+                  tick={{ fontSize: 9, fill: 'var(--text-secondary)' }}
                 />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8fafc' }} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--accent-hover)' }} />
                 <Bar dataKey="_sum.profit" name="Profit" radius={[4, 4, 0, 0]}>
                   {data.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -158,24 +159,26 @@ export default function CommissionReport() {
         </div>
 
         {/* Detailed Table */}
-        <div className="lg:col-span-4 bg-white border border-slate-200 p-8 rounded-[2.5rem] shadow-sm overflow-hidden">
-          <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest mb-8">Breakdown</h3>
-          <div className="space-y-6 overflow-y-auto max-h-[400px] no-scrollbar">
-            {data.map((item, idx) => (
-              <div key={idx} className="flex justify-between items-center group">
-                <div className="flex items-center gap-3">
-                  <div className="w-1.5 h-6 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></div>
-                  <div>
-                    <p className="text-xs font-black text-slate-900 uppercase">{item.operator}</p>
-                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{item._count.id} TXNs</p>
+        <div className="lg:col-span-4 bg-[var(--card-bg)] border border-[var(--border-soft)] p-6 rounded-xl shadow-soft flex flex-col justify-between overflow-hidden">
+          <div>
+            <h3 className="text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wider mb-6">Breakdown</h3>
+            <div className="space-y-5 overflow-y-auto max-h-[350px] custom-scrollbar pr-1">
+              {data.map((item, idx) => (
+                <div key={idx} className="flex justify-between items-center group">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-1.5 h-5 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></div>
+                    <div>
+                      <p className="text-xs font-semibold text-[var(--text-primary)] uppercase">{item.operator}</p>
+                      <p className="text-[9px] text-[var(--text-secondary)] font-semibold uppercase tracking-wider">{item._count.id} TXNs</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-bold text-[var(--text-primary)]">₹{formatAmount(item._sum.profit)}</p>
+                    <p className="text-[9px] text-emerald-500 font-semibold uppercase">+{((item._sum.profit / totalEarnings) * 100).toFixed(1)}%</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-black text-slate-900 tracking-tighter">₹{formatAmount(item._sum.profit)}</p>
-                  <p className="text-[9px] text-emerald-600 font-bold uppercase">+{((item._sum.profit / totalEarnings) * 100).toFixed(1)}%</p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>

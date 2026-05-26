@@ -34,7 +34,6 @@ import { useIsIOS } from './utils/device';
   const Security = lazy(() => import('./pages/Security'));
   const Support = lazy(() => import('./pages/Support'));
   const PaymentSuccess = lazy(() => import('./pages/PaymentSuccess'));
-  const DeveloperPortal = lazy(() => import('./pages/DeveloperPortal'));
   const TransactionHistory = lazy(() => import('./pages/reports/TransactionHistory'));
   const WalletLedger = lazy(() => import('./pages/reports/WalletLedger'));
   
@@ -179,13 +178,14 @@ import { useIsIOS } from './utils/device';
                     <Route path="/profile/support" element={<PrivateRoute isAuth={isAuth}><Support /></PrivateRoute>} />
                     <Route path="/earned-coins" element={<PrivateRoute isAuth={isAuth}><EarnedCoins /></PrivateRoute>} />
                     <Route path="/payment-success" element={<PrivateRoute isAuth={isAuth}><PaymentSuccess /></PrivateRoute>} />
-                    <Route path="/developer" element={<PrivateRoute isAuth={isAuth}><DeveloperPortal /></PrivateRoute>} />
+
 
                     {/* iMart Marketplace Routes */}
                     <Route path="/imart" element={<PrivateRoute isAuth={isAuth}><Catalog /></PrivateRoute>} />
                     <Route path="/imart/wishlist" element={<PrivateRoute isAuth={isAuth}><Wishlist /></PrivateRoute>} />
                     <Route path="/imart/product/:slug" element={<PrivateRoute isAuth={isAuth}><ProductDetails /></PrivateRoute>} />
 
+                    <Route path="/admin/*" element={<Navigate to="/" replace />} />
                     <Route path="*" element={<Navigate to="/" />} />
                   </Routes>
                 </WalletProvider>

@@ -8,20 +8,18 @@ const CustomTooltip = ({ active, payload, label }) => {
   }
   
   return (
-    <div className="bg-white p-3 rounded-lg shadow-[0_4px_6px_-1px_rgb(0,0,0,0.1)] text-xs border border-slate-100">
-      <p className="font-bold text-slate-700 mb-1">Date: {label}</p>
-      <p className="text-blue-500 font-medium">Revenue: ₹{new Intl.NumberFormat('en-IN').format(payload[0].value)}</p>
+    <div className="bg-[var(--card-bg)] p-3 rounded-xl shadow-soft text-xs border border-[var(--border-soft)]">
+      <p className="font-semibold text-[var(--text-primary)] mb-1">Date: {label}</p>
+      <p className="text-[var(--color-primary)] font-bold">Revenue: ₹{new Intl.NumberFormat('en-IN').format(payload[0].value)}</p>
     </div>
   );
 };
 
 export const RevenueBarChart = ({ dailyRevenue = [] }) => {
-  // If no data, show a placeholder
   if (!dailyRevenue || dailyRevenue.length === 0) {
-    return <div className="text-slate-400 text-xs font-medium">No revenue data in last 7 days</div>;
+    return <div className="text-[var(--text-muted)] text-xs font-medium py-10 text-center">No revenue data in last 7 days</div>;
   }
 
-  // Format the date strings to be more readable
   const formattedData = dailyRevenue.map(item => ({
     ...item,
     formattedDate: item.date ? format(parseISO(item.date), 'MMM dd') : '',
@@ -32,24 +30,24 @@ export const RevenueBarChart = ({ dailyRevenue = [] }) => {
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={formattedData}
-          margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+          margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
         >
-          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-soft)" />
           <XAxis 
             dataKey="formattedDate" 
             axisLine={false} 
             tickLine={false} 
-            tick={{ fill: '#64748b', fontSize: 10 }} 
-            dy={10} 
+            tick={{ fill: 'var(--text-secondary)', fontSize: 9 }} 
+            dy={8} 
           />
           <YAxis 
             axisLine={false} 
             tickLine={false} 
-            tick={{ fill: '#64748b', fontSize: 10 }} 
+            tick={{ fill: 'var(--text-secondary)', fontSize: 9 }} 
             tickFormatter={(value) => `₹${value}`} 
           />
-          <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8fafc' }} />
-          <Bar dataKey="revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={30} />
+          <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--accent-hover)' }} />
+          <Bar dataKey="revenue" fill="var(--color-primary)" radius={[4, 4, 0, 0]} barSize={24} />
         </BarChart>
       </ResponsiveContainer>
     </div>

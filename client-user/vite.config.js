@@ -63,7 +63,12 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:5000',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '/api')
+        rewrite: (path) => path.replace(/^\/api/, '/api'),
+        bypass: (req) => {
+          if (req.url.startsWith('/api-docs')) {
+            return req.url;
+          }
+        }
       },
       '/uploads': {
         target: 'http://localhost:5000',

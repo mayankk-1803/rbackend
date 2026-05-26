@@ -7,9 +7,9 @@ const CustomTooltip = ({ active, payload }) => {
   }
   
   return (
-    <div className="bg-white p-3 rounded-lg shadow-[0_4px_6px_-1px_rgb(0,0,0,0.1)] text-xs border border-slate-100">
-      <p className="font-bold text-slate-700">{payload[0].name}</p>
-      <p className="text-slate-600 mt-1">{new Intl.NumberFormat('en-IN').format(payload[0].value)}</p>
+    <div className="bg-[var(--card-bg)] p-3 rounded-xl shadow-soft text-xs border border-[var(--border-soft)]">
+      <p className="font-semibold text-[var(--text-primary)]">{payload[0].name}</p>
+      <p className="text-[var(--text-secondary)] mt-1 font-bold">{new Intl.NumberFormat('en-IN').format(payload[0].value)} txns</p>
     </div>
   );
 };
@@ -19,17 +19,16 @@ export const TransactionsPieChart = ({ success = 0, pending = 0, failed = 0 }) =
     { name: 'SUCCESS', value: success },
     { name: 'PENDING', value: pending },
     { name: 'FAILED', value: failed },
-  ].filter(d => d.value > 0); // Only show non-zero statuses
+  ].filter(d => d.value > 0);
 
-  // If no data, show a placeholder
   if (data.length === 0) {
-    return <div className="text-slate-400 text-xs font-medium">No transactions in last 7 days</div>;
+    return <div className="text-[var(--text-muted)] text-xs font-medium py-10 text-center">No transactions in last 7 days</div>;
   }
 
   const COLORS = {
-    SUCCESS: '#22c55e', // Green
-    PENDING: '#f59e0b', // Yellow
-    FAILED: '#ef4444',  // Red
+    SUCCESS: '#10B981', // Mint green
+    PENDING: '#F59E0B', // Amber
+    FAILED: '#EF4444',  // Red
   };
 
   return (
@@ -42,15 +41,19 @@ export const TransactionsPieChart = ({ success = 0, pending = 0, failed = 0 }) =
             cy="50%"
             innerRadius={60}
             outerRadius={80}
-            paddingAngle={5}
+            paddingAngle={4}
             dataKey="value"
           >
             {data.map((entry, index) => (
-               <Cell key={`cell-${index}`} fill={COLORS[entry.name]} />
+               <Cell key={`cell-${index}`} fill={COLORS[entry.name]} stroke="var(--card-bg)" strokeWidth={2} />
             ))}
           </Pie>
           <Tooltip content={<CustomTooltip />} />
-          <Legend verticalAlign="bottom" height={36}/>
+          <Legend 
+            verticalAlign="bottom" 
+            height={36} 
+            formatter={(value) => <span className="text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-wider">{value}</span>}
+          />
         </PieChart>
       </ResponsiveContainer>
     </div>

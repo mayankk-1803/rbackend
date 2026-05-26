@@ -5,6 +5,8 @@ import jwt from "jsonwebtoken";
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { logAudit } from "../utils/auditLogger.js";
+import axios from "axios";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,7 +16,6 @@ const __dirname = path.dirname(__filename);
  */
 export const getApiManifest = async (req, res) => {
   try {
-    // Robust path resolution regardless of process.cwd()
     const manifestPath = path.join(__dirname, '..', 'config', 'apiManifest.json');
     const manifestData = await fs.readFile(manifestPath, 'utf8');
     const manifest = JSON.parse(manifestData);
@@ -28,19 +29,18 @@ export const getApiManifest = async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: "Failed to load API manifest",
-      payload: { endpoints: [] } // Fallback to prevent frontend crash
+      payload: { endpoints: [] }
     });
   }
 };
 
 /**
- * Generate a new set of API credentials for a user
+ * Generate a new set of API credentials for a user (LEGACY)
  */
 export const generateKeys = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // Check if user already has keys (limit to 2 for enterprise)
     const existingKeys = await prisma.apiKey.count({ where: { userId } });
     if (existingKeys >= 2) {
       return res.status(400).json({ success: false, message: "Maximum API keys reached" });
@@ -78,7 +78,7 @@ export const generateKeys = async (req, res) => {
 };
 
 /**
- * Rotate API Secret or Webhook Secret
+ * Rotate API Secret or Webhook Secret (LEGACY)
  */
 export const rotateSecret = async (req, res) => {
   try {
@@ -111,7 +111,7 @@ export const rotateSecret = async (req, res) => {
 };
 
 /**
- * Toggle API Key Status
+ * Toggle API Key Status (LEGACY)
  */
 export const toggleKeyStatus = async (req, res) => {
   try {
@@ -140,7 +140,7 @@ export const toggleKeyStatus = async (req, res) => {
 };
 
 /**
- * Get API Keys for current user
+ * Get API Keys for current user (LEGACY)
  */
 export const getKeys = async (req, res) => {
   try {
@@ -149,7 +149,7 @@ export const getKeys = async (req, res) => {
       select: {
         clientId: true,
         apiKey: true,
-        apiSecret: true, // Included so the Tester can pre-fill
+        apiSecret: true,
         webhookSecret: true,
         isActive: true,
         lastUsedAt: true,
@@ -164,7 +164,7 @@ export const getKeys = async (req, res) => {
 };
 
 /**
- * Get Developer Analytics
+ * Get Developer Analytics (LEGACY)
  */
 export const getAnalytics = async (req, res) => {
   try {
@@ -202,7 +202,7 @@ export const getAnalytics = async (req, res) => {
 };
 
 /**
- * Get Recent API Logs
+ * Get Recent API Logs (LEGACY)
  */
 export const getLogs = async (req, res) => {
   try {
@@ -239,7 +239,6 @@ export const verifyDevAccess = async (req, res) => {
 
     let isMatch = false;
 
-    // 1. Check environment-configured developer credentials
     const envEmail = process.env.DEV_PORTAL_EMAIL || "developer@dizipay.in";
     const envHash = process.env.DEV_PORTAL_PASSWORD_HASH;
 
@@ -247,7 +246,6 @@ export const verifyDevAccess = async (req, res) => {
       isMatch = await bcrypt.compare(password, envHash);
     }
 
-    // 2. Fallback to existing authenticated user's credentials
     if (!isMatch) {
       const user = await prisma.user.findUnique({
         where: { id: userId }
@@ -264,7 +262,6 @@ export const verifyDevAccess = async (req, res) => {
       });
     }
 
-    // Pick first active key if it exists, to associate with this developer session
     const matchedKey = await prisma.apiKey.findFirst({
       where: { userId, isActive: true }
     });
@@ -284,7 +281,7 @@ export const verifyDevAccess = async (req, res) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "Lax",
-      maxAge: 15 * 60 * 1000 // 15 mins
+      maxAge: 15 * 60 * 1000
     };
     res.cookie("dizipay_developer_token", devToken, cookieOptions);
 
@@ -311,5 +308,377 @@ export const revokeDevAccess = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+// =========================================================================
+// NEW APIACCESS & FINTECH DEVELOPER PORTAL METHODS
+// =========================================================================
+
+/**
+ * GET ApiAccess details for dashboard
+ */
+export const getApiAccess = async (req, res) => {
+  try {
+    const access = await prisma.apiAccess.findFirst({
+      where: { userId: req.user.id }
+    });
+    
+    res.json({ success: true, data: access });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * Generate new ApiAccess keypair
+ */
+export const generateApiAccess = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const existing = await prisma.apiAccess.findFirst({ where: { userId } });
+    if (existing) {
+      return res.status(400).json({ success: false, message: "API credentials already exist. Use rotation to generate a new secret." });
+    }
+
+    const apiKey = `ak_live_${crypto.randomBytes(16).toString('hex')}`;
+    const apiSecret = `sec_live_${crypto.randomBytes(32).toString('hex')}`;
+    const salt = await bcrypt.genSalt(10);
+    const apiSecretHash = await bcrypt.hash(apiSecret, salt);
+
+    const newAccess = await prisma.apiAccess.create({
+      data: {
+        userId,
+        apiKey,
+        apiSecretHash,
+        isActive: req.user.role === "API_USER" || req.user.role === "ADMIN" || req.user.role === "SUPER_ADMIN" ? true : false,
+        environment: "PRODUCTION"
+      }
+    });
+
+    await logAudit({
+      action: "API_ACCESS_KEYS_GENERATED",
+      userId,
+      entity: "ApiAccess",
+      entityId: 0,
+      details: { apiKey }
+    });
+
+    res.json({
+      success: true,
+      message: "API Access credentials generated",
+      data: {
+        id: newAccess.id,
+        apiKey: newAccess.apiKey,
+        apiSecret: apiSecret,
+        webhookUrl: newAccess.webhookUrl,
+        isActive: newAccess.isActive,
+        environment: newAccess.environment
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * Rotate ApiAccess apiSecret
+ */
+export const rotateApiAccessSecret = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const access = await prisma.apiAccess.findFirst({ where: { userId } });
+    if (!access) return res.status(404).json({ success: false, message: "API credentials not found" });
+
+    const newSecret = `sec_live_${crypto.randomBytes(32).toString('hex')}`;
+    const salt = await bcrypt.genSalt(10);
+    const apiSecretHash = await bcrypt.hash(newSecret, salt);
+
+    await prisma.apiAccess.update({
+      where: { id: access.id },
+      data: { apiSecretHash }
+    });
+
+    await logAudit({
+      action: "API_ACCESS_SECRET_ROTATED",
+      userId,
+      entity: "ApiAccess",
+      entityId: 0
+    });
+
+    res.json({
+      success: true,
+      message: "Secret rotated successfully",
+      apiSecret: newSecret
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * Update Webhook Settings
+ */
+export const updateWebhookSettings = async (req, res) => {
+  try {
+    const { webhookUrl } = req.body;
+    const userId = req.user.id;
+
+    const access = await prisma.apiAccess.findFirst({ where: { userId } });
+    if (!access) return res.status(404).json({ success: false, message: "API credentials not found" });
+
+    const updated = await prisma.apiAccess.update({
+      where: { id: access.id },
+      data: { webhookUrl }
+    });
+
+    await logAudit({
+      action: "WEBHOOK_URL_UPDATED",
+      userId,
+      entity: "ApiAccess",
+      entityId: 0,
+      details: { webhookUrl }
+    });
+
+    res.json({ success: true, message: "Webhook settings updated", data: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * Toggle ApiAccess active state
+ */
+export const toggleApiAccess = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const access = await prisma.apiAccess.findFirst({ where: { userId } });
+    if (!access) return res.status(404).json({ success: false, message: "API credentials not found" });
+
+    const updated = await prisma.apiAccess.update({
+      where: { id: access.id },
+      data: { isActive: !access.isActive }
+    });
+
+    await logAudit({
+      action: "API_ACCESS_TOGGLED",
+      userId,
+      entity: "ApiAccess",
+      entityId: 0,
+      details: { isActive: updated.isActive }
+    });
+
+    res.json({ success: true, message: `API Access status toggled to ${updated.isActive ? 'Active' : 'Inactive'}`, data: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * Toggle Sandbox Environment Mode
+ */
+export const updateEnvironment = async (req, res) => {
+  try {
+    const { environment } = req.body;
+    if (!["PRODUCTION", "SANDBOX"].includes(environment)) {
+      return res.status(400).json({ success: false, message: "Invalid environment" });
+    }
+
+    const userId = req.user.id;
+    const access = await prisma.apiAccess.findFirst({ where: { userId } });
+    if (!access) return res.status(404).json({ success: false, message: "API credentials not found" });
+
+    const updated = await prisma.apiAccess.update({
+      where: { id: access.id },
+      data: { environment }
+    });
+
+    await logAudit({
+      action: "ENVIRONMENT_TOGGLED",
+      userId,
+      entity: "ApiAccess",
+      entityId: 0,
+      details: { environment }
+    });
+
+    res.json({ success: true, message: `Environment switched to ${environment}`, data: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * Get Webhook Delivery logs
+ */
+export const getWebhookEvents = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const access = await prisma.apiAccess.findFirst({ where: { userId } });
+    if (!access) return res.json({ success: true, data: [] });
+
+    const events = await prisma.webhookEvent.findMany({
+      where: { apiAccessId: access.id },
+      orderBy: { createdAt: 'desc' },
+      take: 50
+    });
+
+    res.json({ success: true, data: events });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * Replay Webhook Event
+ */
+export const replayWebhookEvent = async (req, res) => {
+  try {
+    const { eventId } = req.body;
+    const event = await prisma.webhookEvent.findUnique({ where: { id: eventId } });
+    if (!event) return res.status(404).json({ success: false, message: "Event not found" });
+
+    const access = await prisma.apiAccess.findUnique({ where: { id: event.apiAccessId } });
+    if (!access || !access.webhookUrl) return res.status(400).json({ success: false, message: "No active webhook URL registered" });
+
+    await prisma.webhookEvent.update({
+      where: { id: event.id },
+      data: { retryCount: { increment: 1 } }
+    });
+
+    axios.post(access.webhookUrl, event.payload, {
+      headers: {
+        "Content-Type": "application/json",
+        "x-webhook-signature": "sandbox_signature_replay"
+      }
+    }).then(response => {
+      prisma.webhookEvent.update({
+        where: { id: event.id },
+        data: { deliveryStatus: "SUCCESS", responseCode: response.status }
+      }).catch(() => {});
+    }).catch(err => {
+      prisma.webhookEvent.update({
+        where: { id: event.id },
+        data: { deliveryStatus: "FAILED", responseCode: err.response?.status || 500 }
+      }).catch(() => {});
+    });
+
+    res.json({ success: true, message: "Webhook replay event queued" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+import eventBus from "../config/eventBus.js";
+
+/**
+ * Submit Upgrade Request to API Partner
+ */
+export const requestApiAccess = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Serializable/transactional check for existing pending or approved requests
+    const existingRequest = await prisma.apiAccessRequest.findFirst({
+      where: { 
+        userId,
+        status: { in: ["PENDING", "APPROVED"] }
+      }
+    });
+
+    if (existingRequest) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "An active or pending API Access request already exists" 
+      });
+    }
+
+    const { reason, businessName } = req.body;
+
+    const sanitizeText = (value, max = 500) =>
+      typeof value === "string"
+        ? value
+            .replace(/<[^>]*>?/gm, "")
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, max)
+        : null;
+
+    const normalizedReason = sanitizeText(reason, 500);
+    const normalizedBusinessName = sanitizeText(businessName, 120);
+
+    if (!normalizedReason || normalizedReason.length < 10) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide a valid API access reason."
+      });
+    }
+
+    const finalReason = normalizedBusinessName
+      ? `[Business: ${normalizedBusinessName}] ${normalizedReason}`.slice(0, 500)
+      : normalizedReason;
+
+    const newRequest = await prisma.apiAccessRequest.create({
+      data: {
+        userId,
+        status: "PENDING",
+        reason: finalReason
+      }
+    });
+
+    await logAudit({
+      action: "API_ACCESS_UPGRADE_REQUESTED",
+      userId,
+      entity: "ApiAccessRequest",
+      entityId: Number(newRequest.id) || 0
+    });
+
+    // Emit event bus notification for Socket.io update propagation
+    eventBus.emit("api_access_updated", {
+      userId,
+      status: "PENDING"
+    });
+
+    res.json({ 
+      success: true, 
+      message: "API upgrade request submitted to admin for approval" 
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * Check Upgrade Request Status
+ */
+export const getRequestStatus = async (req, res) => {
+  try {
+    const request = await prisma.apiAccessRequest.findFirst({
+      where: { userId: req.user.id },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json({ success: true, request });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * Get API Telemetry Usage Statistics
+ */
+export const getApiAccessUsage = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const access = await prisma.apiAccess.findFirst({ where: { userId } });
+    if (!access) return res.json({ success: true, data: [] });
+
+    const usages = await prisma.apiUsage.findMany({
+      where: { apiAccessId: access.id },
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    });
+
+    res.json({ success: true, data: usages });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };

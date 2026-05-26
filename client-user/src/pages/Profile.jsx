@@ -1,10 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { motion as Motion } from 'framer-motion';
-import { User, Settings, LogOut, ShieldCheck, HelpCircle, ChevronRight, Edit2, Camera, Code2, ShoppingBag } from 'lucide-react';
+import { Settings, LogOut, ShieldCheck, HelpCircle, ChevronRight, Edit2, Camera, Code2, ShoppingBag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
-import socket from '../services/socket';
 import { useWallet } from '../context/WalletContext';
 
 export default function Profile() {
@@ -41,9 +40,32 @@ export default function Profile() {
     window.location.href = '/login';
   };
 
+  const getDeveloperMenuItem = () => {
+    return { 
+      icon: Code2, 
+      label: 'Download API Docs', 
+      ariaLabel: 'Download API Documentation',
+      action: () => {
+        try {
+          toast.success("API Documentation Download Started");
+          const link = document.createElement("a");
+          link.href = "/api-docs/IRECHARGE_API_DOCUMENTATION.pdf";
+          link.setAttribute("download", "IRECHARGE_API_DOCUMENTATION.pdf");
+          link.rel = "noopener";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } catch (error) {
+          toast.error("Failed to download API documentation");
+          console.error(error);
+        }
+      }
+    };
+  };
+
   const menuItems = [
     { icon: Settings, label: 'Account Settings', action: () => setIsEditing(true) },
-    { icon: Code2, label: 'Developer Portal', action: () => navigate('/developer') },
+    getDeveloperMenuItem(),
     { icon: ShoppingBag, label: 'iMart Orders', action: () => navigate('/imart/wishlist') },
     { icon: ShieldCheck, label: 'Security & Privacy', action: () => navigate('/profile/security') },
     { icon: HelpCircle, label: 'Help & Support', action: () => navigate('/profile/support') },
@@ -157,6 +179,7 @@ export default function Profile() {
                 key={idx} 
                 whileHover={{ x: 6, backgroundColor: 'var(--glass-button-bg)' }}
                 onClick={item.action}
+                aria-label={item.ariaLabel || item.label}
                 className={`w-full min-h-14 p-4 rounded-2xl border flex items-center justify-between transition-all group hover:shadow-sm cursor-pointer ${
                   item.mobileLogout
                     ? 'bg-rose-500/10 border-rose-500/20 hover:border-rose-400/50 active:scale-[0.99] md:bg-[var(--glass-card-bg)] md:border-[var(--glass-border)] md:hover:border-[var(--color-accent)]/20'
