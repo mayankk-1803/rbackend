@@ -45,7 +45,7 @@ export const CashbackSettings = () => {
   }, []);
 
   const fetchSettings = async () => {
-    if (!localStorage.getItem('dizipay_admin_token')) {
+    if (!sessionStorage.getItem('dizipay_admin_token')) {
       setLoading(false);
       return;
     }
@@ -65,7 +65,7 @@ export const CashbackSettings = () => {
   };
 
   const handleSave = async () => {
-    if (!localStorage.getItem('dizipay_admin_token')) return;
+    if (!sessionStorage.getItem('dizipay_admin_token')) return;
     setSaving(true);
     try {
       const response = await api.patch('/admin/cashback/settings', settings);

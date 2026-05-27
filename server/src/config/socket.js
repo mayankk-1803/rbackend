@@ -2,6 +2,56 @@ import { Server } from "socket.io";
 import eventBus from "./eventBus.js";
 import crypto from "crypto";
 import { redisClient } from "./redis.js";
+import prisma from "./prisma.js";
+
+export const enrichAndNormalizeTransaction = async (txn) => {
+  if (!txn) return txn;
+
+  const enriched = { ...txn };
+
+  // Fetch user if missing
+  if (enriched.userId && (!enriched.user || (!enriched.user.phone && !enriched.user.email))) {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: enriched.userId },
+        select: { email: true, phone: true }
+      });
+      if (user) {
+        enriched.user = user;
+      }
+    } catch (err) {
+      console.error(`[SOCKET_NORMALIZE] Failed to fetch user ${enriched.userId}:`, err.message);
+    }
+  }
+
+  // Normalize mobile number
+  let displayMobile = enriched.mobile;
+  if (!displayMobile && enriched.user?.phone) {
+    displayMobile = enriched.user.phone;
+  }
+  if (!displayMobile && enriched.user?.email) {
+    displayMobile = enriched.user.email;
+  }
+  if (!displayMobile) {
+    displayMobile = "System";
+  }
+  enriched.mobile = displayMobile;
+
+  // Normalize provider name
+  let displayProvider = enriched.provider;
+  if (!displayProvider) {
+    if (enriched.paymentGateway) {
+      displayProvider = enriched.paymentGateway;
+    } else if (enriched.type === "TOPUP") {
+      displayProvider = "NexGATE";
+    } else {
+      displayProvider = enriched.type || "SYSTEM";
+    }
+  }
+  enriched.provider = displayProvider;
+
+  return enriched;
+};
 
 export const safeTransactionPayloadV1 = (data) => {
   if (!data) return data;
@@ -97,97 +147,175 @@ export const initSocket = (server) => {
   });
 
   // Realtime Lifecycle Broadcaster
-  eventBus.on("recharge_queued", (data) => {
+  eventBus.on("recharge_queued", async (data) => {
+    let transaction = data.transaction;
+    const txnId = data.txnId || data.transactionId;
+    if (!transaction && txnId) {
+      transaction = await prisma.transaction.findUnique({
+        where: { id: Number(txnId) }
+      });
+    }
+    const enrichedTxn = await enrichAndNormalizeTransaction(transaction);
+
     const updateData = {
-      transactionId: data.txnId || data.transactionId,
+      ...data,
+      transactionId: txnId,
       status: data.status || "PENDING_REVIEW",
-      transaction: data.transaction,
-      ...data
+      transaction: enrichedTxn
     };
+
+    const payload = safeTransactionPayloadV1({ ...data, transaction: enrichedTxn });
+    const updatePayload = safeTransactionPayloadV1(updateData);
+
     if (data.userId) {
-      io.to(data.userId.toString()).emit("recharge_queued", safeTransactionPayloadV1(data));
-      io.to(data.userId.toString()).emit("recharge_update", safeTransactionPayloadV1(updateData));
+      io.to(data.userId.toString()).emit("recharge_queued", payload);
+      io.to(data.userId.toString()).emit("recharge_update", updatePayload);
     }
-    adminNamespace.emit("recharge_queued", safeTransactionPayloadV1(data));
-    adminNamespace.emit("recharge_update", safeTransactionPayloadV1(updateData));
+    adminNamespace.emit("recharge_queued", payload);
+    adminNamespace.emit("recharge_update", updatePayload);
   });
 
-  eventBus.on("recharge_processing", (data) => {
+  eventBus.on("recharge_processing", async (data) => {
+    let transaction = data.transaction;
+    const txnId = data.txnId || data.transactionId;
+    if (!transaction && txnId) {
+      transaction = await prisma.transaction.findUnique({
+        where: { id: Number(txnId) }
+      });
+    }
+    const enrichedTxn = await enrichAndNormalizeTransaction(transaction);
+
     const updateData = {
-      transactionId: data.txnId || data.transactionId,
+      ...data,
+      transactionId: txnId,
       status: data.status || "PROCESSING",
-      transaction: data.transaction,
-      ...data
+      transaction: enrichedTxn
     };
+
+    const payload = safeTransactionPayloadV1({ ...data, transaction: enrichedTxn });
+    const updatePayload = safeTransactionPayloadV1(updateData);
+
     if (data.userId) {
-      io.to(data.userId.toString()).emit("recharge_processing", safeTransactionPayloadV1(data));
-      io.to(data.userId.toString()).emit("recharge_update", safeTransactionPayloadV1(updateData));
+      io.to(data.userId.toString()).emit("recharge_processing", payload);
+      io.to(data.userId.toString()).emit("recharge_update", updatePayload);
     }
-    adminNamespace.emit("recharge_processing", safeTransactionPayloadV1(data));
-    adminNamespace.emit("recharge_update", safeTransactionPayloadV1(updateData));
+    adminNamespace.emit("recharge_processing", payload);
+    adminNamespace.emit("recharge_update", updatePayload);
   });
 
-  eventBus.on("recharge_pending", (data) => {
+  eventBus.on("recharge_pending", async (data) => {
+    let transaction = data.transaction;
+    const txnId = data.txnId || data.transactionId;
+    if (!transaction && txnId) {
+      transaction = await prisma.transaction.findUnique({
+        where: { id: Number(txnId) }
+      });
+    }
+    const enrichedTxn = await enrichAndNormalizeTransaction(transaction);
+
     const updateData = {
-      transactionId: data.txnId || data.transactionId,
+      ...data,
+      transactionId: txnId,
       status: data.status,
-      transaction: data.transaction,
-      ...data
+      transaction: enrichedTxn
     };
+
+    const payload = safeTransactionPayloadV1({ ...data, transaction: enrichedTxn });
+    const updatePayload = safeTransactionPayloadV1(updateData);
+
     console.log(`[SOCKET_EVENT] Emitting recharge_pending & recharge_update for Txn: ${updateData.transactionId}`);
     if (data.userId) {
-      io.to(data.userId.toString()).emit("recharge_pending", safeTransactionPayloadV1(data));
-      io.to(data.userId.toString()).emit("recharge_update", safeTransactionPayloadV1(updateData));
+      io.to(data.userId.toString()).emit("recharge_pending", payload);
+      io.to(data.userId.toString()).emit("recharge_update", updatePayload);
     }
-    adminNamespace.emit("recharge_pending", data);
-    adminNamespace.emit("recharge_update", updateData);
+    adminNamespace.emit("recharge_pending", payload);
+    adminNamespace.emit("recharge_update", updatePayload);
   });
 
-  eventBus.on("recharge_success", (data) => {
+  eventBus.on("recharge_success", async (data) => {
+    let transaction = data.transaction;
+    const txnId = data.transactionId || data.txnId;
+    if (!transaction && txnId) {
+      transaction = await prisma.transaction.findUnique({
+        where: { id: Number(txnId) }
+      });
+    }
+    const enrichedTxn = await enrichAndNormalizeTransaction(transaction);
+
     const updateData = {
-      transactionId: data.transactionId || data.txnId,
+      ...data,
+      transactionId: txnId,
       status: data.status,
-      transaction: data.transaction,
-      ...data
+      transaction: enrichedTxn
     };
+
+    const payload = safeTransactionPayloadV1({ ...data, transaction: enrichedTxn });
+    const updatePayload = safeTransactionPayloadV1(updateData);
+
     console.log(`[SOCKET_EVENT] Emitting recharge_success & recharge_update for Txn: ${updateData.transactionId}`);
     if (data.userId) {
-      io.to(data.userId.toString()).emit("recharge_success", safeTransactionPayloadV1(data));
-      io.to(data.userId.toString()).emit("recharge_update", safeTransactionPayloadV1(updateData));
+      io.to(data.userId.toString()).emit("recharge_success", payload);
+      io.to(data.userId.toString()).emit("recharge_update", updatePayload);
     }
-    adminNamespace.emit("recharge_success", data);
-    adminNamespace.emit("recharge_update", updateData);
+    adminNamespace.emit("recharge_success", payload);
+    adminNamespace.emit("recharge_update", updatePayload);
   });
   
-  eventBus.on("recharge_failed", (data) => {
+  eventBus.on("recharge_failed", async (data) => {
+    let transaction = data.transaction;
+    const txnId = data.transactionId || data.txnId;
+    if (!transaction && txnId) {
+      transaction = await prisma.transaction.findUnique({
+        where: { id: Number(txnId) }
+      });
+    }
+    const enrichedTxn = await enrichAndNormalizeTransaction(transaction);
+
     const updateData = {
-      transactionId: data.transactionId || data.txnId,
+      ...data,
+      transactionId: txnId,
       status: data.status,
-      transaction: data.transaction,
-      ...data
+      transaction: enrichedTxn
     };
+
+    const payload = safeTransactionPayloadV1({ ...data, transaction: enrichedTxn });
+    const updatePayload = safeTransactionPayloadV1(updateData);
+
     console.log(`[SOCKET_EVENT] Emitting recharge_failed & recharge_update for Txn: ${updateData.transactionId}`);
     if (data.userId) {
-      io.to(data.userId.toString()).emit("recharge_failed", safeTransactionPayloadV1(data));
-      io.to(data.userId.toString()).emit("recharge_update", safeTransactionPayloadV1(updateData));
+      io.to(data.userId.toString()).emit("recharge_failed", payload);
+      io.to(data.userId.toString()).emit("recharge_update", updatePayload);
     }
-    adminNamespace.emit("recharge_failed", data);
-    adminNamespace.emit("recharge_update", updateData);
+    adminNamespace.emit("recharge_failed", payload);
+    adminNamespace.emit("recharge_update", updatePayload);
   });
 
-  eventBus.on("refund_completed", (data) => {
-    const updateData = {
-      transactionId: data.txnId || data.transactionId,
-      status: data.status || "REFUNDED",
-      transaction: data.transaction,
-      ...data
-    };
-    if (data.userId) {
-      io.to(data.userId.toString()).emit("refund_completed", safeTransactionPayloadV1(data));
-      io.to(data.userId.toString()).emit("recharge_update", safeTransactionPayloadV1(updateData));
+  eventBus.on("refund_completed", async (data) => {
+    let transaction = data.transaction;
+    const txnId = data.txnId || data.transactionId;
+    if (!transaction && txnId) {
+      transaction = await prisma.transaction.findUnique({
+        where: { id: Number(txnId) }
+      });
     }
-    adminNamespace.emit("refund_completed", safeTransactionPayloadV1(data));
-    adminNamespace.emit("recharge_update", safeTransactionPayloadV1(updateData));
+    const enrichedTxn = await enrichAndNormalizeTransaction(transaction);
+
+    const updateData = {
+      ...data,
+      transactionId: txnId,
+      status: data.status || "REFUNDED",
+      transaction: enrichedTxn
+    };
+
+    const payload = safeTransactionPayloadV1({ ...data, transaction: enrichedTxn });
+    const updatePayload = safeTransactionPayloadV1(updateData);
+
+    if (data.userId) {
+      io.to(data.userId.toString()).emit("refund_completed", payload);
+      io.to(data.userId.toString()).emit("recharge_update", updatePayload);
+    }
+    adminNamespace.emit("refund_completed", payload);
+    adminNamespace.emit("recharge_update", updatePayload);
   });
 
   eventBus.on("wallet_updated", (data) => {
@@ -215,23 +343,36 @@ export const initSocket = (server) => {
   });
 
   // Legacy/Global fallback
-  eventBus.on("transaction_updated", (data) => {
-    const updateData = {
-      transactionId: data.transactionId || data.txnId,
-      status: data.status?.toLowerCase(),
-      transaction: data.transaction,
-      ...data
-    };
-    console.log(`[SOCKET_EVENT] Emitting transaction_updated & recharge_update for Txn: ${updateData.transactionId}`);
-    if (data.userId) {
-      io.to(data.userId.toString()).emit("transaction_updated", safeTransactionPayloadV1(data));
-      io.to(data.userId.toString()).emit("recharge_update", safeTransactionPayloadV1(updateData));
-    } else {
-      io.emit("transaction_updated", safeTransactionPayloadV1(data));
-      io.emit("recharge_update", safeTransactionPayloadV1(updateData));
+  eventBus.on("transaction_updated", async (data) => {
+    let transaction = data.transaction;
+    const txnId = data.transactionId || data.txnId;
+    if (!transaction && txnId) {
+      transaction = await prisma.transaction.findUnique({
+        where: { id: Number(txnId) }
+      });
     }
-    adminNamespace.emit("transaction_updated", data);
-    adminNamespace.emit("recharge_update", updateData);
+    const enrichedTxn = await enrichAndNormalizeTransaction(transaction);
+
+    const updateData = {
+      ...data,
+      transactionId: txnId,
+      status: data.status?.toLowerCase(),
+      transaction: enrichedTxn
+    };
+
+    const payload = safeTransactionPayloadV1({ ...data, transaction: enrichedTxn });
+    const updatePayload = safeTransactionPayloadV1(updateData);
+
+    console.log(`[SOCKET_EVENT] Emitting transaction_updated & recharge_update for Txn: ${updatePayload.transactionId}`);
+    if (data.userId) {
+      io.to(data.userId.toString()).emit("transaction_updated", payload);
+      io.to(data.userId.toString()).emit("recharge_update", updatePayload);
+    } else {
+      io.emit("transaction_updated", payload);
+      io.emit("recharge_update", updatePayload);
+    }
+    adminNamespace.emit("transaction_updated", payload);
+    adminNamespace.emit("recharge_update", updatePayload);
   });
 
   eventBus.on("provider_status", (data) => adminNamespace.emit("provider_status", data));

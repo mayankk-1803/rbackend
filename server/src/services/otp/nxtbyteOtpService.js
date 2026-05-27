@@ -253,6 +253,106 @@ export const clearAttempts = async (phone) => {
   }
 };
 
+/**
+ * Sends a temporary login password via WhatsApp using NxtByte Gateway.
+ */
+export const sendTempPasswordWhatsApp = async (phone, name, tempPassword) => {
+  const normalizedPhone = normalizePhone(phone);
+  const maskedPhone = maskPhone(normalizedPhone);
+
+  console.log(`[TEMP_PASSWORD][SEND_REQUEST] → Initiating WhatsApp delivery for ${maskedPhone}`);
+
+  if (!normalizedPhone || normalizedPhone.length < 10) {
+    console.error(`[TEMP_PASSWORD][SEND_FAILED] → Invalid phone number format for ${maskedPhone}`);
+    return { success: false, message: "Invalid phone number format" };
+  }
+
+  const baseUrl = (process.env.NXTBYTE_BASE_URL || "https://nxtbyte.in/api/send-text").trim();
+  const rawApiKey = process.env.NXTBYTE_API_KEY;
+  const apiKey = rawApiKey?.trim();
+  const number = normalizedPhone.trim();
+  const timeout = 15000; // 15 seconds timeout
+
+  if (!apiKey) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[TEMP_PASSWORD][SEND_FAILED] CRITICAL: NXTBYTE_API_KEY configuration missing!');
+      return { success: false, message: "WhatsApp gateway configuration missing" };
+    } else {
+      console.warn(`[TEMP_PASSWORD][SEND_SUCCESS] → Mock Mode delivery for ${maskedPhone}. Password is: ${tempPassword}`);
+      return { success: true, message: "Temporary password sent successfully (Mock Mode)", mock: true };
+    }
+  }
+
+  const message = `DIZIPAY Temporary Login Password
+
+Hello ${name || 'User'},
+
+Your temporary login password is:
+
+${tempPassword}
+
+Please login and immediately change your password from Account Settings.
+
+* DIZIPAY Security Team`.trim();
+
+  // Construct URL EXACTLY like the browser test without params object
+  const url = 
+    `${baseUrl}` +
+    `?api_key=${encodeURIComponent(apiKey)}` +
+    `&number=${encodeURIComponent(number)}` +
+    `&msg=${encodeURIComponent(message)}`;
+
+  const maskedApiKey = `${apiKey.substring(0, 6)}******${apiKey.slice(-5)}`;
+  const maskedUrl = 
+    `${baseUrl}` +
+    `?api_key=${maskedApiKey}` +
+    `&number=${encodeURIComponent(number)}` +
+    `&msg=${encodeURIComponent(message)}`;
+  
+  console.log(`[TEMP_PASSWORD][RAW_URL] → ${maskedUrl}`);
+
+  // Safe Axios call with exponential backoff retry (max 2 retries)
+  const executeRequest = async (attempt = 0) => {
+    const startTime = Date.now();
+    try {
+      console.log(`[TEMP_PASSWORD][TRACE] → Dispatching NxtByte API request for ${maskedPhone} (Attempt ${attempt + 1})`);
+      
+      const response = await axios.get(url, { timeout });
+      const latency = Date.now() - startTime;
+
+      if (response.data?.status === true) {
+        console.log(`[TEMP_PASSWORD][SEND_SUCCESS] → NxtByte WhatsApp delivered to ${maskedPhone} in ${latency}ms`);
+        return true;
+      } else {
+        const errorMsg = response.data?.message || JSON.stringify(response.data) || 'Unknown NxtByte gateway error';
+        console.error(`[TEMP_PASSWORD][GATEWAY_ERROR] → NxtByte responded with failure for ${maskedPhone} | Msg: ${errorMsg}`);
+        throw new Error(`Gateway Error: ${errorMsg}`);
+      }
+    } catch (err) {
+      const isTimeout = err.code === 'ECONNABORTED';
+      const status = err.response?.status;
+
+      if (status >= 400 && status < 500) {
+        console.error(`[TEMP_PASSWORD][SEND_FAILED] → NxtByte Client Error (${status}) for ${maskedPhone}: ${err.message}`);
+        throw err;
+      }
+
+      if (attempt < 2 && (isTimeout || !status || status >= 500)) {
+        const delay = Math.pow(2, attempt) * 1000;
+        console.warn(`[TEMP_PASSWORD][RETRYING] → NxtByte request failed for ${maskedPhone}. Retrying in ${delay}ms... Reason: ${err.message}`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return await executeRequest(attempt + 1);
+      }
+
+      console.error(`[TEMP_PASSWORD][SEND_FAILED] → NxtByte delivery failed after ${attempt} retries for ${maskedPhone}: ${err.message}`);
+      throw err;
+    }
+  };
+
+  await executeRequest();
+  return { success: true, message: "Temporary password sent successfully" };
+};
+
 // Export aliases for seamless backward compatibility during refactoring
 export const sendOtpSms = sendOtp;
 export const checkVerificationLock = verifyOtpProtection;

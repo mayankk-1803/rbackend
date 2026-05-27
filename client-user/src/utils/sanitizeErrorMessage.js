@@ -75,6 +75,10 @@ export function sanitizeErrorMessage(error, isSuccessOrOptions = false) {
   const message = String(extractMessage(error) || "").trim();
   const lowerMsg = message.toLowerCase();
 
+  if (lowerMsg.includes("password") || lowerMsg.includes("mustchangepassword")) {
+    return message;
+  }
+
   const friendlyMessages = new Map([
     ["login failed", "Login failed"],
     ["invalid credentials", "Invalid credentials"],

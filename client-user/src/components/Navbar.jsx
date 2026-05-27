@@ -19,8 +19,8 @@ const Navbar = () => {
   ];
 
   const handleLogout = () => {
-    localStorage.removeItem("dizipay_user_token");
-    localStorage.removeItem("dizipay_user_data");
+    sessionStorage.removeItem("dizipay_user_token");
+    sessionStorage.removeItem("dizipay_user_data");
     sessionStorage.removeItem("dizipay_developer_token");
     localStorage.removeItem("dizipay_developer_token");
     sessionStorage.removeItem("developer_verified");

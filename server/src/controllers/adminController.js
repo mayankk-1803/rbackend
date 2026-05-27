@@ -1,4 +1,5 @@
 import prisma from "../config/prisma.js";
+import { structuredLog } from "../utils/logger.js";
 import { addRechargeJob } from "../services/queueService.js";
 import { compareProviders } from "../services/compareService.js";
 import { recordFinancialEntry } from "../services/ledgerService.js";
@@ -9,6 +10,8 @@ import { logTransactionEvent, TXN_EVENTS } from "../services/transactionEventSer
 import { reconcileSingleTransaction } from "../services/reconciliationService.js";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
+import { sendTempPasswordWhatsApp } from "../services/otp/nxtbyteOtpService.js";
+import { sendTempPasswordEmail } from "../services/emailService.js";
 
 export const getDashboard = async (req, res) => {
   try {
@@ -107,8 +110,27 @@ export const getUsers = async (req, res) => {
       ];
     }
 
-    if (role && role !== "ALL") {
-      where.role = role;
+    // Dynamic Role Hierarchy filtering based on actor role
+    if (req.user.role === "ADMIN") {
+      where.role = { notIn: ["ADMIN", "SUPER_ADMIN"] };
+      if (role && role !== "ALL") {
+        if (["ADMIN", "SUPER_ADMIN"].includes(role)) {
+          return res.status(403).json({ success: false, message: "Access Denied: Role hierarchy violation." });
+        }
+        where.role = role;
+      }
+    } else if (req.user.role === "SUPER_ADMIN") {
+      where.role = { notIn: ["SUPER_ADMIN"] };
+      if (role && role !== "ALL") {
+        if (role === "SUPER_ADMIN") {
+          return res.status(403).json({ success: false, message: "Access Denied: Role hierarchy violation." });
+        }
+        where.role = role;
+      }
+    } else {
+      if (role && role !== "ALL") {
+        where.role = role;
+      }
     }
 
     if (status === "active") {
@@ -139,6 +161,7 @@ export const getUsers = async (req, res) => {
           isActive: true,
           profileImage: true,
           createdAt: true,
+          authType: true,
           wallet: {
             select: {
               balance: true,
@@ -170,11 +193,21 @@ export const getUsers = async (req, res) => {
 
 export const getUsersStats = async (req, res) => {
   try {
-    const totalUsers = await prisma.user.count();
-    const activeUsers = await prisma.user.count({ where: { isActive: true } });
-    const inactiveUsers = await prisma.user.count({ where: { isActive: false } });
+    const where = {};
+    if (req.user.role === "ADMIN") {
+      where.role = { notIn: ["ADMIN", "SUPER_ADMIN"] };
+    } else if (req.user.role === "SUPER_ADMIN") {
+      where.role = { notIn: ["SUPER_ADMIN"] };
+    }
+
+    const totalUsers = await prisma.user.count({ where });
+    const activeUsers = await prisma.user.count({ where: { ...where, isActive: true } });
+    const inactiveUsers = await prisma.user.count({ where: { ...where, isActive: false } });
 
     const walletSum = await prisma.wallet.aggregate({
+      where: {
+        user: where
+      },
       _sum: {
         balance: true
       }
@@ -212,6 +245,7 @@ export const getSingleUser = async (req, res) => {
         isActive: true,
         profileImage: true,
         createdAt: true,
+        authType: true,
         wallet: true,
         _count: {
           select: {
@@ -224,6 +258,14 @@ export const getSingleUser = async (req, res) => {
 
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // Role hierarchy check
+    const roleLevels = { USER: 1, API_USER: 1, ADMIN: 2, SUPER_ADMIN: 3 };
+    const actorLevel = roleLevels[req.user.role] || 0;
+    const targetLevel = roleLevels[user.role] || 0;
+    if (userId !== req.user.id && actorLevel <= targetLevel) {
+      return res.status(403).json({ success: false, message: "Access Denied: Role hierarchy violation." });
     }
 
     res.json({ success: true, data: user });
@@ -258,6 +300,14 @@ export const toggleUserStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
+    // Role hierarchy check
+    const roleLevels = { USER: 1, API_USER: 1, ADMIN: 2, SUPER_ADMIN: 3 };
+    const actorLevel = roleLevels[req.user.role] || 0;
+    const targetLevel = roleLevels[targetUser.role] || 0;
+    if (actorLevel <= targetLevel) {
+      return res.status(403).json({ success: false, message: "Access Denied: Role hierarchy violation." });
+    }
+
     if (targetUser.role === 'SUPER_ADMIN' && !isActive) {
       return res.status(400).json({ success: false, message: "Super Admin accounts cannot be deactivated." });
     }
@@ -288,6 +338,108 @@ export const toggleUserStatus = async (req, res) => {
       data: updatedUser
     });
   } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const sendTemporaryPassword = async (req, res) => {
+  try {
+    const targetUserId = parseInt(req.params.id);
+
+    if (isNaN(targetUserId)) {
+      return res.status(400).json({ success: false, message: "Invalid user ID" });
+    }
+
+    const targetUser = await prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true, name: true, phone: true, email: true, role: true, authType: true }
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // Role hierarchy check
+    const roleLevels = { USER: 1, API_USER: 1, ADMIN: 2, SUPER_ADMIN: 3 };
+    const actorLevel = roleLevels[req.user.role] || 0;
+    const targetLevel = roleLevels[targetUser.role] || 0;
+    if (actorLevel <= targetLevel) {
+      return res.status(403).json({ success: false, message: "Access Denied: Role hierarchy violation." });
+    }
+
+    if (targetUser.authType !== "email") {
+      return res.status(400).json({
+        success: false,
+        message: "Temporary password is only available for email-based accounts."
+      });
+    }
+
+    if (!targetUser.phone && !targetUser.email) {
+      return res.status(400).json({ success: false, message: "User has neither a phone number nor an email address." });
+    }
+
+    if (targetUser.role === 'SUPER_ADMIN') {
+      return res.status(400).json({ success: false, message: "Cannot generate temporary password for a Super Admin." });
+    }
+
+    // Generate secure random temporary password (8 characters: letters + numbers)
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let tempPassword = "";
+    for (let i = 0; i < 8; i++) {
+      tempPassword += chars.charAt(crypto.randomInt(chars.length));
+    }
+
+    // Hash the password immediately
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+    // Save to user account and set mustChangePassword to true
+    await prisma.user.update({
+      where: { id: targetUserId },
+      data: {
+        password: hashedPassword,
+        mustChangePassword: true,
+        tempPasswordIssuedAt: new Date(),
+        mustResetPassword: true
+      }
+    });
+
+    // Send temporary password to user via WhatsApp (preferred) or Email (fallback)
+    let sendResult;
+    let deliveryMethod = "";
+
+    if (targetUser.phone) {
+      deliveryMethod = "WhatsApp";
+      sendResult = await sendTempPasswordWhatsApp(targetUser.phone, targetUser.name, tempPassword);
+    } else if (targetUser.email) {
+      deliveryMethod = "Email";
+      sendResult = await sendTempPasswordEmail(targetUser.email, targetUser.name, tempPassword);
+    }
+
+    if (!sendResult.success) {
+      return res.status(500).json({
+        success: false,
+        message: sendResult.message || `Failed to send temporary password via ${deliveryMethod}`
+      });
+    }
+
+    // Audit logging
+    await logAction({
+      action: "USER_SEND_TEMP_PASSWORD",
+      adminId: req.user.id,
+      userId: targetUserId,
+      entity: "user",
+      details: { phone: targetUser.phone, email: targetUser.email, deliveryMethod },
+      req
+    });
+
+    res.json({
+      success: true,
+      message: `Temporary password sent successfully ${deliveryMethod === "WhatsApp" ? "on WhatsApp" : "via email"}.`,
+      data: { deliveryMethod }
+    });
+
+  } catch (err) {
+    console.error("[ADMIN][TEMP_PASSWORD] Error:", err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -509,9 +661,42 @@ export const getTransactions = async (req, res) => {
     const txns = await prisma.transaction.findMany({
       orderBy: { createdAt: "desc" },
       take: 50,
-      include: { user: { select: { email: true } } }
+      include: { user: { select: { email: true, phone: true } } }
     });
-    res.json({ success: true, data: txns });
+
+    const normalizedTxns = txns.map(t => {
+      // Normalize mobile number
+      let displayMobile = t.mobile;
+      if (!displayMobile && t.user?.phone) {
+        displayMobile = t.user.phone;
+      }
+      if (!displayMobile && t.user?.email) {
+        displayMobile = t.user.email;
+      }
+      if (!displayMobile) {
+        displayMobile = "System";
+      }
+
+      // Normalize provider name
+      let displayProvider = t.provider;
+      if (!displayProvider) {
+        if (t.paymentGateway) {
+          displayProvider = t.paymentGateway;
+        } else if (t.type === "TOPUP") {
+          displayProvider = "NexGATE";
+        } else {
+          displayProvider = t.type || "SYSTEM";
+        }
+      }
+
+      return {
+        ...t,
+        mobile: displayMobile,
+        provider: displayProvider
+      };
+    });
+
+    res.json({ success: true, data: normalizedTxns });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -663,36 +848,140 @@ export const getCharts = async (req, res) => {
 };
 
 export const topUpWallet = async (req, res) => {
+  const correlationId = crypto.randomUUID();
+  const { userId, amount, description } = req.body;
+  const targetUserId = userId ? Number(userId) : Number(req.user.id);
+
   try {
-    const { userId, amount, description } = req.body;
-    const targetUserId = userId ? Number(userId) : Number(req.user.id);
-    
+    structuredLog({
+      eventType: "ADMIN_FUNDING_INITIATE",
+      correlationId,
+      targetUserId,
+      adminId: req.user.id,
+      message: `Admin ${req.user.id} requested top-up of ₹${amount} for user ${targetUserId}`,
+      metadata: { amount, description }
+    });
+
     if (!targetUserId) {
+      structuredLog({
+        level: "warn",
+        eventType: "ADMIN_FUNDING_VALIDATION_FAILED",
+        correlationId,
+        targetUserId,
+        adminId: req.user.id,
+        message: "User ID required"
+      });
       return res.status(400).json({ success: false, message: "User ID required" });
     }
 
-    const result = await recordFinancialEntry({
-      userId: targetUserId,
-      amount: amount,
-      type: 'TOPUP_CREDIT',
-      description: description || "Admin Wallet Top-up"
+    const targetUser = await prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true, role: true }
     });
 
-    await logAction({
-      action: AUDIT_ACTIONS.WALLET_ADJUSTMENT,
+    if (!targetUser) {
+      structuredLog({
+        level: "warn",
+        eventType: "ADMIN_FUNDING_VALIDATION_FAILED",
+        correlationId,
+        targetUserId,
+        adminId: req.user.id,
+        message: "Target user not found"
+      });
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // Role hierarchy check
+    const roleLevels = { USER: 1, API_USER: 1, ADMIN: 2, SUPER_ADMIN: 3 };
+    const actorLevel = roleLevels[req.user.role] || 0;
+    const targetLevel = roleLevels[targetUser.role] || 0;
+    if (actorLevel <= targetLevel) {
+      structuredLog({
+        level: "warn",
+        eventType: "ADMIN_FUNDING_VALIDATION_FAILED",
+        correlationId,
+        targetUserId,
+        adminId: req.user.id,
+        message: `Role hierarchy violation: Actor ${req.user.role} trying to fund target ${targetUser.role}`
+      });
+      return res.status(403).json({ success: false, message: "Access Denied: Role hierarchy violation." });
+    }
+
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+      structuredLog({
+        level: "warn",
+        eventType: "ADMIN_FUNDING_VALIDATION_FAILED",
+        correlationId,
+        targetUserId,
+        adminId: req.user.id,
+        message: `Invalid amount: ${amount}`
+      });
+      return res.status(400).json({ success: false, message: "Invalid amount. Must be greater than 0." });
+    }
+
+    const cleanDescription = (description || "Admin Wallet Top-up").replace(/:/g, " "); // Prevent delimiter collisions
+
+    // gateway-backed payment order flow
+    const idempotencyKey = `admin_funding:adminId=${req.user.id}:reason=${encodeURIComponent(cleanDescription)}:${correlationId}`;
+
+    const { createPaymentOrder } = await import("../services/paymentService.js");
+    const payment = await createPaymentOrder(
+      targetUserId,
+      Number(amount),
+      idempotencyKey,
+      "admin@upi",
+      "TOPUP"
+    );
+
+    if (!payment.success) {
+      structuredLog({
+        level: "error",
+        eventType: "ADMIN_FUNDING_GATEWAY_FAILED",
+        correlationId,
+        targetUserId,
+        adminId: req.user.id,
+        message: `Failed to initiate payment gateway order: ${payment.message || 'Unknown error'}`
+      });
+      return res.status(400).json({
+        success: false,
+        message: payment.message || "Failed to initiate payment gateway order"
+      });
+    }
+
+    const paymentUrl = payment.paymentUrl || payment.payment_url || payment.gatewayUrl;
+
+    structuredLog({
+      eventType: "ADMIN_FUNDING_REDIRECT",
+      correlationId,
+      paymentId: payment.id || payment.orderId,
+      targetUserId,
       adminId: req.user.id,
-      userId: targetUserId,
-      entity: "WALLET",
-      details: { amount, description },
-      req
+      message: `Redirect URL generated for Admin Funding Payment Order ID: ${payment.id || payment.orderId}`,
+      metadata: { paymentUrl, status: payment.status }
     });
 
-    res.json({ success: true, message: "Wallet topped up", balance: result.balanceAfter });
+    res.json({
+      success: true,
+      message: "Admin funding payment session created",
+      paymentUrl,
+      payment_url: paymentUrl,
+      orderId: payment.id || payment.orderId,
+      status: payment.status
+    });
   } catch (err) {
-    console.error("TopUp Error:", err);
+    structuredLog({
+      level: "error",
+      eventType: "ADMIN_FUNDING_EXCEPTION",
+      correlationId,
+      targetUserId: targetUserId || null,
+      adminId: req?.user?.id || null,
+      message: `Exception during admin wallet funding: ${err.message}`,
+      metadata: { error: err.stack }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
 
 export const getCashbackSettings = async (req, res) => {
   try {

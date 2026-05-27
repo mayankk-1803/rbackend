@@ -45,7 +45,7 @@ const getRequestKey = (config) => {
 };
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("dizipay_user_token");
+  const token = sessionStorage.getItem("dizipay_user_token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -149,8 +149,8 @@ api.interceptors.response.use(
     }
 
     if (status === 401) {
-      localStorage.removeItem("dizipay_user_token");
-      localStorage.removeItem("dizipay_user_data");
+      sessionStorage.removeItem("dizipay_user_token");
+      sessionStorage.removeItem("dizipay_user_data");
       
       for (let k in localStorage) {
         if (k.includes("user")) localStorage.removeItem(k);

@@ -11,6 +11,14 @@ export const Login = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  React.useEffect(() => {
+    const reason = sessionStorage.getItem('dizipay_admin_logout_reason');
+    if (reason === 'inactivity') {
+      toast.error("Session expired due to inactivity. Please login again.");
+      sessionStorage.removeItem('dizipay_admin_logout_reason');
+    }
+  }, []);
+
   const handleLogin = async (e) => {
     e.preventDefault();
     if(!email || !password) return;
@@ -30,8 +38,8 @@ export const Login = () => {
       if (success && apiData?.token) {
         console.log("[AUTH][JWT_GENERATED] → Token exists in response.");
         
-        localStorage.setItem('dizipay_admin_token', apiData.token);
-        localStorage.setItem('dizipay_admin_data', JSON.stringify(apiData.user));
+        sessionStorage.setItem('dizipay_admin_token', apiData.token);
+        sessionStorage.setItem('dizipay_admin_data', JSON.stringify(apiData.user));
         
         console.log("[AUTH][TOKEN_STORED] → Admin token saved.");
         console.log("[AUTH][REDIRECT_SUCCESS] → Redirecting to Admin Dashboard...");

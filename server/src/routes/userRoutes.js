@@ -1,6 +1,7 @@
 import express from "express";
 import { auth } from "../middlewares/auth.js";
 import prisma from "../config/prisma.js";
+import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
 import eventBus from "../config/eventBus.js";
 import multer from "multer";
@@ -202,6 +203,78 @@ router.put("/update-profile", upload.single('profileImage'), async (req, res) =>
     if (req.file && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+});
+
+// PUT /user/change-password
+router.put("/change-password", async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Current password and new password are required"
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: "New password must be at least 8 characters long"
+      });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: "Current password is incorrect"
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    const updatedUser = await prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        password: hashedPassword,
+        mustChangePassword: false,
+        mustResetPassword: false,
+        tempPasswordIssuedAt: null
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        profileImage: true,
+        mustChangePassword: true
+      }
+    });
+
+    res.json({
+      success: true,
+      message: "Password changed successfully",
+      data: updatedUser
+    });
+  } catch (err) {
     res.status(500).json({
       success: false,
       message: err.message

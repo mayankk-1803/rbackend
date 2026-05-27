@@ -31,12 +31,20 @@ const navItems = [
 export const Sidebar = ({ isOpen, setIsOpen }) => {
   const location = useLocation();
 
+  const [adminUser] = React.useState(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem("dizipay_admin_data")) || {};
+    } catch {
+      return {};
+    }
+  });
+
   const handleLogout = () => {
     if (import.meta.env.DEV) {
       console.log(" [Logout] Clearing session...");
     }
-    localStorage.removeItem('dizipay_admin_token');
-    localStorage.removeItem('dizipay_admin_data');
+    sessionStorage.removeItem('dizipay_admin_token');
+    sessionStorage.removeItem('dizipay_admin_data');
     window.location.href = '/87564/admin/login';
   };
 
@@ -124,10 +132,12 @@ export const Sidebar = ({ isOpen, setIsOpen }) => {
         <div className="p-4 border-t border-[var(--border-soft)] bg-[var(--bg-tertiary)]/30 relative z-10">
           <div className="flex items-center gap-3 p-1">
             <div className="w-8 h-8 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-soft)] flex items-center justify-center text-[var(--text-primary)] font-semibold text-xs">
-              AD
+              {adminUser.name ? adminUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'AD'}
             </div>
             <div className="min-w-0">
-              <p className="text-[10px] font-semibold text-[var(--text-primary)] uppercase tracking-tight truncate">System Manager</p>
+              <p className="text-[10px] font-semibold text-[var(--text-primary)] uppercase tracking-tight truncate">
+                {adminUser.role === 'SUPER_ADMIN' ? 'Super Admin' : (adminUser.role || 'System Manager')}
+              </p>
               <div className="flex items-center gap-1.5">
                 <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
                 <p className="text-[8px] font-medium text-[var(--text-secondary)] uppercase tracking-wider truncate">Encrypted Session</p>

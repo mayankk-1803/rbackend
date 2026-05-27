@@ -18,6 +18,7 @@ import {
   getUsersStats,
   getSingleUser,
   toggleUserStatus,
+  sendTemporaryPassword,
   getCashbackSettings,
   updateCashbackSettings,
   retryReconciliation,
@@ -51,6 +52,7 @@ router.get("/users", getUsers);
 router.get("/users/stats", getUsersStats);
 router.get("/users/:id", getSingleUser);
 router.patch("/users/:id/status", toggleUserStatus);
+router.patch("/users/:id/send-temp-password", sendTemporaryPassword);
 router.get("/top-users", getTopUsers);
 router.post("/retry/:id", retryTxn);
 router.post("/reconcile/:id", retryReconciliation);

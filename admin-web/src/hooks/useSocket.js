@@ -10,7 +10,7 @@ export const useSocket = () => {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('dizipay_admin_token');
+    const token = sessionStorage.getItem('dizipay_admin_token');
     
     const socketInstance = io(SOCKET_URL, {
       auth: { token },

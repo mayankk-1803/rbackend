@@ -8,6 +8,7 @@ import { apiLogger } from "./middlewares/apiLogger.js";
 import authRoutes from "./routes/authRoutes.js";
 import otpRoutes from "./routes/otpRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import enterpriseRoutes from "./routes/enterpriseRoutes.js";
 import webhookRoutes from "./webhooks/webhookRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import walletRoutes from "./routes/walletRoutes.js";
@@ -122,6 +123,7 @@ app.use(apiLogger);
 
 const cleanClientMessage = (message = "") => {
   const raw = String(message || "").toLowerCase();
+  if (raw.includes("password") || raw.includes("mustchangepassword")) return message;
   if (raw.includes("refund")) return "Refund processed";
   if (raw.includes("queued") || raw.includes("pending_review") || raw.includes("pending review")) return "Recharge queued";
   if (raw.includes("processing")) return "Recharge processing";
@@ -216,8 +218,68 @@ app.all("/payment-success", async (req, res) => {
     })();
   }
 
+  // Detect and route admin-funded payments to the Admin Panel instead of the user panel
+  let targetUrl = `${frontendUrl}/payment-success?${params.toString()}`;
+
+  if (orderId) {
+    try {
+      const { default: prisma } = await import("./config/prisma.js");
+      let payment = await prisma.payment.findUnique({
+        where: { id: Number(orderId) }
+      });
+
+      if (payment && payment.idempotencyKey && payment.idempotencyKey.startsWith("admin_funding:")) {
+        // If the payment is still pending but URL claims success, verify synchronously
+        if (payment.status === "PENDING" && (status === "SUCCESS" || status === "PAID" || req.query.status === "SUCCESS")) {
+          try {
+            const { checkNexgateStatus } = await import("./services/providers/nexgateService.js");
+            const { paymentWebhook } = await import("./controllers/paymentController.js");
+            const gatewayStatus = await checkNexgateStatus(orderId);
+
+            if (gatewayStatus.success && gatewayStatus.status === "SUCCESS") {
+              const expectedSecret = process.env.WEBHOOK_SECRET || "internal_secret";
+              await paymentWebhook(
+                {
+                  body: {
+                    order_id: orderId,
+                    status: "SUCCESS",
+                    transaction_id: gatewayStatus.operatorTxnId,
+                    amount: gatewayStatus.raw?.amount || payment.amount.toString(),
+                    message: "Synchronous Verification for Admin redirect",
+                    secret: expectedSecret
+                  }
+                },
+                { json: () => {}, status: () => ({ json: () => {} }) }
+              );
+
+              // Poll database state for a maximum of 1.5 seconds (15 * 100ms) until it transitions
+              for (let i = 0; i < 15; i++) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                payment = await prisma.payment.findUnique({
+                  where: { id: Number(orderId) }
+                });
+                if (payment.status !== "PENDING") {
+                  break;
+                }
+              }
+            }
+          } catch (verifyErr) {
+            console.error(`[Redirector Sync Verify Error] Order ${orderId}:`, verifyErr.message);
+          }
+        }
+
+        const adminUrl = (process.env.ADMIN_PANEL_URL || "https://irecharge.in/87564/admin").replace(/\/$/, "");
+        const redirectParams = new URLSearchParams(params);
+        redirectParams.set("status", payment.status);
+        targetUrl = `${adminUrl}?${redirectParams.toString()}`;
+      }
+    } catch (dbErr) {
+      console.error(`[Redirector DB Check Error] Order ${orderId}:`, dbErr.message);
+    }
+  }
+
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-  res.redirect(`${frontendUrl}/payment-success?${params.toString()}`);
+  res.redirect(targetUrl);
 });
 
 /**
@@ -240,6 +302,7 @@ app.use("/api/payment", paymentRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/admin/enterprise", enterpriseRoutes);
 app.use("/api/admin/reports", adminReportRoutes);
 app.use("/api/developer", developerRoutes);
 app.use("/api/v1/dev", apiDevRoutes);

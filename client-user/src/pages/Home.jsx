@@ -249,7 +249,7 @@ export default function Home() {
     totalCount: 0
   });
 
-  const user = JSON.parse(localStorage.getItem('dizipay_user_data') || '{}');
+  const user = JSON.parse(sessionStorage.getItem('dizipay_user_data') || '{}');
 
   const welcomeRef = useRef(null);
   const shieldRef = useRef(null);

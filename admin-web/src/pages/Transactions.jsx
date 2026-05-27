@@ -204,45 +204,73 @@ export const Transactions = () => {
               ) : filteredData.length === 0 ? (
                 <tr><td colSpan="7" className="p-12 text-center text-[var(--text-secondary)] font-medium">No transactions found</td></tr>
               ) : (
-                filteredData.map(tx => (
-                  <tr key={tx.id} className="hover:bg-[var(--accent-hover)] transition-colors group">
-                    <td className="px-6 py-4 font-mono text-[10px] text-[var(--text-muted)] group-hover:text-[var(--color-primary)] transition-colors">{String(tx.id).slice(-8)}</td>
-                    <td className="px-6 py-4 font-semibold text-[var(--text-primary)]">
-                      {tx.mobile || tx.mobileNumber ? `+91 ${tx.mobile || tx.mobileNumber}` : 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 text-right font-semibold text-[var(--text-primary)]">₹{tx.amount}</td>
-                    <td className="px-6 py-4 text-center">
-                      {(() => {
-                         const status = tx.status?.toLowerCase();
-                         return (
-                           <span className={`px-2.5 py-0.5 text-[9px] font-semibold rounded uppercase border ${
-                             status === 'success' ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' : 
-                             status === 'failed' ? 'text-rose-500 bg-rose-500/10 border-rose-500/20' : 
-                             'text-amber-500 bg-amber-500/10 border-amber-500/20'
-                           }`}>
-                             {status || 'PENDING'}
-                           </span>
-                         );
-                      })()}
-                    </td>
-                    <td className="px-6 py-4 text-[var(--text-secondary)]">
-                      <span className="bg-[var(--bg-secondary)] px-2 py-0.5 rounded border border-[var(--border-soft)] text-[10px] font-semibold uppercase tracking-wider">{tx.provider || 'Smart'}</span>
-                    </td>
-                    <td className="px-6 py-4 text-right text-[var(--text-secondary)] font-medium">{new Date(tx.createdAt).toLocaleDateString()}</td>
-                    <td className="px-6 py-4 text-right">
-                      {!['SUCCESS', 'FAILED', 'REFUNDED'].includes(tx.status) && (
-                        <button 
-                          onClick={() => handleRefreshStatus(tx.id)}
-                          disabled={refreshingTxnId === tx.id}
-                          className="p-1.5 hover:bg-[var(--bg-secondary)] border border-transparent rounded-lg text-[var(--text-secondary)] hover:text-[var(--color-primary)] transition-all disabled:opacity-50 inline-flex items-center justify-center cursor-pointer" 
-                          title="Refresh Status"
-                        >
-                          <RefreshCw className={`w-3.5 h-3.5 ${refreshingTxnId === tx.id ? "animate-spin" : ""}`} />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                filteredData.map(tx => {
+                  let mobileVal = tx.mobile || tx.mobileNumber;
+                  if (!mobileVal && tx.user?.phone) {
+                    mobileVal = tx.user.phone;
+                  }
+                  if (!mobileVal && tx.user?.email) {
+                    mobileVal = tx.user.email;
+                  }
+                  if (!mobileVal) {
+                    mobileVal = 'System';
+                  }
+
+                  const displayMobile = (mobileVal.includes('@') || mobileVal === 'System')
+                    ? mobileVal
+                    : `+91 ${mobileVal.replace(/^\+91\s*/, '')}`;
+
+                  let displayProvider = tx.provider;
+                  if (!displayProvider) {
+                    if (tx.paymentGateway) {
+                      displayProvider = tx.paymentGateway;
+                    } else if (tx.type === 'TOPUP') {
+                      displayProvider = 'NexGATE';
+                    } else {
+                      displayProvider = tx.type || 'SYSTEM';
+                    }
+                  }
+
+                  return (
+                    <tr key={tx.id} className="hover:bg-[var(--accent-hover)] transition-colors group">
+                      <td className="px-6 py-4 font-mono text-[10px] text-[var(--text-muted)] group-hover:text-[var(--color-primary)] transition-colors">{String(tx.id).slice(-8)}</td>
+                      <td className="px-6 py-4 font-semibold text-[var(--text-primary)]">
+                        {displayMobile}
+                      </td>
+                      <td className="px-6 py-4 text-right font-semibold text-[var(--text-primary)]">₹{tx.amount}</td>
+                      <td className="px-6 py-4 text-center">
+                        {(() => {
+                           const status = tx.status?.toLowerCase();
+                           return (
+                             <span className={`px-2.5 py-0.5 text-[9px] font-semibold rounded uppercase border ${
+                               status === 'success' ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' : 
+                               status === 'failed' ? 'text-rose-500 bg-rose-500/10 border-rose-500/20' : 
+                               'text-amber-500 bg-amber-500/10 border-amber-500/20'
+                             }`}>
+                               {status || 'PENDING'}
+                             </span>
+                           );
+                        })()}
+                      </td>
+                      <td className="px-6 py-4 text-[var(--text-secondary)]">
+                        <span className="bg-[var(--bg-secondary)] px-2 py-0.5 rounded border border-[var(--border-soft)] text-[10px] font-semibold uppercase tracking-wider">{displayProvider}</span>
+                      </td>
+                      <td className="px-6 py-4 text-right text-[var(--text-secondary)] font-medium">{new Date(tx.createdAt).toLocaleDateString()}</td>
+                      <td className="px-6 py-4 text-right">
+                        {!['SUCCESS', 'FAILED', 'REFUNDED'].includes(tx.status) && (
+                          <button 
+                            onClick={() => handleRefreshStatus(tx.id)}
+                            disabled={refreshingTxnId === tx.id}
+                            className="p-1.5 hover:bg-[var(--bg-secondary)] border border-transparent rounded-lg text-[var(--text-secondary)] hover:text-[var(--color-primary)] transition-all disabled:opacity-50 inline-flex items-center justify-center cursor-pointer" 
+                            title="Refresh Status"
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 ${refreshingTxnId === tx.id ? "animate-spin" : ""}`} />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

@@ -5,6 +5,7 @@ import { initSocket } from "./src/config/socket.js";
 import { startHealthMonitoring } from "./src/services/healthService.js";
 import { seedProviders } from "./src/utils/seedProviders.js";
 import prisma from "./src/config/prisma.js";
+import { seedSuperAdminAndRbac } from "./src/utils/seedSuperAdmin.js";
 import { validateEnv } from "./src/utils/validateEnv.js";
 
 dotenv.config();
@@ -37,6 +38,7 @@ async function startServer() {
     }
 
     await seedProviders();
+    await seedSuperAdminAndRbac();
     
     const server = http.createServer(app);
     initSocket(server);

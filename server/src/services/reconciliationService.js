@@ -25,9 +25,9 @@ export const reconcilePendingTransactions = async () => {
     return;
   }
 
+  let verbose = false;
   try {
     isReconciling = true;
-    console.log("[RECON_START] Starting sync...");
 
     const pendingTxns = await prisma.transaction.findMany({
       where: {
@@ -38,9 +38,11 @@ export const reconcilePendingTransactions = async () => {
       orderBy: { createdAt: 'asc' }
     });
 
-    console.log(`[RECON_START] Found ${pendingTxns.length} pending/review/processing transactions for reconciliation.`);
-
-    if (pendingTxns.length === 0) {
+    if (pendingTxns.length > 0) {
+      verbose = true;
+      console.log("[RECON_START] Starting sync...");
+      console.log(`[RECON_START] Found ${pendingTxns.length} pending/review/processing transactions for reconciliation.`);
+    } else {
       return;
     }
 
@@ -121,7 +123,9 @@ export const reconcilePendingTransactions = async () => {
     console.error("[Reconciliation Error] Global loop error:", err.message);
   } finally {
     isReconciling = false;
-    console.log("[RECON_END] Sync loop iteration completed.");
+    if (verbose) {
+      console.log("[RECON_END] Sync loop iteration completed.");
+    }
   }
 };
 

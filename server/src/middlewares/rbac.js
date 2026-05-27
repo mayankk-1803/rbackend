@@ -1,50 +1,107 @@
-import AppError from "../utils/AppError.js";
+import prisma from "../config/prisma.js";
 
 /**
- * Role hierarchy for permission levels.
+ * Dynamic RBAC check middleware
+ * @param {string} moduleName - Module name (e.g. 'users', 'wallets', 'outlets', 'employees', 'audit')
+ * @param {string} actionType - Action type ('read', 'write', 'delete', 'approve', 'adjust')
  */
-const ROLE_LEVELS = {
-  USER: 1,
-  API_USER: 2,
-  ADMIN: 3,
-  SUPER_ADMIN: 4
-};
+export const checkPermission = (moduleName, actionType) => {
+  return async (req, res, next) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ success: false, message: "Unauthorized request" });
+      }
 
-/**
- * Middleware to restrict access based on user role.
- * @param {string[]} allowedRoles - Roles allowed to access the route.
- */
-export const authorize = (...allowedRoles) => {
-  return (req, res, next) => {
-    if (!req.user) {
-      return next(new AppError("Authentication required", 401, "AUTH_REQUIRED"));
+      // SUPER_ADMIN automatically bypasses all RBAC constraints
+      if (user.role === "SUPER_ADMIN") {
+        return next();
+      }
+
+      const role = user.role;
+      const permission = await prisma.rolePermission.findUnique({
+        where: {
+          role_module: {
+            role,
+            module: moduleName
+          }
+        }
+      });
+
+      if (!permission) {
+        return res.status(403).json({ success: false, message: `Access Denied: No access configured for role ${role} in module ${moduleName}` });
+      }
+
+      const fieldMap = {
+        read: "canRead",
+        write: "canWrite",
+        delete: "canDelete",
+        approve: "canApprove",
+        adjust: "canAdjust"
+      };
+
+      const dbField = fieldMap[actionType];
+      if (!dbField || !permission[dbField]) {
+        return res.status(403).json({ success: false, message: `Access Denied: Role ${role} does not hold ${actionType} authorization in module ${moduleName}` });
+      }
+
+      next();
+    } catch (err) {
+      res.status(500).json({ success: false, message: err.message });
     }
-
-    const userRole = (req.user.role || 'USER').toUpperCase();
-    
-    // Check if user has one of the specifically allowed roles
-    if (allowedRoles.includes(userRole)) {
-      return next();
-    }
-
-    // Check if user has a higher role in the hierarchy
-    const maxAllowedLevel = Math.max(...allowedRoles.map(role => ROLE_LEVELS[role.toUpperCase()] || 0));
-    const userLevel = ROLE_LEVELS[userRole] || 0;
-
-    if (userLevel >= maxAllowedLevel) {
-      return next();
-    }
-
-    return next(new AppError("Access denied: insufficient permissions", 403, "FORBIDDEN"));
   };
 };
 
-/**
- * Shortcut for admin-only routes.
- */
-export const adminOnly = authorize('ADMIN', 'SUPER_ADMIN');
+export const adminOnly = async (req, res, next) => {
+  try {
+    const user = req.user;
 
-/**
- * Shortcut for super-admin-only routes.
- */
-export const superAdminOnly = authorize('SUPER_ADMIN');
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized request",
+      });
+    }
+
+    if (!["ADMIN", "SUPER_ADMIN"].includes(user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: "Admin access required",
+      });
+    }
+
+    next();
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+export const superAdminOnly = async (req, res, next) => {
+  try {
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized request",
+      });
+    }
+
+    if (user.role !== "SUPER_ADMIN") {
+      return res.status(403).json({
+        success: false,
+        message: "Super Admin access required",
+      });
+    }
+
+    next();
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};

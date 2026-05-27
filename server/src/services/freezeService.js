@@ -11,28 +11,37 @@ import prisma from "../config/prisma.js";
  * @returns {Promise<{ isHard: boolean, isSoft: boolean, reason: string|null }>}
  */
 export const getFreezeStatus = async (userId = null) => {
-  const globalFreeze = await redisClient.get("freeze:global");
-  let userFreeze = null;
-
-  if (userId) {
-    userFreeze = await redisClient.get(`freeze:user:${userId}`);
+  if (redisClient.status !== "ready") {
+    console.warn(`[FreezeService] Redis is offline (status: ${redisClient.status}). Defaulting to no freeze status.`);
+    return { isHard: false, isSoft: false, reason: null };
   }
+  try {
+    const globalFreeze = await redisClient.get("freeze:global");
+    let userFreeze = null;
 
-  const isHard = globalFreeze === "hard" || userFreeze === "hard";
-  const isSoft = globalFreeze === "soft" || userFreeze === "soft" || isHard;
+    if (userId) {
+      userFreeze = await redisClient.get(`freeze:user:${userId}`);
+    }
 
-  let reason = null;
-  if (isHard) {
-    const globalReason = await redisClient.get("freeze:global:reason") || "Global hard freeze";
-    const userReason = userFreeze === "hard" ? (await redisClient.get(`freeze:user:${userId}:reason`) || "User hard freeze") : null;
-    reason = userReason || globalReason;
-  } else if (isSoft) {
-    const globalReason = await redisClient.get("freeze:global:reason") || "Global soft freeze";
-    const userReason = userFreeze === "soft" ? (await redisClient.get(`freeze:user:${userId}:reason`) || "User soft freeze") : null;
-    reason = userReason || globalReason;
+    const isHard = globalFreeze === "hard" || userFreeze === "hard";
+    const isSoft = globalFreeze === "soft" || userFreeze === "soft" || isHard;
+
+    let reason = null;
+    if (isHard) {
+      const globalReason = await redisClient.get("freeze:global:reason") || "Global hard freeze";
+      const userReason = userFreeze === "hard" ? (await redisClient.get(`freeze:user:${userId}:reason`) || "User hard freeze") : null;
+      reason = userReason || globalReason;
+    } else if (isSoft) {
+      const globalReason = await redisClient.get("freeze:global:reason") || "Global soft freeze";
+      const userReason = userFreeze === "soft" ? (await redisClient.get(`freeze:user:${userId}:reason`) || "User soft freeze") : null;
+      reason = userReason || globalReason;
+    }
+
+    return { isHard, isSoft, reason };
+  } catch (err) {
+    console.error("[FreezeService] Error fetching freeze status from Redis:", err.message);
+    return { isHard: false, isSoft: false, reason: null };
   }
-
-  return { isHard, isSoft, reason };
 };
 
 /**

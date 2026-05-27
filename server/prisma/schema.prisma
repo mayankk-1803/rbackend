@@ -285,6 +285,7 @@ model user {
   phone            String?   @unique
   isPhoneVerified  Boolean   @default(false)
   isEmailVerified  Boolean   @default(false)
+  mustChangePassword Boolean   @default(false)
   authType         String    @default("phone")
   role             UserRole  @default(USER)
   referralCode     String?   @unique
@@ -315,6 +316,15 @@ model user {
   cashbackSettings cashbackSettings[]
   wishlist         Wishlist?
   orders           Order[]
+  outlet             Outlet?
+  agreements         Agreement[]
+  fosAgent           FosAgent?
+  fosAgentId         Int?
+  fosRelation        FosAgent?          @relation("FosRetailer", fields: [fosAgentId], references: [id], onDelete: SetNull)
+  tempPasswordIssuedAt DateTime?
+  mustResetPassword    Boolean   @default(false)
+  supportTickets       SupportTicket[]
+  partner              Partner?
 
   user       user?  @relation("userToUser", fields: [referredBy], references: [id])
   other_user user[] @relation("userToUser")
@@ -675,3 +685,140 @@ model ApiAccessRequest {
   @@index([userId])
   @@index([status])
 }
+
+model Employee {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  phone     String?
+  role      String   @default("STAFF")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attendance Attendance[]
+  meetings   EmployeeMeeting[]
+}
+
+model Attendance {
+  id         Int      @id @default(autoincrement())
+  employeeId Int
+  checkIn    DateTime @default(now())
+  checkOut   DateTime?
+  status     String   @default("PRESENT")
+  location   String?
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model Meeting {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?  @db.Text
+  startTime   DateTime
+  endTime     DateTime
+  location    String?
+  createdAt   DateTime @default(now())
+
+  attendees EmployeeMeeting[]
+}
+
+model EmployeeMeeting {
+  employeeId Int
+  meetingId  Int
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  meeting    Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@id([employeeId, meetingId])
+}
+
+model Outlet {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  name      String
+  ownerName String
+  address   String   @db.Text
+  city      String
+  state     String
+  pincode   String
+  latitude  Float?
+  longitude Float?
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Agreement {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  title       String
+  content     String    @db.Text
+  status      String    @default("PENDING")
+  signedAt    DateTime?
+  filePath    String?   @db.Text
+  uploadedBy  Int?
+  reviewedBy  Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model FosAgent {
+  id                 Int      @id @default(autoincrement())
+  userId             Int      @unique
+  region             String?
+  targetOnboardings  Int      @default(50)
+  currentOnboardings Int      @default(0)
+  createdAt          DateTime @default(now())
+
+  user               user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  retailers          user[]   @relation("FosRetailer")
+}
+
+model RolePermission {
+  id         Int      @id @default(autoincrement())
+  role       String
+  module     String
+  canRead    Boolean  @default(true)
+  canWrite   Boolean  @default(false)
+  canDelete  Boolean  @default(false)
+  canApprove Boolean  @default(false)
+  canAdjust  Boolean  @default(false)
+  updatedBy  Int?
+  updatedAt  DateTime @updatedAt
+
+  @@unique([role, module])
+}
+
+model SupportTicket {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  subject       String
+  description   String   @db.Text
+  priority      String   @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  status        String   @default("OPEN")   // OPEN, UNDER_REVIEW, RESOLVED, CLOSED
+  assignedTo    Int?     // Employee or Admin ID
+  attachmentUrl String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Partner {
+  id                Int      @id @default(autoincrement())
+  type              String   @default("RETAILER") // DISTRIBUTOR, RETAILER
+  parentId          Int?
+  walletBalance     Decimal  @default(0) @db.Decimal(10, 2)
+  commissionProfile String?
+  status            String   @default("ACTIVE")
+  userId            Int      @unique
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user              user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+

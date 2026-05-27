@@ -12,6 +12,60 @@ const metrics = {
   recentLatencies: [], // sliding window (capped at 1000) for percentiles
   lastFailures: [], // Queue of timestamps of recent failures to check repeated failures
   lastRefunds: [], // Queue of timestamps of recent refunds to check spikes
+  redisFallbackCount: 0,
+  paymentVerificationLatencySum: 0,
+  paymentVerificationLatencyCount: 0,
+  socketEmitSuccessCount: 0,
+  socketEmitFailureCount: 0,
+  failedLedgerWriteCount: 0,
+  failedAuditWriteCount: 0,
+};
+
+export const recordRedisFallback = () => {
+  try {
+    metrics.redisFallbackCount++;
+  } catch (err) {
+    console.warn("[MONITORING] Error recording Redis fallback:", err.message);
+  }
+};
+
+export const recordPaymentVerificationLatency = (latencyMs) => {
+  try {
+    if (latencyMs !== undefined && latencyMs !== null) {
+      metrics.paymentVerificationLatencySum += latencyMs;
+      metrics.paymentVerificationLatencyCount++;
+    }
+  } catch (err) {
+    console.warn("[MONITORING] Error recording payment verification latency:", err.message);
+  }
+};
+
+export const recordSocketEmit = (success) => {
+  try {
+    if (success) {
+      metrics.socketEmitSuccessCount++;
+    } else {
+      metrics.socketEmitFailureCount++;
+    }
+  } catch (err) {
+    console.warn("[MONITORING] Error recording Socket.IO emit:", err.message);
+  }
+};
+
+export const recordFailedLedgerWrite = () => {
+  try {
+    metrics.failedLedgerWriteCount++;
+  } catch (err) {
+    console.warn("[MONITORING] Error recording failed ledger write:", err.message);
+  }
+};
+
+export const recordFailedAuditWrite = () => {
+  try {
+    metrics.failedAuditWriteCount++;
+  } catch (err) {
+    console.warn("[MONITORING] Error recording failed audit write:", err.message);
+  }
 };
 
 // Alerts configuration thresholds
@@ -141,6 +195,10 @@ export const getMetricsReport = async () => {
 
     const p95 = calculatePercentile(metrics.recentLatencies, 95);
     const p99 = calculatePercentile(metrics.recentLatencies, 99);
+    
+    const avgVerificationLatency = metrics.paymentVerificationLatencyCount > 0 
+      ? (metrics.paymentVerificationLatencySum / metrics.paymentVerificationLatencyCount) 
+      : 0;
 
     return {
       successRate: parseFloat(successRate.toFixed(2)),
@@ -153,6 +211,13 @@ export const getMetricsReport = async () => {
       avgReconciliationLatencyMs: parseFloat(avgLatency.toFixed(2)),
       p95LatencyMs: parseFloat(p95.toFixed(2)),
       p99LatencyMs: parseFloat(p99.toFixed(2)),
+      // Operational metric additions
+      redisFallbackCount: metrics.redisFallbackCount,
+      avgPaymentVerificationLatencyMs: parseFloat(avgVerificationLatency.toFixed(2)),
+      socketEmitSuccessCount: metrics.socketEmitSuccessCount,
+      socketEmitFailureCount: metrics.socketEmitFailureCount,
+      failedLedgerWriteCount: metrics.failedLedgerWriteCount,
+      failedAuditWriteCount: metrics.failedAuditWriteCount,
       alerts: {
         hasStuckTransactions: stuckCount > 0,
         hasRepeatedFailures: metrics.lastFailures.length >= ALERTS_CFG.REPEATED_FAILURES_LIMIT,
@@ -172,6 +237,12 @@ export const getMetricsReport = async () => {
       avgReconciliationLatencyMs: 0,
       p95LatencyMs: 0,
       p99LatencyMs: 0,
+      redisFallbackCount: 0,
+      avgPaymentVerificationLatencyMs: 0,
+      socketEmitSuccessCount: 0,
+      socketEmitFailureCount: 0,
+      failedLedgerWriteCount: 0,
+      failedAuditWriteCount: 0,
       alerts: {
         hasStuckTransactions: false,
         hasRepeatedFailures: false,

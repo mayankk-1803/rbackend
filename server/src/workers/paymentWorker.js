@@ -1,4 +1,15 @@
 import { Worker, Queue } from "bullmq";
+import { structuredLog, structuredAlert } from "../utils/logger.js";
+import {
+  recordWebhookSuccess,
+  recordWebhookFailure,
+  recordWebhookDuplicate,
+  recordRedisFallback,
+  recordSocketEmit,
+  recordFailedLedgerWrite,
+  recordFailedAuditWrite,
+  recordPaymentVerificationLatency
+} from "../services/webhookMonitoringService.js";
 import { redis } from "../config/redis.js";
 import axios from "axios";
 import dotenv from "dotenv";
@@ -56,10 +67,47 @@ export const startPaymentWorker = () => {
       // Handle verify status check for Nexgate timeouts
       if (job.name === "verifyNexgateStatus") {
         const { paymentId, attempt } = job.data;
+        const startVerificationTime = Date.now();
         
+        // 1. Fetch payment
+        const payment = await prisma.payment.findUnique({ where: { id: Number(paymentId) } });
+        if (!payment) {
+          structuredAlert({
+            level: "error",
+            eventType: "PAYMENT_WORKER_NOT_FOUND",
+            paymentId,
+            message: `Payment ${paymentId} not found in worker`
+          });
+          return;
+        }
+
+        // Extract correlationId, adminId, targetUserId from payment.idempotencyKey
+        let correlationId = crypto.randomBytes(8).toString('hex');
+        let adminId = null;
+        let targetUserId = payment.userId;
+        let isAdminFunding = false;
+
+        if (payment.idempotencyKey) {
+          const parts = payment.idempotencyKey.split(":");
+          if (parts.length >= 4) {
+            correlationId = parts[3]; // The UUID
+          }
+          const adminIdPart = parts[1]?.split("=")[1];
+          adminId = adminIdPart ? Number(adminIdPart) : null;
+          isAdminFunding = payment.idempotencyKey.startsWith("admin_funding:");
+        }
+
         // Check if circuit breaker is open
         if (isCircuitBreakerOpen()) {
-          console.warn(`[NEXGATE_WORKER_SKIPPED_CIRCUIT_OPEN] Payment ${paymentId} verification skipped. Circuit breaker is open. Rescheduling...`);
+          structuredAlert({
+            level: "warn",
+            eventType: "NEXGATE_WORKER_SKIPPED_CIRCUIT_OPEN",
+            correlationId,
+            paymentId,
+            adminId,
+            targetUserId,
+            message: `Payment ${paymentId} verification skipped. Circuit breaker is open. Rescheduling...`
+          });
           
           if (attempt <= 3) {
             const paymentQueue = new Queue("paymentQueue", { connection: redis });
@@ -74,40 +122,70 @@ export const startPaymentWorker = () => {
                 { paymentId, attempt },
                 { delay: 15000, removeOnComplete: true }
               );
-              console.log(`[PaymentWorker] Requeued verification job for payment ${paymentId} (attempt ${attempt}) with 15000ms delay`);
+              structuredLog({
+                eventType: "PAYMENT_WORKER_REQUEUED",
+                correlationId,
+                paymentId,
+                adminId,
+                targetUserId,
+                message: `Requeued verification job for payment ${paymentId} (attempt ${attempt}) with 15000ms delay due to circuit breaker`
+              });
             }
             await paymentQueue.close();
           }
           return;
         }
-        
-        // 1. Fetch payment
-        const payment = await prisma.payment.findUnique({ where: { id: Number(paymentId) } });
-        if (!payment) {
-          console.warn(`[PaymentWorker] Payment ${paymentId} not found.`);
-          return;
-        }
 
         // 2. State Guard: Skip if already finalized
         if (["SUCCESS", "FAILED"].includes(payment.status)) {
-          console.log(`[VERIFY_SKIPPED_FINALIZED] Payment ${paymentId} already in final status ${payment.status}`);
+          structuredLog({
+            eventType: "PAYMENT_WORKER_VERIFY_SKIPPED_FINALIZED",
+            correlationId,
+            paymentId,
+            adminId,
+            targetUserId,
+            message: `Payment ${paymentId} already in final status ${payment.status}`
+          });
           return;
         }
 
-        console.log(`[PaymentWorker] Verifying status for Payment ${paymentId} | Attempt ${attempt}/3`);
+        structuredLog({
+          eventType: "PAYMENT_WORKER_VERIFY_START",
+          correlationId,
+          paymentId,
+          adminId,
+          targetUserId,
+          message: `Verifying status for Payment ${paymentId} | Attempt ${attempt}/3`
+        });
 
         try {
           const statusResult = await checkNexgateStatus(paymentId);
           const providerStatus = statusResult.providerStatus || statusResult.status || "PENDING";
           
-          console.log(
-            `[NEXGATE_STATUS_RESULT] Payment ${paymentId} => ${providerStatus}`
-          );
+          // Record payment verification latency
+          recordPaymentVerificationLatency(Date.now() - startVerificationTime);
+
+          structuredLog({
+            eventType: "NEXGATE_STATUS_RESULT",
+            correlationId,
+            paymentId,
+            adminId,
+            targetUserId,
+            message: `Payment ${paymentId} status from provider => ${providerStatus}`
+          });
 
           if (statusResult.success && providerStatus === "SUCCESS") {
             const lockToken = await acquireLock(`payment_webhook:${paymentId}`, 15000);
             if (!lockToken) {
-              console.warn(`[PaymentWorker] Could not acquire lock for payment ${paymentId}. Requeuing verification job.`);
+              structuredAlert({
+                level: "warn",
+                eventType: "CONCURRENT_LOCK_BLOCKED",
+                correlationId,
+                paymentId,
+                adminId,
+                targetUserId,
+                message: `Could not acquire lock for payment ${paymentId}. Requeuing verification job.`
+              });
               // Requeue with delay to try lock again
               const paymentQueue = new Queue("paymentQueue", { connection: redis });
               await paymentQueue.add(
@@ -119,9 +197,25 @@ export const startPaymentWorker = () => {
               return;
             }
 
+            if (lockToken.startsWith("dummy_fallback_lock_")) {
+              recordRedisFallback();
+              structuredAlert({
+                eventType: "REDIS_LOCK_FALLBACK_ACTIVE",
+                correlationId,
+                paymentId,
+                adminId,
+                targetUserId,
+                message: `Redis is offline. Bypassing lock using DB isolation fallback for payment_webhook:${paymentId} in worker`
+              });
+            }
+
             try {
-              const correlationId = crypto.randomBytes(8).toString('hex');
+              let createdTx = null;
+              let ledgerDesc = null;
+              let balanceBefore = null;
+              let balanceAfter = null;
               let result;
+
               try {
                 result = await prisma.$transaction(async (tx) => {
                   const payments = await tx.$queryRaw`SELECT * FROM payment WHERE id = ${paymentId} FOR UPDATE`;
@@ -129,27 +223,38 @@ export const startPaymentWorker = () => {
                   const dbPayment = payments[0];
 
                   if (["SUCCESS", "FAILED", "REFUNDED"].includes(dbPayment.status)) {
-                    console.log(`[PaymentWorker][DUPLICATE_FINALIZATION_PREVENTED] Already processed with status: ${dbPayment.status}`);
+                    structuredLog({
+                      eventType: "PAYMENT_WORKER_DUPLICATE_SKIP",
+                      correlationId,
+                      paymentId,
+                      adminId,
+                      targetUserId,
+                      message: `Already processed with status: ${dbPayment.status}`
+                    });
                     return { alreadyProcessed: true, payment: dbPayment };
                   }
 
                   const idempotencyKey = `topup:${dbPayment.id}`;
                   const canClaim = await claimIdempotencyKey(idempotencyKey, statusResult.raw || {}, tx);
                   if (!canClaim) {
-                    console.log(`[PaymentWorker] Topup key ${idempotencyKey} already claimed.`);
+                    structuredLog({
+                      eventType: "PAYMENT_WORKER_DUPLICATE_SKIP",
+                      correlationId,
+                      paymentId,
+                      adminId,
+                      targetUserId,
+                      message: `Topup key ${idempotencyKey} already claimed.`
+                    });
                     return { alreadyProcessed: true, payment: dbPayment };
                   }
 
-                  // 1. Fetch wallet with lock to prevent race conditions
+                  // Fetch wallet with lock to prevent race conditions
                   const wallets = await tx.$queryRaw`SELECT * FROM wallet WHERE userId = ${dbPayment.userId} FOR UPDATE`;
                   if (!wallets || wallets.length === 0) throw new Error(`Wallet not found for user ${dbPayment.userId}`);
                   const wallet = wallets[0];
-                  const balanceBefore = wallet.balance;
-
-                  console.log(`[WALLET_BEFORE] User ${dbPayment.userId} balance: ${balanceBefore}`);
+                  balanceBefore = wallet.balance;
 
                   const finalGatewayTxnId = statusResult.operatorTxnId || statusResult.gatewayTxnId || dbPayment.gatewayTxnId || `NEXGATE_VERIFY_${Date.now()}`;
-                  let balanceAfter;
 
                   if (dbPayment.intent === "IMART") {
                     const balanceAfterCredit = new Prisma.Decimal(balanceBefore).plus(new Prisma.Decimal(dbPayment.amount));
@@ -174,12 +279,6 @@ export const startPaymentWorker = () => {
                         }
                       }
                     });
-
-                    // Explicit logs
-                    const updatedWallet = await tx.wallet.findUnique({
-                      where: { userId: dbPayment.userId }
-                    });
-                    console.log(`[WALLET_AFTER] User ${dbPayment.userId} balance: ${updatedWallet.balance}`);
 
                     await recordFinancialEntry({
                       userId: dbPayment.userId,
@@ -265,6 +364,25 @@ export const startPaymentWorker = () => {
                   } else {
                     balanceAfter = new Prisma.Decimal(balanceBefore).plus(new Prisma.Decimal(dbPayment.amount));
 
+                    ledgerDesc = `Wallet topup | Order: ${dbPayment.id}`;
+                    let txDesc = `Wallet topup | Order: ${dbPayment.id} | Before: ${balanceBefore}`;
+
+                    if (isAdminFunding) {
+                      try {
+                        const parts = dbPayment.idempotencyKey.split(":");
+                        const reasonPart = parts[2]?.split("=")[1];
+                        if (reasonPart) {
+                          ledgerDesc = decodeURIComponent(reasonPart);
+                          txDesc = `${ledgerDesc} | Before: ${balanceBefore}`;
+                        } else {
+                          ledgerDesc = `Admin Wallet Funding | Order: ${dbPayment.id}`;
+                          txDesc = `Admin Wallet Funding | Order: ${dbPayment.id} | Before: ${balanceBefore}`;
+                        }
+                      } catch (e) {
+                        console.error("Failed to parse admin funding key in worker:", e);
+                      }
+                    }
+
                     // Atomic increment
                     await tx.wallet.update({
                       where: { userId: dbPayment.userId },
@@ -275,17 +393,12 @@ export const startPaymentWorker = () => {
                       }
                     });
 
-                    const updatedWallet = await tx.wallet.findUnique({
-                      where: { userId: dbPayment.userId }
-                    });
-                    console.log(`[WALLET_AFTER] User ${dbPayment.userId} balance: ${updatedWallet.balance}`);
-
                     await recordFinancialEntry({
                       userId: dbPayment.userId,
                       amount: dbPayment.amount,
                       type: 'TOPUP_CREDIT',
                       transactionId: null,
-                      description: `Wallet topup | Order: ${dbPayment.id}`,
+                      description: ledgerDesc,
                       context: { correlationId, ipAddress: "127.0.0.1" },
                       tx,
                       skipWalletUpdate: true,
@@ -293,7 +406,7 @@ export const startPaymentWorker = () => {
                       overrideBalanceAfter: balanceAfter
                     });
 
-                    await tx.transaction.create({
+                    createdTx = await tx.transaction.create({
                       data: {
                         userId: dbPayment.userId,
                         amount: dbPayment.amount,
@@ -302,7 +415,7 @@ export const startPaymentWorker = () => {
                         direction: "CREDIT",
                         gatewayTxnId: finalGatewayTxnId,
                         balanceAfter: balanceAfter,
-                        description: `Wallet topup | Order: ${dbPayment.id} | Before: ${balanceBefore}`,
+                        description: txDesc,
                         idempotencyKey,
                         financialSequenceId: correlationId
                       }
@@ -324,34 +437,108 @@ export const startPaymentWorker = () => {
                   isolationLevel: Prisma.TransactionIsolationLevel.Serializable
                 });
               } catch (err) {
-                console.error(
-                  `[PAYMENT_FINALIZATION_FAILED] Payment ${paymentId}`,
-                  err
-                );
+                structuredAlert({
+                  level: "error",
+                  eventType: "PAYMENT_RECONCILIATION_FAILED",
+                  correlationId,
+                  paymentId,
+                  adminId,
+                  targetUserId,
+                  message: `Database finalization transaction failed in worker: ${err.message}`,
+                  metadata: { error: err.stack }
+                });
                 throw err;
               }
 
               if (result && !result.alreadyProcessed) {
-                console.log(`[PAYMENT_FINALIZED] Payment ${paymentId} verified and finalized via worker.`);
-                console.log(`[PAYMENT_CREDIT_SUCCESS] Payment ${paymentId} credited successfully`);
-                
                 // Fetch updated wallet balance post-commit to emit fresh data
                 const updatedWallet = await prisma.wallet.findUnique({
                   where: { userId: result.payment.userId }
                 });
 
-                eventBus.emit("wallet_updated", {
-                  userId: result.payment.userId,
-                  amount: result.payment.amount,
-                  balance: updatedWallet ? updatedWallet.balance : undefined
+                const finalBalanceAfter = updatedWallet ? updatedWallet.balance : balanceAfter;
+
+                structuredLog({
+                  eventType: "WALLET_MUTATION_SUCCESS",
+                  correlationId,
+                  paymentId,
+                  adminId,
+                  targetUserId,
+                  message: `Wallet atomically credited in worker. Before: ${balanceBefore}, After: ${finalBalanceAfter}`
                 });
+
+                structuredLog({
+                  eventType: "LEDGER_RECONCILIATION_SUCCESS",
+                  correlationId,
+                  paymentId,
+                  adminId,
+                  targetUserId,
+                  message: `Ledger entry created successfully in worker. Description: "${ledgerDesc || 'Wallet Topup'}"`
+                });
+                
+                try {
+                  eventBus.emit("wallet_updated", {
+                    userId: result.payment.userId,
+                    amount: result.payment.amount,
+                    balance: finalBalanceAfter || undefined
+                  });
+
+                  // Emit transaction_updated so the admin dashboard live telemetry gets refreshed
+                  if (createdTx) {
+                    eventBus.emit("transaction_updated", {
+                      userId: result.payment.userId,
+                      txnId: createdTx.id,
+                      status: "SUCCESS",
+                      transaction: createdTx,
+                      correlationId
+                    });
+                  }
+
+                  recordSocketEmit(true);
+                  structuredLog({
+                    eventType: "TELEMETRY_EVENT_EMITTED",
+                    correlationId,
+                    paymentId,
+                    adminId,
+                    targetUserId,
+                    message: `Worker emitted realtime telemetry updates for payment success.`
+                  });
+                } catch (socketErr) {
+                  recordSocketEmit(false);
+                  console.warn("[WORKER] Realtime event emit failed:", socketErr.message);
+                }
+
+                // Write audit log for admin wallet adjustment
+                if (isAdminFunding && adminId) {
+                  try {
+                    const { logAction } = await import("../services/auditService.js");
+                    await logAction({
+                      action: "WALLET_ADJUSTMENT",
+                      adminId,
+                      userId: result.payment.userId,
+                      entity: "WALLET",
+                      entityId: result.payment.id,
+                      details: { amount: result.payment.amount, description: ledgerDesc, paymentId: result.payment.id },
+                      req: null
+                    });
+                    structuredLog({
+                      eventType: "AUDIT_LOG_SUCCESS",
+                      correlationId,
+                      paymentId,
+                      adminId,
+                      targetUserId,
+                      message: `Audit WALLET_ADJUSTMENT logged in worker for admin ${adminId} and payment ${paymentId}`
+                    });
+                  } catch (auditErr) {
+                    recordFailedAuditWrite();
+                    console.error("Failed to log admin funding audit action in worker:", auditErr);
+                  }
+                }
               }
             } finally {
               await releaseLock(`payment_webhook:${paymentId}`, lockToken);
             }
           } else if (providerStatus === "FAILED") {
-            console.log(`[NEXGATE_STATUS_RESULT] Payment ${paymentId} => FAILED`);
-
             await prisma.$transaction(async (tx) => {
               await tx.payment.update({
                 where: { id: paymentId },
@@ -376,9 +563,24 @@ export const startPaymentWorker = () => {
               }
             });
 
-            console.log(`[PAYMENT_FINALIZED] Payment ${paymentId} marked as FAILED via worker.`);
+            structuredLog({
+              eventType: "PAYMENT_WORKER_FINALIZED_FAILED",
+              correlationId,
+              paymentId,
+              adminId,
+              targetUserId,
+              message: `Payment ${paymentId} finalized as FAILED via worker. Message: ${statusResult.message || "Payment verification failed"}`
+            });
+            recordWebhookFailure();
           } else {
-            console.log(`[NEXGATE_STATUS_PENDING_RETRY] Payment ${paymentId} verification returned status ${providerStatus}. Requeuing...`);
+            structuredLog({
+              eventType: "NEXGATE_STATUS_PENDING_RETRY",
+              correlationId,
+              paymentId,
+              adminId,
+              targetUserId,
+              message: `Payment ${paymentId} verification returned status ${providerStatus}. Requeuing (attempt ${attempt}/3)`
+            });
             
             if (attempt < 3) {
               const nextAttempt = attempt + 1;
@@ -394,7 +596,14 @@ export const startPaymentWorker = () => {
                   { paymentId, attempt: nextAttempt },
                   { delay: 15000, removeOnComplete: true }
                 );
-                console.log(`[PaymentWorker] Enqueued verify attempt ${nextAttempt} with delay 15000ms`);
+                structuredLog({
+                  eventType: "PAYMENT_WORKER_REQUEUED",
+                  correlationId,
+                  paymentId,
+                  adminId,
+                  targetUserId,
+                  message: `Enqueued verify attempt ${nextAttempt} with delay 15000ms`
+                });
               }
               await paymentQueue.close();
             } else {
@@ -402,11 +611,28 @@ export const startPaymentWorker = () => {
                 where: { id: paymentId },
                 data: { status: "PROCESSING_REVIEW" }
               });
-              console.warn(`[NEXGATE_MANUAL_REVIEW_REQUIRED] Payment ${paymentId} still pending after 3 attempts. Kept as PROCESSING_REVIEW.`);
+              structuredAlert({
+                level: "warn",
+                eventType: "NEXGATE_MANUAL_REVIEW_REQUIRED",
+                correlationId,
+                paymentId,
+                adminId,
+                targetUserId,
+                message: `Payment ${paymentId} still pending after 3 attempts. Kept as PROCESSING_REVIEW.`
+              });
             }
           }
         } catch (error) {
-          console.error(`[NEXGATE_STATUS_PENDING_RETRY] Error checking status for payment ${paymentId}:`, error.message);
+          structuredAlert({
+            level: "error",
+            eventType: "PAYMENT_WORKER_EXCEPTION",
+            correlationId,
+            paymentId,
+            adminId,
+            targetUserId,
+            message: `Error checking status for payment ${paymentId} in worker: ${error.message}`,
+            metadata: { error: error.stack }
+          });
           if (attempt <= 3) {
              const paymentQueue = new Queue("paymentQueue", { connection: redis });
              const existingJobs = await paymentQueue.getJobs(["delayed", "waiting", "active"]);
@@ -420,7 +646,14 @@ export const startPaymentWorker = () => {
                   { paymentId, attempt },
                   { delay: 15000, removeOnComplete: true }
                 );
-                console.log(`[PaymentWorker] Requeued verification job for payment ${paymentId} (attempt ${attempt}) with 15000ms delay due to error`);
+                structuredLog({
+                  eventType: "PAYMENT_WORKER_REQUEUED",
+                  correlationId,
+                  paymentId,
+                  adminId,
+                  targetUserId,
+                  message: `Requeued verification job for payment ${paymentId} (attempt ${attempt}) with 15000ms delay due to error`
+                });
              }
              await paymentQueue.close();
           }

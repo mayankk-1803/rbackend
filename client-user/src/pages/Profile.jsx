@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import { useWallet } from '../context/WalletContext';
 
 export default function Profile() {
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem('dizipay_user_data')) || { name: 'User Account', phone: '+91 9876543210' });
+  const [user, setUser] = useState(JSON.parse(sessionStorage.getItem('dizipay_user_data')) || { name: 'User Account', phone: '+91 9876543210' });
   const { wallet } = useWallet();
   const [isEditing, setIsEditing] = useState(false);
   const [newName, setNewName] = useState(user.name || '');
@@ -16,8 +16,8 @@ export default function Profile() {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    localStorage.removeItem('dizipay_user_token');
-    localStorage.removeItem('dizipay_user_data');
+    sessionStorage.removeItem('dizipay_user_token');
+    sessionStorage.removeItem('dizipay_user_data');
     sessionStorage.removeItem('dizipay_developer_token');
     localStorage.removeItem('dizipay_developer_token');
     sessionStorage.removeItem('developer_verified');
@@ -77,7 +77,7 @@ export default function Profile() {
       const res = await api.put('/user/update-profile', { name: newName });
       const updated = { ...user, ...res.data.data };
       setUser(updated);
-      localStorage.setItem('dizipay_user_data', JSON.stringify(updated));
+      sessionStorage.setItem('dizipay_user_data', JSON.stringify(updated));
       setIsEditing(false);
       toast.success("Name updated successfully");
     } catch {
@@ -100,7 +100,7 @@ export default function Profile() {
       
       const updated = { ...user, ...res.data.data };
       setUser(updated);
-      localStorage.setItem('dizipay_user_data', JSON.stringify(updated));
+      sessionStorage.setItem('dizipay_user_data', JSON.stringify(updated));
       toast.success("Profile image updated");
     } catch (e) {
       if (import.meta.env.DEV) {

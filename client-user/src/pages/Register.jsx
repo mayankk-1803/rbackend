@@ -22,8 +22,8 @@ export default function Register() {
 
   useEffect(() => {
     // Check if already authenticated
-    const token = localStorage.getItem('dizipay_user_token');
-    const user = JSON.parse(localStorage.getItem('dizipay_user_data') || '{}');
+    const token = sessionStorage.getItem('dizipay_user_token');
+    const user = JSON.parse(sessionStorage.getItem('dizipay_user_data') || '{}');
     if (token && user.id) {
       navigate('/dashboard', { replace: true });
     }
@@ -97,8 +97,8 @@ export default function Register() {
 
   const handleAuthSuccess = (apiData) => {
     if (apiData?.token) {
-      localStorage.setItem('dizipay_user_token', apiData.token);
-      localStorage.setItem('dizipay_user_data', JSON.stringify(apiData.user));
+      sessionStorage.setItem('dizipay_user_token', apiData.token);
+      sessionStorage.setItem('dizipay_user_data', JSON.stringify(apiData.user));
       toast.success('Account created successfully!');
       window.location.href = '/dashboard';
     }

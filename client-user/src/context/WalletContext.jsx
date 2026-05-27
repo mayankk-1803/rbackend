@@ -17,7 +17,7 @@ export const WalletProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
 
   const fetchWallet = useCallback(async () => {
-    const token = localStorage.getItem('dizipay_user_token');
+    const token = sessionStorage.getItem('dizipay_user_token');
     if (!token) return;
 
     setLoading(true);
@@ -46,7 +46,7 @@ export const WalletProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem('dizipay_user_token');
+    const token = sessionStorage.getItem('dizipay_user_token');
     if (token) {
       fetchWallet();
     }

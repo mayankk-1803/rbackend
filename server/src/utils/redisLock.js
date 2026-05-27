@@ -8,12 +8,19 @@ import { redisClient } from "../config/redis.js";
  */
 export const acquireLock = async (lockName, ttlMs = 10000) => {
   const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+  
+  // Fallback: If Redis is offline, return a dummy lock token to allow DB transaction fallback
+  if (redisClient.status !== "ready") {
+    console.warn(`[RedisLock] Redis is offline (status: ${redisClient.status}). Bypassing lock for ${lockName} using DB isolation fallback.`);
+    return `dummy_fallback_lock_${token}`;
+  }
+
   try {
     const result = await redisClient.set(`lock:${lockName}`, token, "NX", "PX", ttlMs);
     return result === "OK" ? token : null;
   } catch (err) {
     console.error(`[RedisLock] Failed to acquire lock for ${lockName}:`, err);
-    return null;
+    return `dummy_fallback_lock_${token}`;
   }
 };
 
@@ -25,6 +32,8 @@ export const acquireLock = async (lockName, ttlMs = 10000) => {
  */
 export const releaseLock = async (lockName, token) => {
   if (!token) return false;
+  if (token.startsWith("dummy_fallback_lock_")) return true;
+  if (redisClient.status !== "ready") return false;
   
   // Lua script ensures we only release our own lock
   const luaScript = `

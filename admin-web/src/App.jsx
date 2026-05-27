@@ -14,6 +14,7 @@ import DisputeManagement from './pages/reports/DisputeManagement';
 import { CashbackSettings } from './pages/CashbackSettings';
 import { Users } from './pages/users/Users';
 import ErrorBoundary from './components/ErrorBoundary';
+import InactivityManager from './components/InactivityManager';
 
 // iMart E-commerce Management Views
 import { Categories } from './pages/imart/Categories';
@@ -33,7 +34,7 @@ const getDecodedToken = (token) => {
 };
 
 const ProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem("dizipay_admin_token");
+  const token = sessionStorage.getItem("dizipay_admin_token");
   
   let isAuthenticated = false;
   
@@ -41,7 +42,7 @@ const ProtectedRoute = ({ children }) => {
     const decoded = getDecodedToken(token);
     if (decoded) {
       const isExpired = decoded.exp && (decoded.exp * 1000 < Date.now());
-      const hasAdminRole = decoded.role === 'ADMIN' || decoded.role === 'ROOT_ADMIN' || decoded.role === 'SYSTEM_MANAGER';
+      const hasAdminRole = decoded.role === 'ADMIN' || decoded.role === 'SUPER_ADMIN' || decoded.role === 'ROOT_ADMIN' || decoded.role === 'SYSTEM_MANAGER';
       const isTokenTypeAdmin = decoded.tokenType === 'ADMIN_PANEL';
       
       if (!isExpired && hasAdminRole && isTokenTypeAdmin) {
@@ -55,8 +56,8 @@ const ProtectedRoute = ({ children }) => {
   }
 
   if (!isAuthenticated) {
-    localStorage.removeItem("dizipay_admin_token");
-    localStorage.removeItem("dizipay_admin_data");
+    sessionStorage.removeItem("dizipay_admin_token");
+    sessionStorage.removeItem("dizipay_admin_data");
     return <Navigate to="/login" replace />;
   }
 
@@ -67,8 +68,22 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Migrate from localStorage to sessionStorage if exists
+    if (!sessionStorage.getItem("dizipay_admin_token")) {
+      const oldToken = localStorage.getItem("dizipay_admin_token");
+      const oldAdminData = localStorage.getItem("dizipay_admin_data");
+      if (oldToken) {
+        sessionStorage.setItem("dizipay_admin_token", oldToken);
+      }
+      if (oldAdminData) {
+        sessionStorage.setItem("dizipay_admin_data", oldAdminData);
+      }
+      localStorage.removeItem("dizipay_admin_token");
+      localStorage.removeItem("dizipay_admin_data");
+    }
+
     // Initial mount check
-    const token = localStorage.getItem("dizipay_admin_token");
+    const token = sessionStorage.getItem("dizipay_admin_token");
     if (import.meta.env.DEV) {
       console.log(" [App Mount] Initial Token Check:", token ? "Authenticated" : "Not Authenticated");
     }
@@ -79,6 +94,7 @@ function App() {
 
   return (
     <ErrorBoundary>
+      <InactivityManager />
       <Toaster 
         position="bottom-right" 
         style={{ zIndex: 9999 }}

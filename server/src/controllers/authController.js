@@ -97,6 +97,9 @@ export const loginEmail = async (req, res) => {
     }
 
     const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    if (!user) {
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
+    }
     console.log(`[AUTH][USER_FOUND] → User ${user.id} matched for email login.`);
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -104,6 +107,18 @@ export const loginEmail = async (req, res) => {
 
     if (!isMatch) {
       return res.status(401).json({ success: false, message: "Invalid credentials" });
+    }
+
+    // Temporary password expiry validation (default 24 hours)
+    if (user.mustResetPassword && user.tempPasswordIssuedAt) {
+      const expiryHours = parseInt(process.env.TEMP_PASSWORD_EXPIRY_HOURS) || 24;
+      const expiryTime = new Date(user.tempPasswordIssuedAt.getTime() + expiryHours * 60 * 60 * 1000);
+      if (new Date() > expiryTime) {
+        return res.status(401).json({
+          success: false,
+          message: "Your temporary password has expired. Please contact an administrator to request a new one."
+        });
+      }
     }
 
     if (user.isActive === false) {
@@ -127,8 +142,7 @@ export const loginEmail = async (req, res) => {
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "Lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      sameSite: "Lax"
     };
 
     console.log("[AUTH][COOKIE_SET] → Setting dizipay_token cookie...");
@@ -144,7 +158,8 @@ export const loginEmail = async (req, res) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
-        profileImage: user.profileImage
+        profileImage: user.profileImage,
+        mustChangePassword: user.mustChangePassword
       },
       data: {
         token,
@@ -154,7 +169,8 @@ export const loginEmail = async (req, res) => {
           email: user.email,
           phone: user.phone,
           role: user.role,
-          profileImage: user.profileImage
+          profileImage: user.profileImage,
+          mustChangePassword: user.mustChangePassword
         }
       }
     };
@@ -296,8 +312,7 @@ export const verifyOtp = async (req, res) => {
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "Lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      sameSite: "Lax"
     };
 
     console.log("[AUTH][COOKIE_SET] → Setting dizipay_token cookie...");
@@ -313,7 +328,8 @@ export const verifyOtp = async (req, res) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
-        profileImage: user.profileImage
+        profileImage: user.profileImage,
+        mustChangePassword: user.mustChangePassword
       },
       data: {
         token,
@@ -323,7 +339,8 @@ export const verifyOtp = async (req, res) => {
           email: user.email,
           phone: user.phone,
           role: user.role,
-          profileImage: user.profileImage
+          profileImage: user.profileImage,
+          mustChangePassword: user.mustChangePassword
         },
         isNewUser
       }

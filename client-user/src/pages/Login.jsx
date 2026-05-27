@@ -18,9 +18,15 @@ export default function Login() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const reason = sessionStorage.getItem('dizipay_logout_reason');
+    if (reason === 'inactivity') {
+      toast.error("Session expired due to inactivity. Please login again.");
+      sessionStorage.removeItem('dizipay_logout_reason');
+    }
+
     // Check if already authenticated
-    const token = localStorage.getItem('dizipay_user_token');
-    const user = JSON.parse(localStorage.getItem('dizipay_user_data') || '{}');
+    const token = sessionStorage.getItem('dizipay_user_token');
+    const user = JSON.parse(sessionStorage.getItem('dizipay_user_data') || '{}');
     if (token && user.id) {
       navigate('/dashboard', { replace: true });
     }
@@ -119,8 +125,8 @@ export default function Login() {
       if (import.meta.env.DEV) {
         if (import.meta.env.DEV) console.log("[AUTH][TOKEN_STORED] → Saving token to localStorage...");
       }
-      localStorage.setItem('dizipay_user_token', apiData.token);
-      localStorage.setItem('dizipay_user_data', JSON.stringify(apiData.user));
+      sessionStorage.setItem('dizipay_user_token', apiData.token);
+      sessionStorage.setItem('dizipay_user_data', JSON.stringify(apiData.user));
       
       if (import.meta.env.DEV) {
         if (import.meta.env.DEV) console.log("[AUTH][AUTH_STATE_UPDATED] → User data stored:", apiData.user.id);
@@ -274,7 +280,6 @@ export default function Login() {
                 <div className="space-y-2">
                   <div className="flex justify-between items-center px-1">
                     <label className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em]">Password</label>
-                    <Link to="/forgot-password" size="sm" className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300">FORGOT?</Link>
                   </div>
                   <div className="relative">
                     <input

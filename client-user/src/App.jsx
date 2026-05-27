@@ -11,6 +11,7 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
 import { useIsIOS } from './utils/device';
+import InactivityManager from './components/InactivityManager';
 
   // Lazy load pages for performance
   const HomePage = lazy(() => import('./pages/HomePage'));
@@ -60,7 +61,19 @@ import { useIsIOS } from './utils/device';
   );
 
   const PrivateRoute = ({ isAuth, children }) => {
-    return isAuth ? children : <Navigate to="/login" />;
+    const location = useLocation();
+    if (!isAuth) return <Navigate to="/login" />;
+
+    try {
+      const user = JSON.parse(sessionStorage.getItem("dizipay_user_data") || "{}");
+      if (user?.mustChangePassword && location.pathname !== '/profile/security') {
+        return <Navigate to="/profile/security" replace />;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    return children;
   };
 
   const PublicRoute = ({ isAuth, children }) => {
@@ -74,10 +87,26 @@ import { useIsIOS } from './utils/device';
     const hideNavbarRoutes = ['/', '/login', '/register'];
     const showNavbar = !hideNavbarRoutes.includes(location.pathname);
 
+    let mustChangePassword = false;
+    try {
+      const user = JSON.parse(sessionStorage.getItem("dizipay_user_data") || "{}");
+      mustChangePassword = !!user?.mustChangePassword;
+    } catch {}
+
     return (
       <LazyMotion features={domAnimation}>
         {showNavbar && <Navbar />}
         <main className={showNavbar ? "max-w-[1600px] mx-auto px-4 md:px-6 lg:px-8 py-5 md:py-6 pb-24 md:pb-6" : ""}>
+          {mustChangePassword && showNavbar && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-2xl flex items-center gap-3 text-xs font-bold uppercase tracking-wider shadow-sm shadow-amber-500/5"
+            >
+              <div className="w-2 h-2 rounded-full bg-amber-500 animate-ping shrink-0" />
+              <span>Please change your temporary password for security. Sensitive operations are currently blocked.</span>
+            </motion.div>
+          )}
           <Suspense fallback={<PageLoader />}>
             {children}
           </Suspense>
@@ -121,8 +150,22 @@ import { useIsIOS } from './utils/device';
     }, [isIOS]);
 
     useEffect(() => {
-      const token = localStorage.getItem("dizipay_user_token");
-      const user = JSON.parse(localStorage.getItem("dizipay_user_data") || "{}");
+      // Migrate from localStorage to sessionStorage if exists
+      if (!sessionStorage.getItem("dizipay_user_token")) {
+        const oldToken = localStorage.getItem("dizipay_user_token");
+        const oldUserData = localStorage.getItem("dizipay_user_data");
+        if (oldToken) {
+          sessionStorage.setItem("dizipay_user_token", oldToken);
+        }
+        if (oldUserData) {
+          sessionStorage.setItem("dizipay_user_data", oldUserData);
+        }
+        localStorage.removeItem("dizipay_user_token");
+        localStorage.removeItem("dizipay_user_data");
+      }
+
+      const token = sessionStorage.getItem("dizipay_user_token");
+      const user = JSON.parse(sessionStorage.getItem("dizipay_user_data") || "{}");
       
       if (token && user.id) {
         setIsAuth(true);
@@ -148,6 +191,7 @@ import { useIsIOS } from './utils/device';
               </div>
               <div className="relative z-10">
               <Toaster position="top-right" />
+              <InactivityManager />
               {isAuth && <RewardPopup />}
 
               <Layout>

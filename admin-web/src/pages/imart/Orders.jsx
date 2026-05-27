@@ -47,7 +47,7 @@ export const Orders = () => {
   const invoiceRef = useRef(null);
 
   const fetchOrders = async () => {
-    if (!localStorage.getItem("dizipay_admin_token")) {
+    if (!sessionStorage.getItem("dizipay_admin_token")) {
       setLoading(false);
       return;
     }

@@ -10,7 +10,7 @@ const api = axios.create({
 // Request Interceptor: Add Auth Token & Logging
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("dizipay_admin_token");
+    const token = sessionStorage.getItem("dizipay_admin_token");
     
     if (import.meta.env.DEV) {
       console.log(` [API Request] ${config.method?.toUpperCase()} ${config.url} | Auth: ${token ? "YES" : "NO"}`);
@@ -80,8 +80,8 @@ api.interceptors.response.use(
     const message = sanitizeErrorMessage(error);
 
     if (status === 401) {
-      localStorage.removeItem("dizipay_admin_token");
-      localStorage.removeItem("dizipay_admin_data");
+      sessionStorage.removeItem("dizipay_admin_token");
+      sessionStorage.removeItem("dizipay_admin_data");
       window.location.href = "/87564/admin/login";
     } else if (status === 429) {
       toast.error("Rate limit exceeded. Please slow down.");
