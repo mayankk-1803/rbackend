@@ -2,6 +2,26 @@ import AppError from "../utils/AppError.js";
 
 const cleanClientMessage = (err) => {
   const raw = String(err?.message || err?.code || "").toLowerCase();
+  if (
+    raw.includes("invalid credentials") ||
+    raw.includes("wrong credentials") ||
+    raw.includes("invalid password") ||
+    raw.includes("authentication failed") ||
+    raw.includes("login failed") ||
+    raw.includes("user not found") ||
+    raw.includes("credential")
+  ) {
+    return "Invalid credentials";
+  }
+  if (raw.includes("no account found") || raw.includes("account not found")) {
+    return "No account found with this email";
+  }
+  if (raw.includes("unable to send") || raw.includes("failed to send")) {
+    return "Unable to send reset email";
+  }
+  if (raw.includes("invalid or expired reset code") || raw.includes("expired reset code")) {
+    return "Invalid or expired reset code";
+  }
   if (raw.includes("refund")) return "Refund processed";
   if (raw.includes("queued") || raw.includes("pending_review") || raw.includes("pending review")) return "Recharge queued";
   if (raw.includes("processing")) return "Recharge processing";

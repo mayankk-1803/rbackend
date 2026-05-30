@@ -12,6 +12,7 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { sendTempPasswordWhatsApp } from "../services/otp/nxtbyteOtpService.js";
 import { sendTempPasswordEmail } from "../services/emailService.js";
+import { mapProviderToAlias, ALIAS_TO_REAL } from "../config/providerAliases.js";
 
 export const getDashboard = async (req, res) => {
   try {
@@ -689,6 +690,19 @@ export const getTransactions = async (req, res) => {
         }
       }
 
+      // Safe presentation-layer mapping for database provider codes
+      const realToAlias = {
+        APIBOX: "Primary Gateway",
+        MPLAN: "Plans Engine",
+        EZYTM: "Operator Engine"
+      };
+      if (displayProvider) {
+        const mappedAlias = realToAlias[displayProvider.toUpperCase()];
+        if (mappedAlias) {
+          displayProvider = mappedAlias;
+        }
+      }
+
       return {
         ...t,
         mobile: displayMobile,
@@ -712,8 +726,9 @@ export const getProviders = async (req, res) => {
          where: { provider: p.code, status: "FAILED" }
        });
        
+       const aliased = mapProviderToAlias(p);
        return {
-         ...p,
+         ...aliased,
          failureCount,
          balance: p.balance || 0 // Use DB balance or fetch via service
        };
@@ -733,6 +748,9 @@ export const setActiveProvider = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid selection: at least one provider and a primary must be set." });
     }
 
+    const realSelectedProviders = selectedProviders.map(code => ALIAS_TO_REAL[code.toUpperCase()] || code);
+    const realPrimaryProvider = ALIAS_TO_REAL[primaryProvider.toUpperCase()] || primaryProvider;
+
     await prisma.$transaction(async (tx) => {
       // Reset all providers
       await tx.provider.updateMany({
@@ -740,12 +758,12 @@ export const setActiveProvider = async (req, res) => {
       });
 
       // Activate selected and assign priorities (1 = Primary, 2 = Backup)
-      for (const code of selectedProviders) {
+      for (const code of realSelectedProviders) {
         await tx.provider.update({
           where: { code },
           data: {
             isActive: true,
-            priority: code === primaryProvider ? 1 : 2
+            priority: code === realPrimaryProvider ? 1 : 2
           }
         });
       }

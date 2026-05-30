@@ -18,6 +18,7 @@ import InactivityManager from './components/InactivityManager';
   const Home = lazy(() => import('./pages/Home'));
   const Login = lazy(() => import('./pages/Login'));
   const Register = lazy(() => import('./pages/Register'));
+  const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
   const History = lazy(() => import('./pages/History'));
   const Recharge = lazy(() => import('./pages/Recharge'));
   const MobilePrepaid = lazy(() => import('./pages/MobilePrepaid'));
@@ -84,7 +85,7 @@ import InactivityManager from './components/InactivityManager';
     const location = useLocation();
 
     // Do not show the app's internal navbar/bottomnav on public pages
-    const hideNavbarRoutes = ['/', '/login', '/register'];
+    const hideNavbarRoutes = ['/', '/login', '/register', '/forgot-password'];
     const showNavbar = !hideNavbarRoutes.includes(location.pathname);
 
     let mustChangePassword = false;
@@ -199,6 +200,7 @@ import InactivityManager from './components/InactivityManager';
                   <Routes>
                     <Route path="/login" element={<PublicRoute isAuth={isAuth}><Login /></PublicRoute>} />
                     <Route path="/register" element={<PublicRoute isAuth={isAuth}><Register /></PublicRoute>} />
+                    <Route path="/forgot-password" element={<PublicRoute isAuth={isAuth}><ForgotPassword /></PublicRoute>} />
 
                     <Route path="/" element={<PublicRoute isAuth={isAuth}><HomePage /></PublicRoute>} />
                     <Route path="/dashboard" element={<PrivateRoute isAuth={isAuth}><Home /></PrivateRoute>} />

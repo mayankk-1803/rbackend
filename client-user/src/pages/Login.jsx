@@ -127,6 +127,7 @@ export default function Login() {
       }
       sessionStorage.setItem('dizipay_user_token', apiData.token);
       sessionStorage.setItem('dizipay_user_data', JSON.stringify(apiData.user));
+      localStorage.setItem('dizipay_last_activity', Date.now().toString());
       
       if (import.meta.env.DEV) {
         if (import.meta.env.DEV) console.log("[AUTH][AUTH_STATE_UPDATED] → User data stored:", apiData.user.id);
@@ -280,6 +281,7 @@ export default function Login() {
                 <div className="space-y-2">
                   <div className="flex justify-between items-center px-1">
                     <label className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em]">Password</label>
+                    <Link to="/forgot-password" className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300 transition-colors cursor-pointer uppercase tracking-wider">Forgot Password?</Link>
                   </div>
                   <div className="relative">
                     <input

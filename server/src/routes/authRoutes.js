@@ -5,6 +5,7 @@ import {
   sendOtp, 
   verifyOtp, 
   forgotPassword, 
+  resetPassword,
   getMe 
 } from "../controllers/authController.js";
 import { auth } from "../middlewares/auth.js";
@@ -25,6 +26,7 @@ router.post("/login", loginEmail);
 router.post("/login-email", loginEmail);
 
 router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
 
 // Profile
 router.get("/me", auth, getMe);

@@ -40,6 +40,7 @@ export const Login = () => {
         
         sessionStorage.setItem('dizipay_admin_token', apiData.token);
         sessionStorage.setItem('dizipay_admin_data', JSON.stringify(apiData.user));
+        localStorage.setItem('dizipay_admin_last_activity', Date.now().toString());
         
         console.log("[AUTH][TOKEN_STORED] → Admin token saved.");
         console.log("[AUTH][REDIRECT_SUCCESS] → Redirecting to Admin Dashboard...");

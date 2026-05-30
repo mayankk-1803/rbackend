@@ -75,6 +75,19 @@ export function sanitizeErrorMessage(error, isSuccessOrOptions = false) {
   const message = String(extractMessage(error) || "").trim();
   const lowerMsg = message.toLowerCase();
 
+  if (
+    lowerMsg.includes("reset code") ||
+    lowerMsg.includes("email sent") ||
+    lowerMsg.includes("no account found") ||
+    lowerMsg.includes("unable to send") ||
+    lowerMsg.includes("password updated") ||
+    lowerMsg.includes("verification code") ||
+    lowerMsg.includes("password reset") ||
+    lowerMsg.includes("expired reset code")
+  ) {
+    return message;
+  }
+
   if (lowerMsg.includes("password") || lowerMsg.includes("mustchangepassword")) {
     return message;
   }

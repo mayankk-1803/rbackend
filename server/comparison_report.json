@@ -1,0 +1,41 @@
+{
+  "historicalResults": {
+    "totalCompared": 24,
+    "commissionMatches": 24,
+    "profitMatches": 24,
+    "feeMatches": 24,
+    "surchargeMatches": 24,
+    "finalEarningsMatches": 24,
+    "matches": 24,
+    "mismatches": 0,
+    "matchRate": "100.00%",
+    "mismatchBreakdown": {
+      "RULE_NOT_FOUND": 0,
+      "LEGACY_RULE_USED": 0,
+      "RANGE_MISMATCH": 0,
+      "RECHARGE_MISMATCH": 0,
+      "PACKAGE_MAPPING": 0,
+      "SLAB_OVERRIDE": 0,
+      "ROUNDING": 0,
+      "UNKNOWN": 0
+    },
+    "details": []
+  },
+  "syntheticResults": {
+    "totalCompared": 50000,
+    "averageComparisonTimeMs": 0.631,
+    "p95LatencyMs": 1.114,
+    "p99LatencyMs": 1.901,
+    "memoryUsage": {
+      "rssMb": 102.99,
+      "heapTotalMb": 50.21,
+      "heapUsedMb": 30.48,
+      "externalMb": 2.38
+    },
+    "totalDurationSeconds": 31.607
+  },
+  "migrationRisk": {
+    "recommendation": "GO"
+  },
+  "confidenceScore": "LOW"
+}

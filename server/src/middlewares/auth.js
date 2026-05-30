@@ -20,7 +20,8 @@ export const auth = async (req, res, next) => {
           select: {
             id: true,
             isActive: true,
-            role: true
+            role: true,
+            authVersion: true
           }
         });
 
@@ -29,6 +30,11 @@ export const auth = async (req, res, next) => {
             success: false,
             message: "Your account has been deactivated. Please contact support."
           });
+        }
+
+        if (decoded.authVersion !== undefined && dbUser.authVersion !== decoded.authVersion) {
+          console.warn(`[AUTH][REVOKED] → Token revoked due to password change/reset for user ${dbUser.id}`);
+          return res.status(401).json({ success: false, message: "Session expired. Please login again." });
         }
 
         const isAdminRoute = req.originalUrl.includes('/admin') || req.originalUrl.includes('/admin/');

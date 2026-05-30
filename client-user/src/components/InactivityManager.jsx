@@ -7,6 +7,7 @@ const THROTTLE_DELAY = 5000; // Only write activity timestamp at most every 5 se
 export default function InactivityManager() {
   useEffect(() => {
     let lastLoggedTime = Date.now();
+    localStorage.setItem('dizipay_last_activity', Date.now().toString());
 
     const handleActivity = () => {
       const token = sessionStorage.getItem('dizipay_user_token');
@@ -49,6 +50,9 @@ export default function InactivityManager() {
           }
         }
 
+        // Clear local storage activity tracking keys
+        localStorage.removeItem('dizipay_last_activity');
+
         // Trigger sync logout for other tabs
         localStorage.setItem('dizipay_logout_sync', Date.now().toString());
         
@@ -59,7 +63,7 @@ export default function InactivityManager() {
         window.location.href = '/login';
       }
     }, 10000);
-
+ 
     // Sync logout across tabs via storage event listener
     const handleStorageEvent = (e) => {
       if (e.key === 'dizipay_logout_sync' && e.newValue) {
@@ -72,6 +76,8 @@ export default function InactivityManager() {
             sessionStorage.removeItem(k);
           }
         }
+        localStorage.removeItem('dizipay_last_activity');
+        localStorage.removeItem('dizipay_logout_sync');
         window.location.href = '/login';
       }
     };

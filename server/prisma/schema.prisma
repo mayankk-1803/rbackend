@@ -37,12 +37,14 @@ model fraudlog {
 }
 
 model operator {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
-  codes     String?
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            Int                      @id @default(autoincrement())
+  name          String                   @unique
+  codes         String?
+  active        Boolean                  @default(true)
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+  rechargeRules RechargeCommissionRule[]
+  rangeRules    RangeCommissionRule[]
 }
 
 model payment {
@@ -71,6 +73,7 @@ model provider {
   id              Int                   @id @default(autoincrement())
   name            String
   code            String                @unique
+  providerType    String                @default("RECHARGE")
   baseUrl         String
   apiKey          String
   isActive        Boolean               @default(false)
@@ -79,8 +82,17 @@ model provider {
   avgResponseTime Float                 @default(0)
   successRate     Float                 @default(100)
   costPerTxn      Decimal               @default(0) @db.Decimal(10, 2)
-  healthStatus    provider_healthStatus @default(HEALTHY)
+  healthStatus    provider_healthStatus @default(UNKNOWN)
   lastCheckAt     DateTime?
+  callbackId      String?
+  inSwitch        Boolean               @default(false)
+  routeType       String                @default("Both")
+  apiUrl          String?
+  statusCheckUrl  String?
+  balanceUrl      String?
+  disputeUrl      String?
+  maintenanceMode Boolean               @default(false)
+  version         Int                   @default(1)
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
 
@@ -144,6 +156,7 @@ model transaction {
   financialSequenceId String?                @unique
   createdAt           DateTime               @default(now())
   updatedAt           DateTime               @updatedAt
+  commissionSnapshot  Json?
 
   recharge         recharge?
   user             user              @relation(fields: [userId], references: [id])
@@ -323,8 +336,18 @@ model user {
   fosRelation        FosAgent?          @relation("FosRetailer", fields: [fosAgentId], references: [id], onDelete: SetNull)
   tempPasswordIssuedAt DateTime?
   mustResetPassword    Boolean   @default(false)
+  authVersion          Int       @default(1)
   supportTickets       SupportTicket[]
   partner              Partner?
+  packageId            Int?
+  package              CommissionPackage? @relation(fields: [packageId], references: [id], onDelete: SetNull)
+  slabId               Int?
+  slab                 Slab?              @relation(fields: [slabId], references: [id], onDelete: SetNull)
+  commissionRole       CommissionRole     @default(CUSTOMER)
+  packageAssignedAt    DateTime?
+  packageExpiresAt     DateTime?
+  slabAssignedAt       DateTime?
+
 
   user       user?  @relation("userToUser", fields: [referredBy], references: [id])
   other_user user[] @relation("userToUser")
@@ -374,6 +397,7 @@ model OTP {
   id        Int      @id @default(autoincrement())
   phone     String
   code      String
+  purpose   String   @default("LOGIN")
   expiresAt DateTime
   createdAt DateTime @default(now())
 
@@ -497,6 +521,7 @@ enum provider_healthStatus {
   HEALTHY
   DEGRADED
   DOWN
+  UNKNOWN
 }
 
 enum coinTransaction_type {
@@ -820,5 +845,405 @@ model Partner {
 
   user              user     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+model ProviderHealthLog {
+  id           Int      @id @default(autoincrement())
+  providerCode String
+  status       String
+  latency      Int
+  message      String?  @db.Text
+  createdAt    DateTime @default(now())
+
+  @@index([providerCode])
+}
+
+model OperatorMapping {
+  id                   Int      @id @default(autoincrement())
+  operatorName         String
+  circleName           String   @default("ALL")
+  providerCode         String
+  providerOperatorCode String
+  minAmount            Decimal  @default(0.00) @db.Decimal(10, 2)
+  maxAmount            Decimal  @default(99999.00) @db.Decimal(10, 2)
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([providerCode])
+  @@index([operatorName])
+}
+
+model RoutingRule {
+  id                 Int      @id @default(autoincrement())
+  name               String
+  ruleType           String   // 'operator', 'user', 'amount', 'circle'
+  targetValue        String   // e.g. 'JIO', 'userId_123', 'circle_DELHI'
+  providerCode       String
+  backupProviderCode String?
+  priority           Int      @default(1)
+  minAmount          Decimal  @default(0.00) @db.Decimal(10, 2)
+  maxAmount          Decimal  @default(99999.00) @db.Decimal(10, 2)
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([ruleType, targetValue])
+}
+
+model WhatsappTemplate {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  templateId  String
+  body        String   @db.Text
+  variables   Json?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model NotificationLog {
+  id           Int      @id @default(autoincrement())
+  recipient    String
+  channel      String   @default("WHATSAPP")
+  templateName String
+  status       String   // 'DELIVERED', 'FAILED', 'PENDING'
+  response     Json?
+  createdAt    DateTime @default(now())
+
+  @@index([recipient])
+}
+
+model ApiFailoverLog {
+  id                   Int      @id @default(autoincrement())
+  transactionId        Int
+  failedProviderCode   String
+  switchedProviderCode String
+  reason               String?  @db.Text
+  createdAt            DateTime @default(now())
+
+  @@index([transactionId])
+}
+
+model RoutingDecisionLog {
+  id                  Int      @id @default(autoincrement())
+  txnId               Int
+  operator            String
+  amount              Decimal  @db.Decimal(10, 2)
+  recommendedProvider String
+  executedProvider    String
+  shadowMode          Boolean  @default(true)
+  routingReason       String?  @db.Text
+  latency             Int
+  createdAt           DateTime @default(now())
+
+  @@index([txnId])
+}
+
+
+enum CommissionRole {
+  SUPER_ADMIN
+  SUB_ADMIN
+  MASTER_DISTRIBUTOR
+  DISTRIBUTOR
+  RETAILER
+  API_USER
+  CUSTOMER
+}
+
+enum CommissionStatus {
+  PENDING
+  APPROVED
+  ACTIVE
+  REJECTED
+}
+
+enum CommissionValueType {
+  PERCENTAGE
+  FLAT
+}
+
+enum CommissionMode {
+  GENERAL
+  REAL
+}
+
+enum BulkAction {
+  INCREASE
+  DECREASE
+  REPLACE
+  COPY
+  RESET
+}
+
+enum BulkJobStatus {
+  COMPLETED
+  ROLLED_BACK
+}
+
+enum CommissionRuleType {
+  RECHARGE
+  RANGE
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  CLONE
+  BULK_UPDATE
+  ROLLBACK
+  APPROVAL
+}
+
+model ServiceCategory {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  packageSlabs  PackageServiceSlab[]
+  rechargeRules RechargeCommissionRule[]
+  rangeRules    RangeCommissionRule[]
+}
+
+model Slab {
+  id             Int                      @id @default(autoincrement())
+  name           String                   @unique
+  description    String?
+  isActive       Boolean                  @default(true)
+  isDefault      Boolean                  @default(false)
+  isDeleted      Boolean                  @default(false)
+  deletedAt      DateTime?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  rechargeRules  RechargeCommissionRule[]
+  rangeRules     RangeCommissionRule[]
+  packageSlabs   PackageServiceSlab[]
+  bulkJobs       BulkCommissionJobSlab[]
+  users          user[]
+
+
+  @@index([isDeleted])
+  @@index([isDefault])
+}
+
+model CommissionPackage {
+  id             Int                  @id @default(autoincrement())
+  name           String               @unique
+  description    String?
+  cost           Float                @default(0.0)
+  expiryDays     Int?
+  isDefault      Boolean              @default(false)
+  selfAssignment Boolean              @default(false)
+  isActive       Boolean              @default(true)
+  isDeleted      Boolean              @default(false)
+  deletedAt      DateTime?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  packageSlabs   PackageServiceSlab[]
+  users          user[]
+
+  @@index([isDeleted])
+}
+
+model PackageServiceSlab {
+  id                Int               @id @default(autoincrement())
+  packageId         Int
+  serviceCategoryId Int
+  slabId            Int
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  package         CommissionPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  serviceCategory ServiceCategory   @relation(fields: [serviceCategoryId], references: [id], onDelete: Cascade)
+  slab            Slab              @relation(fields: [slabId], references: [id], onDelete: Cascade)
+
+  @@unique([packageId, serviceCategoryId])
+  @@index([packageId])
+  @@index([serviceCategoryId])
+  @@index([slabId])
+}
+
+model RechargeCommissionRule {
+  id                Int                 @id @default(autoincrement())
+  slabId            Int
+  operatorId        Int
+  serviceCategoryId Int
+  role              CommissionRole
+  commissionType    CommissionValueType @default(PERCENTAGE)
+  commissionValue   Float               @default(0.0)
+  realCommission    Float               @default(0.0)
+  surchargeType     CommissionValueType @default(PERCENTAGE)
+  surchargeValue    Float               @default(0.0)
+  profitType        CommissionValueType @default(PERCENTAGE)
+  profitValue       Float               @default(0.0)
+  feeType           CommissionValueType @default(PERCENTAGE)
+  feeValue          Float               @default(0.0)
+  maxCommission     Float?
+  fixedCharge       Float               @default(0.0)
+  effectiveFrom     DateTime?
+  effectiveTo       DateTime?
+  status            CommissionStatus    @default(PENDING)
+  approvedById      Int?
+  approvedAt        DateTime?
+  approvalComment   String?
+  version           Int                 @default(1)
+  isDeleted         Boolean             @default(false)
+  deletedAt         DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  slab            Slab            @relation(fields: [slabId], references: [id], onDelete: Cascade)
+  operatorRel     operator        @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+  serviceCategory ServiceCategory @relation(fields: [serviceCategoryId], references: [id], onDelete: Cascade)
+
+  @@index([slabId, operatorId, serviceCategoryId, role])
+  @@index([status])
+  @@index([slabId])
+  @@index([operatorId])
+  @@index([serviceCategoryId])
+  @@index([role])
+  @@index([isDeleted])
+  @@index([operatorId, serviceCategoryId])
+  @@index([operatorId, role])
+}
+
+model RangeCommissionRule {
+  id                Int                 @id @default(autoincrement())
+  slabId            Int
+  operatorId        Int
+  serviceCategoryId Int
+  amountFrom        Float
+  amountTo          Float
+  role              CommissionRole
+  mode              CommissionMode      @default(GENERAL)
+  commissionType    CommissionValueType @default(PERCENTAGE)
+  commissionValue   Float               @default(0.0)
+  realCommission    Float               @default(0.0)
+  surchargeType     CommissionValueType @default(PERCENTAGE)
+  surchargeValue    Float               @default(0.0)
+  profitType        CommissionValueType @default(PERCENTAGE)
+  profitValue       Float               @default(0.0)
+  feeType           CommissionValueType @default(PERCENTAGE)
+  feeValue          Float               @default(0.0)
+  maxCommission     Float?
+  fixedCharge       Float               @default(0.0)
+  effectiveFrom     DateTime?
+  effectiveTo       DateTime?
+  status            CommissionStatus    @default(PENDING)
+  approvedById      Int?
+  approvedAt        DateTime?
+  approvalComment   String?
+  version           Int                 @default(1)
+  isDeleted         Boolean             @default(false)
+  deletedAt         DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  slab            Slab            @relation(fields: [slabId], references: [id], onDelete: Cascade)
+  operatorRel     operator        @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+  serviceCategory ServiceCategory @relation(fields: [serviceCategoryId], references: [id], onDelete: Cascade)
+
+  @@index([slabId])
+  @@index([operatorId])
+  @@index([serviceCategoryId])
+  @@index([amountFrom])
+  @@index([amountTo])
+  @@index([role])
+  @@index([status])
+  @@index([isDeleted])
+  @@index([operatorId, serviceCategoryId])
+  @@index([operatorId, role])
+}
+
+model BulkCommissionJob {
+  id                Int              @id @default(autoincrement())
+  action            BulkAction
+  mode              CommissionMode
+  commissionType    String           // e.g. "COMMISSION", "SURCHARGE", "PROFIT", "FEE"
+  serviceCategoryId Int?
+  operatorId        Int?
+  params            Json
+  oldValues         Json
+  newValues         Json
+  status            BulkJobStatus    @default(COMPLETED)
+  createdById       Int
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  slabs             BulkCommissionJobSlab[]
+}
+
+model BulkCommissionJobSlab {
+  id        Int               @id @default(autoincrement())
+  jobId     Int
+  slabId    Int
+  job       BulkCommissionJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  slab      Slab              @relation(fields: [slabId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, slabId])
+  @@index([jobId])
+  @@index([slabId])
+}
+
+model BulkCommissionAudit {
+  id        Int      @id @default(autoincrement())
+  jobId     Int?
+  action    AuditAction
+  details   Json
+  ipAddress String?
+  createdAt DateTime @default(now())
+}
+
+model CommissionRuleHistory {
+  id          Int            @id @default(autoincrement())
+  ruleId      Int?
+  ruleType    CommissionRuleType
+  operatorId  Int
+  role        CommissionRole
+  oldValue    Float
+  newValue    Float
+  oldMode     CommissionMode?
+  newMode     CommissionMode?
+  oldRole     CommissionRole?
+  newRole     CommissionRole?
+  oldAmountFrom Float?
+  newAmountFrom Float?
+  oldAmountTo   Float?
+  newAmountTo   Float?
+  changedById Int
+  ipAddress   String?
+  createdAt   DateTime       @default(now())
+}
+
+model CommissionConfig {
+  id                      Int      @id @default(1)
+  currentVersion          Int      @default(1)
+  commissionEngineVersion String   @default("LEGACY")
+  rolloutPercent          Int      @default(0)
+  updatedAt               DateTime @updatedAt
+}
+
+
+model CommissionShadowValidation {
+  id              Int      @id @default(autoincrement())
+  transactionId   Int
+  userId          Int
+  operatorId      Int
+  amount          Decimal  @db.Decimal(10, 2)
+  legacyResult    Json
+  simulatorResult Json
+  isMatch         Boolean
+  mismatchReason  String?  @db.VarChar(255)
+  createdAt       DateTime @default(now())
+
+  @@index([transactionId])
+  @@index([userId])
+  @@index([operatorId])
+  @@index([isMatch])
+  @@index([createdAt])
+}
+
+
 
 

@@ -8,6 +8,14 @@ export function sanitizeErrorMessage(error, isSuccess = false) {
   const message = String(raw).toLowerCase();
 
   if (
+    message.includes("credential") ||
+    message.includes("password") ||
+    message.includes("auth")
+  ) {
+    return raw;
+  }
+
+  if (
     message.includes("payment") ||
     message.includes("gateway") ||
     message.includes("order") ||

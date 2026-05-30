@@ -82,6 +82,7 @@ api.interceptors.response.use(
     if (status === 401) {
       sessionStorage.removeItem("dizipay_admin_token");
       sessionStorage.removeItem("dizipay_admin_data");
+      localStorage.removeItem("dizipay_admin_last_activity");
       window.location.href = "/87564/admin/login";
     } else if (status === 429) {
       toast.error("Rate limit exceeded. Please slow down.");

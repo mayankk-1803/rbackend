@@ -29,6 +29,7 @@ const Navbar = () => {
     localStorage.removeItem("developer_session");
     sessionStorage.removeItem("developer_auth_cache");
     localStorage.removeItem("developer_auth_cache");
+    localStorage.removeItem("dizipay_last_activity");
     for (let key in localStorage) {
       if (key.includes("developer")) {
         localStorage.removeItem(key);

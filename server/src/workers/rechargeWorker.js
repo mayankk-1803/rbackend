@@ -11,6 +11,7 @@ import { logTransactionEvent, TXN_EVENTS } from "../services/transactionEventSer
 import { issueReward } from "../services/rewardEngine.js";
 import { recordFinancialEntry } from "../services/ledgerService.js";
 import { isFinalizedStatus, isValidStatusTransition } from "../utils/transactionStateGuard.js";
+import { selectProvider } from "../services/routingEngine/routingEngine.js";
 
 dotenv.config();
 
@@ -77,7 +78,20 @@ const worker = new Worker("recharge", async (job) => {
 
         await logTransactionEvent(txnId, TXN_EVENTS.PROVIDER_PENDING, { mobile, operator: frontendOperator, retryCount });
 
-        // 1. FETCH ACTIVE PROVIDERS
+        // 1. SHADOW ROUTING CALCULATION
+        try {
+          await selectProvider({
+            userId,
+            operator: frontendOperator,
+            amount,
+            circle: "ALL",
+            txnId
+          });
+        } catch (err) {
+          console.error("[SHADOW ROUTING ERROR] Failed to calculate shadow recommendation:", err.message);
+        }
+
+        // 1.5 FETCH ACTIVE PROVIDERS
         const activeProviders = await prisma.provider.findMany({
           where: { isActive: true },
           orderBy: { priority: "desc" } 

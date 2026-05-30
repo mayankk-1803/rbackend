@@ -151,6 +151,8 @@ api.interceptors.response.use(
     if (status === 401) {
       sessionStorage.removeItem("dizipay_user_token");
       sessionStorage.removeItem("dizipay_user_data");
+      localStorage.removeItem("dizipay_last_activity");
+      localStorage.removeItem("dizipay_logout_sync");
       
       for (let k in localStorage) {
         if (k.includes("user")) localStorage.removeItem(k);

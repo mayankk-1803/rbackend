@@ -110,7 +110,7 @@ export const recharge = async (req, res) => {
 
     // 2.5 FETCH USER TIER & CALC COMMISSION
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { tier: true } });
-    const commDetails = await getCommissionDetails(amount, operatorName, user?.tier || "Standard");
+    const commDetails = await getCommissionDetails(amount, operatorName, user?.tier || "Standard", { userId, idempotencyKey });
 
     // 3. ATOMIC WALLET DEDUCTION & PENDING TXN
     const initResult = await prisma.$transaction(async (tx) => {
@@ -147,6 +147,7 @@ export const recharge = async (req, res) => {
           commission: commDetails.commission,
           cashback: commDetails.cashback,
           profit: commDetails.profit,
+          commissionSnapshot: commDetails.snapshot || null,
           rechargeProcessing: false,
           reviewStatus: "PENDING_REVIEW",
           invoiceSnapshot: {
@@ -158,6 +159,7 @@ export const recharge = async (req, res) => {
           }
         }
       });
+
 
       console.log(`[TXN_ID_GENERATED]\ninternalTxnId: ${transaction.id}`);
 
@@ -247,7 +249,7 @@ export const payPostpaidBill = async (req, res) => {
     
     // 2.5 FETCH USER TIER & CALC COMMISSION
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { tier: true } });
-    const commDetails = await getCommissionDetails(amount, operatorName || String(operatorCode), user?.tier || "Standard");
+    const commDetails = await getCommissionDetails(amount, operatorName || String(operatorCode), user?.tier || "Standard", { userId, idempotencyKey });
 
     // Atomic Wallet Deduction & Transaction Creation
     const initResult = await prisma.$transaction(async (tx) => {
@@ -284,6 +286,7 @@ export const payPostpaidBill = async (req, res) => {
           commission: commDetails.commission,
           cashback: commDetails.cashback,
           profit: commDetails.profit,
+          commissionSnapshot: commDetails.snapshot || null,
           rechargeProcessing: false,
           reviewStatus: "PENDING_REVIEW",
           invoiceSnapshot: {
@@ -295,6 +298,7 @@ export const payPostpaidBill = async (req, res) => {
           }
         }
       });
+
 
       console.log(`[TXN_ID_GENERATED]\ninternalTxnId: ${transaction.id}`);
 

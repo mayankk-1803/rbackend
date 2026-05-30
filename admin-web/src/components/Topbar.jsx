@@ -193,7 +193,8 @@ export const Topbar = ({ toggleSidebar }) => {
                   onClick={() => {
                     sessionStorage.removeItem('dizipay_admin_token');
                     sessionStorage.removeItem('dizipay_admin_data');
-                    window.location.href = '/login';
+                    localStorage.removeItem('dizipay_admin_last_activity');
+                    window.location.href = '/87564/admin/login';
                   }}
                   className="w-full text-left px-4 py-2.5 text-[10px] font-bold text-rose-500 hover:bg-rose-500/10 transition-colors uppercase tracking-wider"
                 >

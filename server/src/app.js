@@ -9,6 +9,9 @@ import authRoutes from "./routes/authRoutes.js";
 import otpRoutes from "./routes/otpRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import enterpriseRoutes from "./routes/enterpriseRoutes.js";
+import routingAdminRoutes from "./routes/routingAdminRoutes.js";
+import providerRoutes from "./routes/providerRoutes.js";
+import commissionAdminRoutes from "./routes/commissionAdminRoutes.js";
 import webhookRoutes from "./webhooks/webhookRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import walletRoutes from "./routes/walletRoutes.js";
@@ -31,6 +34,7 @@ import imartRoutes from "./routes/imartRoutes.js";
 import disputesRoutes from "./routes/disputesRoutes.js";
 import apiSettingsRoutes from "./routes/apiSettingsRoutes.js";
 import { requireApiUser } from "./middlewares/requireApiUser.js";
+import "./services/shadowCommissionValidationService.js";
 
 const app = express();
 
@@ -123,6 +127,26 @@ app.use(apiLogger);
 
 const cleanClientMessage = (message = "") => {
   const raw = String(message || "").toLowerCase();
+  if (
+    raw.includes("invalid credentials") ||
+    raw.includes("wrong credentials") ||
+    raw.includes("invalid password") ||
+    raw.includes("authentication failed") ||
+    raw.includes("login failed") ||
+    raw.includes("user not found") ||
+    raw.includes("credential")
+  ) {
+    return "Invalid credentials";
+  }
+  if (raw.includes("no account found") || raw.includes("account not found")) {
+    return "No account found with this email";
+  }
+  if (raw.includes("unable to send") || raw.includes("failed to send")) {
+    return "Unable to send reset email";
+  }
+  if (raw.includes("invalid or expired reset code") || raw.includes("expired reset code")) {
+    return "Invalid or expired reset code";
+  }
   if (raw.includes("password") || raw.includes("mustchangepassword")) return message;
   if (raw.includes("refund")) return "Refund processed";
   if (raw.includes("queued") || raw.includes("pending_review") || raw.includes("pending review")) return "Recharge queued";
@@ -303,6 +327,8 @@ app.use("/api/user", userRoutes);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/admin/enterprise", enterpriseRoutes);
+app.use("/api/admin/enterprise", providerRoutes);
+app.use("/api/admin/enterprise", routingAdminRoutes);
 app.use("/api/admin/reports", adminReportRoutes);
 app.use("/api/developer", developerRoutes);
 app.use("/api/v1/dev", apiDevRoutes);
@@ -313,6 +339,7 @@ app.use("/api/reports", reportRoutes);
 app.use("/api/imart", imartRoutes);
 app.use("/api/disputes", disputesRoutes);
 app.use("/api/admin/api-settings", apiSettingsRoutes);
+app.use("/api/admin/commission", commissionAdminRoutes);
 app.use("/api", apiRoutes);
 
 
