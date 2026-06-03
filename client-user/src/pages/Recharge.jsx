@@ -4,11 +4,11 @@ import { motion } from 'framer-motion';
 import { Smartphone, Tv, Zap, Droplets, Flame, Wifi, Landmark, ChevronRight, ShieldCheck } from 'lucide-react';
 
 const rechargeTypes = [
-  { type: 'Mobile Prepaid', path: '/recharge/mobile-prepaid', icon: Smartphone, desc: 'Instant prepaid recharge', color: 'from-cyan-500 to-blue-600' },
+  { type: 'Mobile Prepaid', path: '/recharge/mobile-prepaid', icon: Smartphone, desc: 'Instant prepaid recharge', color: 'from-[var(--color-primary)] to-[var(--color-accent)]' },
   { type: 'Mobile Postpaid', path: '/recharge/mobile-postpaid', icon: Smartphone, desc: 'Mobile bill payments', color: 'from-purple-500 to-indigo-600' },
   { type: 'DTH', path: '/recharge/dth', icon: Tv, desc: 'Direct-to-Home television', color: 'from-purple-500 to-indigo-600' },
   { type: 'Electricity', path: '/recharge/electricity', icon: Zap, desc: 'Electricity utility payments', color: 'from-amber-400 to-orange-600' },
-  { type: 'Water', path: '/recharge/water', icon: Droplets, desc: 'Municipal water services', color: 'from-blue-400 to-cyan-600' },
+  { type: 'Water', path: '/recharge/water', icon: Droplets, desc: 'Municipal water services', color: 'from-blue-400 to-[var(--color-accent)]' },
   { type: 'Gas', path: '/recharge/gas', icon: Flame, desc: 'PNG & LPG gas cylinders', color: 'from-rose-500 to-orange-600' },
   { type: 'Broadband', path: '/recharge/broadband', icon: Wifi, desc: 'High-speed internet bills', color: 'from-indigo-500 to-purple-600' },
   { type: 'Loan', path: '/recharge/loan', icon: Landmark, desc: 'Financial EMI settlements', color: 'from-emerald-500 to-teal-600' },
@@ -22,11 +22,11 @@ export default function Recharge() {
       className="max-w-6xl mx-auto space-y-8 md:space-y-12 py-4 md:py-6 relative z-10"
     >
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 glass-panel p-6 md:p-10 rounded-3xl md:rounded-[2.5rem] relative overflow-hidden group">
-        <div className="absolute top-0 right-0 w-64 h-full bg-gradient-to-l from-cyan-500/5 to-transparent"></div>
+        <div className="absolute top-0 right-0 w-64 h-full bg-gradient-to-l from-[var(--color-primary-glow)] to-transparent"></div>
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-2">
-            <Zap className="w-5 h-5 text-[var(--color-accent)] cyan-glow" />
-            <h1 className="text-2xl md:text-4xl font-black text-[var(--text-color)] tracking-tighter uppercase italic">Billing <span className="text-[var(--color-accent)] cyan-glow">Hub</span></h1>
+            <Zap className="w-5 h-5 text-[var(--color-accent)] purple-glow" />
+            <h1 className="text-2xl md:text-4xl font-black text-[var(--text-color)] tracking-tighter uppercase italic">Billing <span className="text-[var(--color-accent)] purple-glow">Hub</span></h1>
           </div>
           <p className="text-[8px] md:text-[10px] text-[var(--text-secondary)] font-black uppercase tracking-[0.3em]">Multi-channel settlement gateway active</p>
         </div>

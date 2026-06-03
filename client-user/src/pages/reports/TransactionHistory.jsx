@@ -92,7 +92,7 @@ export default function TransactionHistory() {
   }, [fetchData]);
 
   const handleSocketTransactionUpdate = useCallback((data) => {
-    console.log("[SOCKET_ROW_UPDATE] Received transaction update event in client reports history:", data);
+    if (import.meta.env.DEV) console.log("[SOCKET_ROW_UPDATE] Received transaction update event in client reports history:", data);
     const updatedTxnId = data?.transactionId || data?.txnId || data?.transaction?.id;
     const nextStatus = data?.status || data?.transaction?.status;
     const incomingTxn = data?.transaction || data;
@@ -116,7 +116,7 @@ export default function TransactionHistory() {
       const nextPriority = statusPriority[nextStatus] || 0;
 
       if (nextPriority < existingPriority) {
-        console.log(`[SOCKET_STALE_BLOCKED] Stale socket update blocked. Current: ${existing.status}, Incoming: ${nextStatus}`);
+        if (import.meta.env.DEV) console.log(`[SOCKET_STALE_BLOCKED] Stale socket update blocked. Current: ${existing.status}, Incoming: ${nextStatus}`);
         return prev;
       }
 
@@ -124,12 +124,12 @@ export default function TransactionHistory() {
         const existingTime = new Date(existing.updatedAt).getTime();
         const incomingTime = new Date(incomingTxn.updatedAt).getTime();
         if (incomingTime < existingTime) {
-          console.log(`[SOCKET_STALE_BLOCKED] Older update blocked. Current: ${existing.updatedAt}, Incoming: ${incomingTxn.updatedAt}`);
+          if (import.meta.env.DEV) console.log(`[SOCKET_STALE_BLOCKED] Older update blocked. Current: ${existing.updatedAt}, Incoming: ${incomingTxn.updatedAt}`);
           return prev;
         }
       }
 
-      console.log(`[SOCKET_ROW_UPDATE] Patching transaction #${updatedTxnId} status from ${existing.status} to ${nextStatus}`);
+      if (import.meta.env.DEV) console.log(`[SOCKET_ROW_UPDATE] Patching transaction #${updatedTxnId} status from ${existing.status} to ${nextStatus}`);
       return prev.map(tx => 
         tx.id === updatedTxnId ? { ...tx, ...incomingTxn, status: nextStatus } : tx
       );
@@ -171,7 +171,7 @@ export default function TransactionHistory() {
         toast.success("Status updated");
       }
     } catch (err) {
-      console.error("[REFRESH_ERROR] Error manual-refreshing status:", err);
+      if (import.meta.env.DEV) console.error("[REFRESH_ERROR] Error manual-refreshing status:", err);
     } finally {
       setRefreshingTxnId(null);
     }
@@ -197,7 +197,7 @@ export default function TransactionHistory() {
       SUCCESS: "bg-emerald-500/10 text-emerald-400 border-emerald-500/15",
       FAILED: "bg-rose-500/10 text-rose-400 border-rose-500/15",
       PENDING: "bg-amber-500/10 text-amber-400 border-amber-500/15",
-      REFUNDED: "bg-cyan-500/10 text-cyan-400 border-cyan-500/15"
+      REFUNDED: "bg-indigo-500/10 text-indigo-400 border-indigo-500/15"
     };
     return (
       <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${styles[status] || styles.PENDING}`}>
@@ -215,20 +215,20 @@ export default function TransactionHistory() {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-          <h1 className="text-3xl font-black text-[var(--text-color)] tracking-tighter uppercase italic">Reports <span className="text-cyan-400 cyan-glow">Wallet</span></h1>
+          <h1 className="text-3xl font-black text-[var(--text-color)] tracking-tighter uppercase italic">Reports <span className="text-[var(--color-accent)] purple-glow">Wallet</span></h1>
           <p className="text-[var(--text-secondary)] text-[10px] font-bold uppercase tracking-[0.2em] mt-1">Audit-grade financial telemetry</p>
         </div>
         <div className="flex gap-3">
           <button 
             onClick={handleExport}
             disabled={isExporting}
-            className="flex items-center gap-2 px-6 py-3 bg-[var(--glass-button-bg)] border border-[var(--glass-border)] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:border-cyan-400 hover:text-cyan-400 transition-all shadow-sm disabled:opacity-50 cursor-pointer text-[var(--text-color)]"
+            className="flex items-center gap-2 px-6 py-3 bg-[var(--glass-button-bg)] border border-[var(--glass-border)] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-all shadow-sm disabled:opacity-50 cursor-pointer text-[var(--text-color)]"
           >
             <Download className={`w-4 h-4 ${isExporting ? 'animate-bounce' : ''}`} /> {isExporting ? 'Exporting...' : 'Export CSV'}
           </button>
           <button 
             onClick={fetchData}
-            className="p-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 rounded-2xl shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all cursor-pointer"
+            className="p-3 bg-[var(--color-accent)] hover:opacity-90 text-white rounded-2xl shadow-lg shadow-purple-500/20 hover:scale-105 transition-all cursor-pointer"
           >
             <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -240,7 +240,7 @@ export default function TransactionHistory() {
         <StatCard title="Success Volume" value={`₹${formatAmount(summary.totalVolume)}`} color="bg-emerald-500" icon={CheckCircle2} />
         <StatCard title="Total Success" value={summary.totalSuccess || 0} color="bg-emerald-500" icon={ArrowUpRight} />
         <StatCard title="Failed/Refund" value={summary.totalFailed || 0} color="bg-rose-500" icon={XCircle} />
-        <StatCard title="Closing Balance" value={`₹${formatAmount(summary.closingBalance)}`} color="bg-cyan-500" icon={FileText} />
+        <StatCard title="Closing Balance" value={`₹${formatAmount(summary.closingBalance)}`} color="bg-purple-500" icon={FileText} />
       </div>
 
       {/* Filters */}
@@ -251,13 +251,13 @@ export default function TransactionHistory() {
             <input 
               type="text"
               placeholder="Search ID, Mobile, Reference..."
-              className="w-full pl-12 pr-4 py-3 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl text-sm focus:ring-2 focus:ring-cyan-500/10 focus:border-cyan-400 text-[var(--text-color)] transition-all outline-none placeholder:text-[var(--text-muted)]"
+              className="w-full pl-12 pr-4 py-3 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl text-sm focus:ring-2 focus:ring-[var(--color-accent)]/10 focus:border-[var(--color-accent)] text-[var(--text-color)] transition-all outline-none placeholder:text-[var(--text-muted)]"
               value={filters.search}
               onChange={(e) => setFilters({...filters, search: e.target.value, page: 1})}
             />
           </div>
           <select 
-            className="px-6 py-3 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl text-sm outline-none text-[var(--text-color)] focus:ring-2 focus:ring-cyan-500/10 focus:border-cyan-400"
+            className="px-6 py-3 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl text-sm outline-none text-[var(--text-color)] focus:ring-2 focus:ring-[var(--color-accent)]/10 focus:border-[var(--color-accent)]"
             value={filters.status}
             onChange={(e) => setFilters({...filters, status: e.target.value, page: 1})}
           >
@@ -340,7 +340,7 @@ export default function TransactionHistory() {
                           <button 
                             onClick={() => handleRefreshStatus(tx.id)}
                             disabled={refreshingTxnId === tx.id}
-                            className="p-2 hover:bg-cyan-500/10 border border-transparent hover:border-cyan-500/20 rounded-xl text-[var(--text-secondary)] hover:text-cyan-400 transition-all cursor-pointer disabled:opacity-50"
+                            className="p-2 hover:bg-[var(--color-accent-glow)] border border-transparent hover:border-[var(--color-accent)]/20 rounded-xl text-[var(--text-secondary)] hover:text-[var(--color-accent)] transition-all cursor-pointer disabled:opacity-50"
                             title="Refresh Status"
                           >
                             <RefreshCw className={`w-4 h-4 ${refreshingTxnId === tx.id ? 'animate-spin' : ''}`} />
@@ -348,7 +348,7 @@ export default function TransactionHistory() {
                         )}
                         <button 
                           onClick={() => { setSelectedTxn(tx); setShowInvoice(true); }}
-                          className="p-2 hover:bg-cyan-500/10 border border-transparent hover:border-cyan-500/20 rounded-xl text-[var(--text-secondary)] hover:text-cyan-400 transition-all cursor-pointer"
+                          className="p-2 hover:bg-[var(--color-accent-glow)] border border-transparent hover:border-[var(--color-accent)]/20 rounded-xl text-[var(--text-secondary)] hover:text-[var(--color-accent)] transition-all cursor-pointer"
                         >
                           <Printer className="w-4 h-4" />
                         </button>
@@ -401,7 +401,7 @@ export default function TransactionHistory() {
                 <button 
                   key={i}
                   onClick={() => setFilters({...filters, page: i + 1})}
-                  className={`w-8 h-8 rounded-lg text-[10px] font-black transition-all cursor-pointer ${filters.page === i + 1 ? 'bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/20' : 'text-[var(--text-secondary)] hover:bg-[var(--glass-button-bg)] border border-transparent hover:border-[var(--glass-border)]'}`}
+                  className={`w-8 h-8 rounded-lg text-[10px] font-black transition-all cursor-pointer ${filters.page === i + 1 ? 'bg-[var(--color-accent)] text-white shadow-lg shadow-purple-500/20' : 'text-[var(--text-secondary)] hover:bg-[var(--glass-button-bg)] border border-transparent hover:border-[var(--glass-border)]'}`}
                 >
                   {i + 1}
                 </button>

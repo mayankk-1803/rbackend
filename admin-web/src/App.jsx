@@ -14,6 +14,7 @@ import DisputeManagement from './pages/reports/DisputeManagement';
 import { CashbackSettings } from './pages/CashbackSettings';
 import { ControlCenter } from './pages/ControlCenter';
 import { Users } from './pages/users/Users';
+import { Wallet } from './pages/Wallet';
 import ErrorBoundary from './components/ErrorBoundary';
 import InactivityManager from './components/InactivityManager';
 
@@ -26,11 +27,36 @@ import { ChannelSlabBulkSetting } from './pages/commission/ChannelSlabBulkSettin
 import { CommissionAuditLogs } from './pages/commission/CommissionAuditLogs';
 import { CommissionSimulator } from './pages/commission/CommissionSimulator';
 import { ShadowValidation } from './pages/commission/ShadowValidation';
+import { CommissionIntelligence } from './pages/commission/CommissionIntelligence';
 
 // iMart E-commerce Management Views
 import { Categories } from './pages/imart/Categories';
 import { Products } from './pages/imart/Products';
 import { Orders } from './pages/imart/Orders';
+
+// Operations Views
+import { SectionMaster } from './pages/operations/SectionMaster';
+import { RoutingMaster } from './pages/operations/RoutingMaster';
+import { ProviderRoutingRules } from './pages/operations/ProviderRoutingRules';
+import { OperatorMapping } from './pages/operations/OperatorMapping';
+import { RouteSimulator } from './pages/operations/RouteSimulator';
+import { RoutingAnalytics } from './pages/operations/RoutingAnalytics';
+import { RoutingAuditLogs } from './pages/operations/RoutingAuditLogs';
+import { EmergencyRoutingControl } from './pages/operations/EmergencyRoutingControl';
+import { RoutingIntelligence } from './pages/operations/RoutingIntelligence';
+import { AutonomousRoutingMonitor } from './pages/operations/AutonomousRoutingMonitor';
+
+// Platform Views
+import { FeatureFlags } from './pages/FeatureFlags';
+
+// API Marketplace Views
+import { ApiMarketplaceDashboard } from './pages/imart/ApiMarketplaceDashboard';
+import { ApiProducts } from './pages/imart/ApiProducts';
+import { ApiPlans } from './pages/imart/ApiPlans';
+import { ApiBilling } from './pages/imart/ApiBilling';
+import { ApiCustomers } from './pages/imart/ApiCustomers';
+import { ApiWebhooks } from './pages/imart/ApiWebhooks';
+import { ThreatAnalytics } from './pages/imart/ThreatAnalytics';
 
 const getDecodedToken = (token) => {
   try {
@@ -115,7 +141,8 @@ function App() {
         <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
           <Route path="settings/cashback" element={<CashbackSettings />} />
-          <Route path="transactions" element={<Transactions />} />
+          <Route path="transactions" element={<Navigate to="/reports/transactions" replace />} />
+          <Route path="wallet" element={<Wallet />} />
           <Route path="users" element={<Users />} />
           <Route path="control-center" element={<ControlCenter />} />
           <Route path="alerts" element={<Alerts />} />
@@ -134,11 +161,36 @@ function App() {
           <Route path="commission/audit-logs" element={<CommissionAuditLogs />} />
           <Route path="commission/simulator" element={<CommissionSimulator />} />
           <Route path="commission/shadow-validation" element={<ShadowValidation />} />
+          <Route path="commission/intelligence" element={<CommissionIntelligence />} />
           
           {/* iMart Management Protocol Routes */}
           <Route path="imart/products" element={<Products />} />
           <Route path="imart/categories" element={<Categories />} />
           <Route path="imart/orders" element={<Orders />} />
+
+          {/* API Marketplace Suite Routes */}
+          <Route path="api-marketplace/dashboard" element={<ApiMarketplaceDashboard />} />
+          <Route path="api-marketplace/products" element={<ApiProducts />} />
+          <Route path="api-marketplace/plans" element={<ApiPlans />} />
+          <Route path="api-marketplace/billing" element={<ApiBilling />} />
+          <Route path="api-marketplace/customers" element={<ApiCustomers />} />
+          <Route path="api-marketplace/webhooks" element={<ApiWebhooks />} />
+          <Route path="api-marketplace/threats" element={<ThreatAnalytics />} />
+
+          {/* Operations Suite Routes */}
+          <Route path="operations/sections" element={<SectionMaster />} />
+          <Route path="operations/routing" element={<RoutingMaster />} />
+          <Route path="operations/provider-rules" element={<ProviderRoutingRules />} />
+          <Route path="operations/operators" element={<OperatorMapping />} />
+          <Route path="operations/simulator" element={<RouteSimulator />} />
+          <Route path="operations/analytics" element={<RoutingAnalytics />} />
+          <Route path="operations/audit-logs" element={<RoutingAuditLogs />} />
+          <Route path="operations/emergency" element={<EmergencyRoutingControl />} />
+          <Route path="operations/routing-intelligence" element={<RoutingIntelligence />} />
+          <Route path="operations/autonomous-routing" element={<AutonomousRoutingMonitor />} />
+
+          {/* Platform Suite Routes */}
+          <Route path="platform/feature-flags" element={<FeatureFlags />} />
         </Route>
       </Routes>
     </ErrorBoundary>

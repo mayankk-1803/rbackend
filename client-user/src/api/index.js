@@ -30,7 +30,7 @@ try {
     return originalSuccess(message, options);
   };
 } catch (e) {
-  console.warn("Failed to patch toast error deduplication:", e.message);
+  if (import.meta.env.DEV) console.warn("Failed to patch toast error deduplication:", e.message);
 }
 
 // Request deduplication system
@@ -40,11 +40,24 @@ const getRequestKey = (config) => {
   const method = config.method?.toLowerCase() || 'get';
   const url = config.url || '';
   const params = typeof config.params === 'object' ? JSON.stringify(config.params) : '';
-  const data = typeof config.data === 'object' ? JSON.stringify(config.data) : '';
+  
+  let data = '';
+  if (config.data) {
+    if (typeof config.data === 'object') {
+      try {
+        data = JSON.stringify(config.data);
+      } catch {
+        data = '';
+      }
+    } else if (typeof config.data === 'string') {
+      data = config.data;
+    }
+  }
   return `${method}:${url}:${params}:${data}`;
 };
 
 api.interceptors.request.use((config) => {
+  if (import.meta.env.DEV) console.log("REQUEST", config.url);
   const token = sessionStorage.getItem("dizipay_user_token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -60,15 +73,18 @@ api.interceptors.request.use((config) => {
     config.headers['x-idempotency-key'] = `user_${Date.now()}_${Math.random().toString(36).substring(7)}`;
   }
 
-  // Request deduplication
-  const key = getRequestKey(config);
-  if (pendingRequestsMap.has(key)) {
-    const source = axios.CancelToken.source();
-    config.cancelToken = source.token;
-    config.__isDuplicate = true;
-    config.__duplicateKey = key;
-  } else {
-    pendingRequestsMap.set(key, { resolves: [], rejects: [] });
+  // Request deduplication (only for mutation methods to prevent duplicate submissions)
+  if (['post', 'put', 'patch', 'delete'].includes(config.method?.toLowerCase())) {
+    const key = getRequestKey(config);
+    if (pendingRequestsMap.has(key)) {
+      const source = axios.CancelToken.source();
+      config.cancelToken = source.token;
+      source.cancel("duplicate");
+      config.__isDuplicate = true;
+      config.__duplicateKey = key;
+    } else {
+      pendingRequestsMap.set(key, { resolves: [], rejects: [] });
+    }
   }
 
   return config;
@@ -78,6 +94,7 @@ import { getErrorContext, sanitizeErrorMessage } from "../utils/sanitizeErrorMes
 
 api.interceptors.response.use(
   (response) => {
+    if (import.meta.env.DEV) console.log("RESPONSE", response.config.url);
     const key = getRequestKey(response.config);
     const waiters = pendingRequestsMap.get(key);
     if (waiters) {
@@ -87,6 +104,7 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    if (import.meta.env.DEV) console.log("ERROR", error.config?.url);
     // Handle duplicated cancelled requests
     if (axios.isCancel(error) && error.config?.__isDuplicate) {
       const key = error.config.__duplicateKey;

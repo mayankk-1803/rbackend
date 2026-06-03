@@ -18,6 +18,11 @@ export const raiseDispute = async (req, res) => {
       throw new AppError("Transaction not found or access denied", 404);
     }
 
+    const eligibleTypes = ['RECHARGE', 'POSTPAID', 'BILL_PAYMENT', 'TOPUP', 'REFUND', 'CASHBACK', 'REFERRAL', 'WALLET', 'IMART_BUY'];
+    if (!eligibleTypes.includes(txn.type)) {
+      throw new AppError("This transaction type cannot be disputed", 400);
+    }
+
     const existing = await prisma.dispute.findFirst({
       where: { transactionId: txn.id, status: { in: ['OPEN', 'UNDER_REVIEW', 'PROVIDER_ESCALATED'] } }
     });
@@ -147,11 +152,9 @@ export const createDispute = async (req, res) => {
     }
 
     // Recharge existence validation
-    const rechargeExists = await prisma.recharge.findUnique({
-      where: { transactionId: txn.id }
-    });
-    if (!rechargeExists) {
-      return res.status(400).json({ success: false, message: "Only recharge transactions can be disputed" });
+    const eligibleTypes = ['RECHARGE', 'POSTPAID', 'BILL_PAYMENT', 'TOPUP', 'REFUND', 'CASHBACK', 'REFERRAL', 'WALLET', 'IMART_BUY'];
+    if (!eligibleTypes.includes(txn.type)) {
+      return res.status(400).json({ success: false, message: "This transaction type cannot be disputed" });
     }
 
     // Duplicate dispute prevention

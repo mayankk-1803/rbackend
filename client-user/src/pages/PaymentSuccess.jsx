@@ -31,7 +31,7 @@ export default function PaymentSuccess() {
   const fetchStatus = useCallback(async () => {
     if (!orderId || orderId === "undefined") {
       if (import.meta.env.DEV) {
-        console.log("[Status] Missing or invalid orderId");
+        if (import.meta.env.DEV) console.log("[Status] Missing or invalid orderId");
       }
       setState(STATUS_STATES.PENDING);
       return;
@@ -69,14 +69,14 @@ export default function PaymentSuccess() {
         }
       } else {
         if (import.meta.env.DEV) {
-          console.warn("[Status] Backend reported success: false or missing payload. Retrying...");
+          if (import.meta.env.DEV) console.warn("[Status] Backend reported success: false or missing payload. Retrying...");
         }
         // Protect against temporary API failures or empty payloads -> NEVER treat as FAILED!
         setState(STATUS_STATES.PENDING);
       }
     } catch (err) {
       if (import.meta.env.DEV) {
-        console.error("[Status Fetch Error]:", err.message);
+        if (import.meta.env.DEV) console.error("[Status Fetch Error]:", err.message);
       }
       // Protect against temporary API/Network failures -> NEVER treat as FAILED!
       setState(STATUS_STATES.PENDING);
@@ -167,11 +167,11 @@ export default function PaymentSuccess() {
         return (
           <div className="flex flex-col items-center gap-6 py-12">
             <div className="relative">
-              <div className="w-20 h-20 border-4 border-cyan-500/10 border-t-cyan-400 rounded-full animate-spin"></div>
-              <Clock className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 text-cyan-400 cyan-glow" />
+              <div className="w-20 h-20 border-4 border-[var(--color-accent)]/10 border-t-[var(--color-accent)] rounded-full animate-spin"></div>
+              <Clock className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 text-[var(--color-accent)] purple-glow" />
             </div>
             <div className="text-center space-y-2 flex flex-col items-center">
-              <h2 className="text-xl font-black text-[var(--text-color)] uppercase tracking-tight italic">Verifying <span className="text-cyan-400 cyan-glow">Payment</span></h2>
+              <h2 className="text-xl font-black text-[var(--text-color)] uppercase tracking-tight italic">Verifying <span className="text-[var(--color-accent)] purple-glow">Payment</span></h2>
               
               {isSlow ? (
                 <div className="space-y-1 bg-amber-500/5 border border-amber-500/10 rounded-2xl p-4 max-w-xs mt-1">
@@ -222,8 +222,8 @@ export default function PaymentSuccess() {
               <div className="flex justify-between items-center">
                 <span className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">New Balance</span>
                 <div className="flex items-center gap-2">
-                  <Wallet className="w-3.5 h-3.5 text-cyan-400 cyan-glow" />
-                  <span className="text-sm font-black text-cyan-400 tracking-tight cyan-glow">₹{formatAmount(paymentData?.walletBalance)}</span>
+                  <Wallet className="w-3.5 h-3.5 text-[var(--color-accent)] purple-glow" />
+                  <span className="text-sm font-black text-[var(--color-accent)] tracking-tight purple-glow">₹{formatAmount(paymentData?.walletBalance)}</span>
                 </div>
               </div>
             </div>
@@ -276,7 +276,7 @@ export default function PaymentSuccess() {
               </Link>
               <Link 
                 to="/profile/support"
-                className="py-4 bg-cyan-400 text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-widest text-center shadow-lg shadow-cyan-400/25 hover:bg-cyan-300 transition-all cursor-pointer"
+                className="py-4 bg-[var(--color-accent)] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest text-center shadow-lg shadow-purple-500/20 hover:opacity-90 transition-all cursor-pointer"
               >
                 Get Support
               </Link>
@@ -293,7 +293,7 @@ export default function PaymentSuccess() {
     <div className="min-h-[80vh] flex items-center justify-center p-4 relative z-10">
       <div className="max-w-md w-full glass-card border border-[var(--glass-border)] rounded-[2.5rem] shadow-2xl overflow-hidden relative bg-[var(--glass-card-bg)]">
         {/* Subtle background glow */}
-        <div className="absolute -top-20 -right-20 w-40 h-40 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute -top-20 -right-20 w-40 h-40 bg-[var(--color-accent)]/10 rounded-full blur-3xl pointer-events-none"></div>
         <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
         <div className="relative z-10 p-8">

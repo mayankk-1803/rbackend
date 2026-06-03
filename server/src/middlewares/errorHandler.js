@@ -27,12 +27,12 @@ const cleanClientMessage = (err) => {
   if (raw.includes("processing")) return "Recharge processing";
   if (raw.includes("recharge") && raw.includes("failed")) return "Recharge failed";
   if (raw.includes("recharge") && raw.includes("success")) return "Recharge Successful";
+  if (raw.includes("insufficient")) return "Insufficient Wallet Balance";
   if (
     raw.includes("payment") ||
     raw.includes("gateway") ||
     raw.includes("order") ||
-    raw.includes("declined") ||
-    raw.includes("insufficient")
+    raw.includes("declined")
   ) return "Payment Failed";
   return "Something went wrong";
 };

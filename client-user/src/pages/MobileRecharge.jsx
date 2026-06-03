@@ -189,7 +189,7 @@ export default function MobileRecharge() {
       if (data.success) {
         setTxnId(data.data?.transactionId || data.data?.id);
         setRechargeStatus('PROCESSING');
-        toast.success("Recharge Authorized", { id: lt });
+        toast.success("Recharge Initiated", { id: lt });
       } else throw new Error(data.message || "Failed");
     } catch(err) {
       setRechargeStatus('FAILED');

@@ -63,22 +63,22 @@ export default function WalletLedger() {
     >
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-black text-[var(--text-color)] tracking-tighter uppercase italic">Wallet <span className="text-indigo-400 purple-glow">Audit</span></h1>
+          <h1 className="text-3xl font-black text-[var(--text-color)] tracking-tighter uppercase italic">Wallet <span className="text-[var(--color-accent)] purple-glow">Audit</span></h1>
           <p className="text-[var(--text-secondary)] text-[10px] font-bold uppercase tracking-[0.2em] mt-1">Immutable financial ledger records</p>
         </div>
         <div className="flex gap-3">
           <button 
             onClick={handleExport}
             disabled={isExporting}
-            className="flex items-center gap-2 px-6 py-3 bg-[var(--glass-button-bg)] border border-[var(--glass-border)] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:border-indigo-400 hover:text-indigo-400 transition-all shadow-sm disabled:opacity-50 cursor-pointer text-[var(--text-color)]"
+            className="flex items-center gap-2 px-6 py-3 bg-[var(--glass-button-bg)] border border-[var(--glass-border)] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-all shadow-sm disabled:opacity-50 cursor-pointer text-[var(--text-color)]"
           >
             <Download className={`w-4 h-4 ${isExporting ? 'animate-bounce' : ''}`} /> {isExporting ? 'Exporting...' : 'Export CSV'}
           </button>
           <button 
             onClick={fetchData}
-            className="p-3 bg-[var(--glass-button-bg)] border border-[var(--glass-border)] rounded-2xl shadow-sm hover:border-indigo-400 transition-all cursor-pointer text-[var(--text-color)]"
+            className="p-3 bg-[var(--glass-button-bg)] border border-[var(--glass-border)] rounded-2xl shadow-sm hover:border-[var(--color-accent)] transition-all cursor-pointer text-[var(--text-color)]"
           >
-            <RefreshCw className={`w-5 h-5 text-indigo-400 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-5 h-5 text-[var(--color-accent)] ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
@@ -86,7 +86,7 @@ export default function WalletLedger() {
       <div className="glass-card border border-[var(--glass-border)] rounded-3xl overflow-hidden shadow-sm">
         <div className="px-8 py-6 border-b border-[var(--glass-border)] flex items-center justify-between bg-[var(--bg-secondary)]/20">
           <div className="flex items-center gap-3">
-            <Shield className="w-5 h-5 text-indigo-400" />
+            <Shield className="w-5 h-5 text-[var(--color-accent)]" />
             <h2 className="text-[10px] font-black text-[var(--text-color)] uppercase tracking-widest">Chronological Stream</h2>
           </div>
           <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Total Entries: {pagination.total}</span>

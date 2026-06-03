@@ -17,8 +17,17 @@ const extractMessage = (error) => {
   if (typeof error === "string") return error;
   if (!error || typeof error !== "object") return "";
 
-  if (error.response?.data?.message && typeof error.response.data.message === "string") {
-    return error.response.data.message;
+  const responseData = error.response?.data;
+  if (responseData) {
+    if (responseData.message && typeof responseData.message === "string") {
+      return responseData.message;
+    }
+    if (responseData.error && typeof responseData.error === "string") {
+      return responseData.error;
+    }
+    if (responseData.msg && typeof responseData.msg === "string") {
+      return responseData.msg;
+    }
   }
   if (error.message && typeof error.message === "string") {
     return error.message;
@@ -56,12 +65,21 @@ export function getErrorContext(error) {
 
   if (url.includes("/payment/") || url.includes("/imart/checkout")) return "payment";
   if (url.includes("/recharge") || url.includes("operator") || url.includes("plans")) return "recharge";
+  if (url.includes("/disputes")) return "disputes";
   if (method === "post" && url.includes("/wallet")) return "payment";
 
   return "";
 }
 
 export function sanitizeErrorMessage(error, isSuccessOrOptions = false) {
+  const message = String(extractMessage(error) || "").trim();
+  if (import.meta.env.DEV) console.log("SANITIZE INPUT", message);
+  const result = _sanitizeErrorMessageInternal(error, isSuccessOrOptions);
+  if (import.meta.env.DEV) console.log("SANITIZE OUTPUT", result);
+  return result;
+}
+
+function _sanitizeErrorMessageInternal(error, isSuccessOrOptions = false) {
   const options = typeof isSuccessOrOptions === "object" && isSuccessOrOptions !== null
     ? isSuccessOrOptions
     : { isSuccess: Boolean(isSuccessOrOptions) };
@@ -69,11 +87,34 @@ export function sanitizeErrorMessage(error, isSuccessOrOptions = false) {
   const context = options.context || getErrorContext(error);
 
   if (!error) {
-    return isSuccess ? "Order Placed Successfully" : "Something went wrong";
+    return isSuccess ? "Operation Successful" : "Something went wrong";
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+  if (error && typeof error === "object" && !error.config && !error.response) {
+    return error.message || "Something went wrong";
   }
 
   const message = String(extractMessage(error) || "").trim();
   const lowerMsg = message.toLowerCase();
+
+  // Insufficient Balance check (must be high priority)
+  if (
+    lowerMsg.includes("insufficient") || 
+    lowerMsg.includes("low balance") || 
+    lowerMsg.includes("low_balance") || 
+    lowerMsg.includes("wallet_balance_low") ||
+    lowerMsg.includes("wallet balance low") ||
+    lowerMsg.includes("balance_low") ||
+    lowerMsg.includes("balance low") ||
+    lowerMsg.includes("balance is insufficient") ||
+    lowerMsg.includes("not enough balance") ||
+    lowerMsg.includes("wallet balance")
+  ) {
+    return "Insufficient wallet balance. Please add funds to continue.";
+  }
 
   if (
     lowerMsg.includes("reset code") ||
@@ -149,8 +190,31 @@ export function sanitizeErrorMessage(error, isSuccessOrOptions = false) {
   if (lowerMsg.includes("processing")) return "Recharge processing";
 
   if (isSuccess || lowerMsg.includes("success") || lowerMsg.includes("approved") || lowerMsg.includes("placed")) {
-    if (lowerMsg.includes("recharge")) return "Recharge Successful";
-    return "Order Placed Successfully";
+    if (lowerMsg.includes("recharge")) {
+      if (
+        lowerMsg.includes("initiat") ||
+        lowerMsg.includes("authoriz") ||
+        lowerMsg.includes("queued") ||
+        lowerMsg.includes("process")
+      ) {
+        return "Recharge Initiated";
+      }
+      return "Recharge Successful";
+    }
+    if (lowerMsg.includes("profile") || lowerMsg.includes("name") || lowerMsg.includes("image")) {
+      return "Profile Updated Successfully";
+    }
+    if (lowerMsg.includes("password")) return "Password Changed Successfully";
+    if (lowerMsg.includes("login")) return "Login Successful";
+    if (lowerMsg.includes("order") || lowerMsg.includes("checkout")) return "Order Placed Successfully";
+    
+    if (message) return message;
+    return "Operation Successful";
+  }
+
+  if (context === "disputes") {
+    if (message) return message;
+    return "Unable to submit dispute. Please try again.";
   }
 
   // Broad categorization of raw inputs
@@ -188,9 +252,7 @@ export function sanitizeErrorMessage(error, isSuccessOrOptions = false) {
     lowerMsg.includes("nextgate") ||
     lowerMsg.includes("nexgate") ||
     lowerMsg.includes("decline") ||
-    lowerMsg.includes("bank") ||
-    lowerMsg.includes("insufficient wallet balance") ||
-    lowerMsg.includes("insufficient")
+    lowerMsg.includes("bank")
   )) {
     return "Payment failed";
   }

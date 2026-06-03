@@ -26,7 +26,7 @@ const StatCard = memo(({ title, value, icon: Icon, color, subtitle, trend, suffi
     <h3 className="text-[8px] md:text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] mb-1 md:mb-2">{title}</h3>
     <p className="text-xl md:text-3xl font-black text-[var(--text-color)] tracking-tighter flex items-baseline gap-0.5">
       {suffix && <span className="text-[var(--color-accent)] text-lg md:text-xl font-normal">{suffix}</span>}
-      <span className="cyan-glow">{formatAmount(value)}</span>
+      <span className="purple-glow">{formatAmount(value)}</span>
     </p>
     {subtitle && <p className="text-[8px] md:text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-tighter mt-3 md:mt-4">{subtitle}</p>}
     
@@ -78,7 +78,7 @@ export default function Dashboard() {
       });
     } catch (err) {
       if (import.meta.env.DEV) {
-        if (import.meta.env.DEV) console.error("Dashboard data error:", err);
+        if (import.meta.env.DEV) if (import.meta.env.DEV) console.error("Dashboard data error:", err);
       }
     } finally {
       setLoading(false);
@@ -115,7 +115,7 @@ export default function Dashboard() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6">
         <div className="space-y-1 md:space-y-2">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl md:text-4xl font-black text-[var(--text-color)] tracking-tighter uppercase italic">Ledger <span className="text-[var(--color-accent)] cyan-glow">Wallet</span></h1>
+            <h1 className="text-2xl md:text-4xl font-black text-[var(--text-color)] tracking-tighter uppercase italic">Ledger <span className="text-[var(--color-accent)] purple-glow">Wallet</span></h1>
             <div className="px-2 md:px-3 py-0.5 md:py-1 bg-[var(--color-accent-glow)] border border-[var(--color-accent)]/20 rounded-lg">
               <span className="text-[7px] md:text-[8px] font-black text-[var(--color-accent)] uppercase tracking-[0.3em] animate-pulse">Live</span>
             </div>
@@ -166,7 +166,7 @@ export default function Dashboard() {
           <div className="glass-card border border-[var(--glass-border)] rounded-[2.5rem] overflow-hidden shadow-2xl relative">
             <div className="px-8 py-6 border-b border-[var(--glass-border)] flex justify-between items-center bg-[var(--bg-tertiary)]/30">
               <div className="flex items-center gap-3">
-                <Clock className="w-5 h-5 text-[var(--color-accent)] cyan-glow" />
+                <Clock className="w-5 h-5 text-[var(--color-accent)] purple-glow" />
                 <h2 className="text-[10px] font-black text-[var(--text-color)] uppercase tracking-widest">Recent Transactions</h2>
               </div>
               <Link to="/history" className="text-[9px] font-black text-[var(--text-secondary)] hover:text-[var(--color-accent)] uppercase tracking-widest flex items-center gap-2 transition-colors duration-300">
@@ -202,7 +202,7 @@ export default function Dashboard() {
                           <div className="flex items-center gap-2 mt-1">
                             <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded border transition-colors ${
                               txn.status === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/10' : 
-                              txn.status === 'PENDING' ? 'bg-cyan-500/10 text-cyan-500 border-cyan-500/10' : 
+                              txn.status === 'PENDING' ? 'bg-[var(--color-primary-glow)] text-[var(--color-primary)] border-[var(--color-primary-glow)]' : 
                               'bg-rose-500/10 text-rose-500 border-rose-500/10'
                             }`}>
                               {txn.status}
@@ -270,9 +270,9 @@ export default function Dashboard() {
           >
             <div className="relative z-10">
               <div className="w-12 h-12 bg-[var(--bg-tertiary)] rounded-2xl flex items-center justify-center mb-6 border border-[var(--glass-border)] shadow-inner">
-                <ShieldCheck className="w-6 h-6 text-[var(--color-accent)] cyan-glow" />
+                <ShieldCheck className="w-6 h-6 text-[var(--color-accent)] purple-glow" />
               </div>
-              <h3 className="text-2xl font-black mb-3 italic tracking-tight uppercase text-[var(--text-color)]">DiziPay <span className="text-[var(--color-accent)] cyan-glow">Wallet</span></h3>
+              <h3 className="text-2xl font-black mb-3 italic tracking-tight uppercase text-[var(--text-color)]">DiziPay <span className="text-[var(--color-accent)] purple-glow">Wallet</span></h3>
               <p className="text-[var(--text-secondary)] text-[10px] font-bold leading-relaxed mb-8 uppercase tracking-widest">A simple and secure way to recharge your phone and pay utility bills.</p>
               <Link 
                 to="/recharge"
@@ -287,7 +287,7 @@ export default function Dashboard() {
           <div className="glass-card border border-[var(--glass-border)] p-8 rounded-[2.5rem] shadow-2xl">
             <div className="flex items-center justify-between mb-8">
               <h3 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Usage Summary</h3>
-              <Activity className="w-4 h-4 text-[var(--color-accent)] cyan-glow" />
+              <Activity className="w-4 h-4 text-[var(--color-accent)] purple-glow" />
             </div>
             <div className="space-y-6">
               {[

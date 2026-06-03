@@ -40,7 +40,16 @@ import {
   getShadowValidationList,
   getCommissionConfig,
   updateCommissionConfig,
-  getCommissionMigrationMetrics
+  getCommissionMigrationMetrics,
+  getCommissionRecommendations,
+  getCommissionIntelConfig,
+  updateCommissionIntelConfig,
+  simulateCommissionRecommendation,
+  approveCommissionRecommendation,
+  rejectCommissionRecommendation,
+  applyCommissionRecommendation,
+  rollbackCommissionRecommendation,
+  getCommissionAuditLogs
 } from "../controllers/commissionAdminController.js";
 
 import prisma from "../config/prisma.js";
@@ -164,11 +173,22 @@ router.post("/simulate", checkCommissionPermission("read"), simulateCommission);
 // Shadow Validation APIs
 router.get("/shadow-validation/stats", checkCommissionPermission("read"), getShadowValidationStats);
 router.get("/shadow-validation/list", checkCommissionPermission("read"), getShadowValidationList);
+router.get("/audit-logs", checkCommissionPermission("read"), getCommissionAuditLogs);
 
 // Migration & Rollout APIs
 router.get("/config", checkCommissionPermission("read"), getCommissionConfig);
 router.put("/config", checkCommissionPermission("write"), updateCommissionConfig);
 router.get("/migration/metrics", checkCommissionPermission("read"), getCommissionMigrationMetrics);
+
+// Commission Intelligence Endpoints
+router.get("/intelligence/recommendations", checkCommissionPermission("read"), getCommissionRecommendations);
+router.get("/intelligence/config", checkCommissionPermission("read"), getCommissionIntelConfig);
+router.put("/intelligence/config", checkCommissionPermission("write"), updateCommissionIntelConfig);
+router.post("/intelligence/recommendations", checkCommissionPermission("write"), simulateCommissionRecommendation);
+router.post("/intelligence/recommendations/:id/approve", checkCommissionPermission("write"), approveCommissionRecommendation);
+router.post("/intelligence/recommendations/:id/reject", checkCommissionPermission("write"), rejectCommissionRecommendation);
+router.post("/intelligence/recommendations/:id/apply", checkCommissionPermission("write"), applyCommissionRecommendation);
+router.post("/intelligence/recommendations/:id/rollback", checkCommissionPermission("write"), rollbackCommissionRecommendation);
 
 export default router;
 

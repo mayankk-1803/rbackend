@@ -38,7 +38,7 @@ export const WalletProvider = ({ children }) => {
       }
     } catch (err) {
       if (import.meta.env.DEV) {
-        console.error("[WalletContext] Fetch error:", err);
+        if (import.meta.env.DEV) console.error("[WalletContext] Fetch error:", err);
       }
     } finally {
       setLoading(false);

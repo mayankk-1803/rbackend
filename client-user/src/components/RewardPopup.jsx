@@ -27,12 +27,12 @@ export default function RewardPopup() {
   return (
     <AnimatePresence>
       {reward && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/60 backdrop-blur-md">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md">
           <motion.div
             initial={{ scale: 0.8, opacity: 0, y: 50 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.8, opacity: 0, y: 50 }}
-            className="glass-modal p-10 max-w-sm w-full text-center relative overflow-hidden shadow-2xl border border-white/10 rounded-[3rem]"
+            className="bg-[var(--glass-modal-bg)] backdrop-blur-3xl p-10 max-w-sm w-full text-center relative overflow-hidden shadow-2xl border border-[var(--glass-border)] rounded-[3rem]"
           >
             {/* Celebratory background particles */}
             <div className="absolute inset-0 pointer-events-none">
@@ -42,7 +42,7 @@ export default function RewardPopup() {
 
             <button 
               onClick={() => setReward(null)}
-              className="absolute top-8 right-8 p-2 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              className="absolute top-8 right-8 p-2 text-[var(--text-secondary)] hover:text-[var(--text-color)] transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -54,16 +54,16 @@ export default function RewardPopup() {
               </div>
             </div>
 
-            <h2 className="text-3xl font-black text-white tracking-tighter uppercase italic mb-2">
+            <h2 className="text-3xl font-black text-[var(--text-color)] tracking-tighter uppercase italic mb-2">
               Cashback <span className="text-emerald-400 emerald-glow">Credited</span>
             </h2>
-            <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.25em] mb-8">Automatic Wallet Incentive</p>
+            <p className="text-[var(--text-secondary)] text-[10px] font-black uppercase tracking-[0.25em] mb-8">Automatic Wallet Incentive</p>
             
-            <div className="bg-slate-950/40 border border-white/5 rounded-3xl p-8 mb-8 relative">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Amount Added</p>
+            <div className="bg-[var(--bg-secondary)]/40 border border-[var(--glass-border)] rounded-3xl p-8 mb-8 relative">
+              <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-3">Amount Added</p>
               <div className="flex items-center justify-center gap-2">
-                <span className="text-2xl font-black text-slate-400">₹</span>
-                <span className="text-5xl font-black text-white tracking-tighter emerald-glow">{reward.amount.toFixed(2)}</span>
+                <span className="text-2xl font-black text-[var(--text-secondary)]">₹</span>
+                <span className="text-5xl font-black text-[var(--text-color)] tracking-tighter emerald-glow">{reward.amount.toFixed(2)}</span>
               </div>
             </div>
 

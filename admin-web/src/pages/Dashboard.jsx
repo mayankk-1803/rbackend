@@ -4,21 +4,21 @@ import api from '../services/api';
 import { useSocket } from '../hooks/useSocket';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../context/ThemeContext';
-import { 
-  Users as UsersIcon, 
-  TrendingUp, 
-  TrendingDown, 
-  ClipboardList, 
-  CheckCircle2, 
-  AlertTriangle, 
-  AlertCircle, 
-  Wallet, 
-  UserPlus, 
-  FileText, 
-  ArrowUpRight, 
-  Server, 
-  ShieldAlert, 
-  RefreshCw, 
+import {
+  Users as UsersIcon,
+  TrendingUp,
+  TrendingDown,
+  ClipboardList,
+  CheckCircle2,
+  AlertTriangle,
+  AlertCircle,
+  Wallet,
+  UserPlus,
+  FileText,
+  ArrowUpRight,
+  Server,
+  ShieldAlert,
+  RefreshCw,
   Search,
   Check,
   Ticket
@@ -40,21 +40,21 @@ import { WidgetErrorBoundary } from '../components/ui/WidgetErrorBoundary';
 import { downloadFile } from '../utils/downloadFile';
 
 // Recharts components
-import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
-  ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Legend, LineChart, Line 
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Legend, LineChart, Line
 } from 'recharts';
 
 export const Dashboard = () => {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const navigate = useNavigate();
-  
+
   // States
   const [loading, setLoading] = useState(true);
   const [chartsLoading, setChartsLoading] = useState(true);
   const [dataLoaded, setDataLoaded] = useState(false);
-  
+
   // Dashboard & Users stats
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -105,7 +105,7 @@ export const Dashboard = () => {
   const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
-      
+
       const [
         dashRes,
         chartsRes,
@@ -158,7 +158,7 @@ export const Dashboard = () => {
       // Parse Dashboard Stats
       const dStats = dashRes?.data?.data || {};
       const uStats = usersStatsRes?.data?.data || {};
-      
+
       setStats({
         totalUsers: Number(dStats.totalUsers || 0),
         totalTransactions: Number(dStats.totalTransactions || 0),
@@ -280,19 +280,19 @@ export const Dashboard = () => {
   // Operators custom data mapping
   const operatorChartData = Array.isArray(operators)
     ? operators.map(p => ({
-        name: p?.name || 'Unknown',
-        successRate: Number(p?.successRate) || 0,
-        latency: Number(p?.avgResponseTime) || 0
-      }))
+      name: p?.name || 'Unknown',
+      successRate: Number(p?.successRate) || 0,
+      latency: Number(p?.avgResponseTime) || 0
+    }))
     : [];
 
   // DMT simulated/mapped data context
   const dmtVolumeData = (chartData && Array.isArray(chartData.dailyRevenue))
     ? chartData.dailyRevenue.map(item => ({
-        date: item?.date ? formatLabel(item.date) : '',
-        volume: (Number(item?.revenue) || 0) * 1.5,
-        transfers: Math.floor((Number(item?.revenue) || 0) / 100) + 1
-      }))
+      date: item?.date ? formatLabel(item.date) : '',
+      volume: (Number(item?.revenue) || 0) * 1.5,
+      transfers: Math.floor((Number(item?.revenue) || 0) / 100) + 1
+    }))
     : [];
 
   function formatLabel(dateString) {
@@ -320,9 +320,9 @@ export const Dashboard = () => {
   return (
     <div className="space-y-6">
       {/* Header and Telemetry connection status */}
-      <SectionHeader 
-        title="Operations" 
-        highlight="Control Center" 
+      <SectionHeader
+        title="Operations"
+        highlight="Control Center"
         subtitle="Centralized transaction routing, provider telemetry, security, and administrative adjustments"
       >
         <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-soft)] rounded-xl">
@@ -331,7 +331,7 @@ export const Dashboard = () => {
             {isConnected ? 'Real-Time Feed Live' : 'Feed Disconnected'}
           </span>
         </div>
-        <Button 
+        <Button
           onClick={fetchDashboardData}
           variant="outline"
           size="sm"
@@ -343,9 +343,9 @@ export const Dashboard = () => {
 
       {/* KPI Section */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <AnalyticsCard 
-          title="Total Transactions" 
-          value={loading ? '...' : stats.totalTransactions.toLocaleString()} 
+        <AnalyticsCard
+          title="Total Transactions"
+          value={loading ? '...' : stats.totalTransactions.toLocaleString()}
           icon={ClipboardList}
           colorClass="text-blue-500 bg-blue-500/10 border-blue-500/20"
           loading={loading}
@@ -353,9 +353,9 @@ export const Dashboard = () => {
           trendDirection="up"
           trendLabel="from yesterday"
         />
-        <AnalyticsCard 
-          title="Revenue (Net profit)" 
-          value={loading ? '...' : `₹${stats.totalRevenue.toLocaleString()}`} 
+        <AnalyticsCard
+          title="Revenue (Net profit)"
+          value={loading ? '...' : `₹${stats.totalRevenue.toLocaleString()}`}
           icon={TrendingUp}
           colorClass="text-emerald-500 bg-emerald-500/10 border-emerald-500/20"
           loading={loading}
@@ -363,17 +363,17 @@ export const Dashboard = () => {
           trendDirection="up"
           trendLabel="vs last week"
         />
-        <AnalyticsCard 
-          title="Platform Success Rate" 
-          value={loading ? '...' : `${stats.successRate}%`} 
+        <AnalyticsCard
+          title="Platform Success Rate"
+          value={loading ? '...' : `${stats.successRate}%`}
           icon={CheckCircle2}
           colorClass="text-green-500 bg-green-500/10 border-green-500/20"
           loading={loading}
           progress={stats.successRate}
         />
-        <AnalyticsCard 
-          title="Pending Requests" 
-          value={loading ? '...' : stats.pendingCount.toString()} 
+        <AnalyticsCard
+          title="Pending Requests"
+          value={loading ? '...' : stats.pendingCount.toString()}
           icon={AlertTriangle}
           colorClass="text-amber-500 bg-amber-500/10 border-amber-500/20"
           loading={loading}
@@ -381,16 +381,16 @@ export const Dashboard = () => {
           trendDirection={stats.pendingCount > 5 ? "up" : "flat"}
           trendLabel="operator routing active"
         />
-        <AnalyticsCard 
-          title="Total Vault Added" 
-          value={loading ? '...' : `₹${stats.totalAdded.toLocaleString()}`} 
+        <AnalyticsCard
+          title="Total Vault Added"
+          value={loading ? '...' : `₹${stats.totalAdded.toLocaleString()}`}
           icon={Wallet}
           colorClass="text-purple-500 bg-purple-500/10 border-purple-500/20"
           loading={loading}
         />
-        <AnalyticsCard 
-          title="Failed Transactions" 
-          value={loading ? '...' : stats.failureCount.toLocaleString()} 
+        <AnalyticsCard
+          title="Failed Transactions"
+          value={loading ? '...' : stats.failureCount.toLocaleString()}
           icon={AlertCircle}
           colorClass="text-rose-500 bg-rose-500/10 border-rose-500/20"
           loading={loading}
@@ -398,16 +398,16 @@ export const Dashboard = () => {
           trendDirection="down"
           trendLabel="failure ratio"
         />
-        <AnalyticsCard 
-          title="Active Users" 
-          value={loading ? '...' : stats.activeUsers.toLocaleString()} 
+        <AnalyticsCard
+          title="Active Users"
+          value={loading ? '...' : stats.activeUsers.toLocaleString()}
           icon={UsersIcon}
           colorClass="text-indigo-500 bg-indigo-500/10 border-indigo-500/20"
           loading={loading}
         />
-        <AnalyticsCard 
-          title="Fraud Risk Alerts" 
-          value={loading ? '...' : stats.fraudAlerts.toString()} 
+        <AnalyticsCard
+          title="Fraud Risk Alerts"
+          value={loading ? '...' : stats.fraudAlerts.toString()}
           icon={ShieldAlert}
           colorClass="text-rose-600 bg-rose-600/10 border-rose-600/20"
           loading={loading}
@@ -419,24 +419,24 @@ export const Dashboard = () => {
 
       {/* Quick Actions Panel */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3.5">
-        <QuickAction 
-          title="Create User" 
-          description="Register email login" 
-          icon={UserPlus} 
+        <QuickAction
+          title="Create User"
+          description="Register email login"
+          icon={UserPlus}
           onClick={() => setIsCreateUserOpen(true)}
           colorClass="text-indigo-500 bg-indigo-500/10"
         />
-        <QuickAction 
-          title="Platform Ledger" 
-          description="Telemetery audit trails" 
-          icon={FileText} 
+        <QuickAction
+          title="Platform Ledger"
+          description="Telemetery audit trails"
+          icon={FileText}
           onClick={() => navigate('/reports/transactions')}
           colorClass="text-blue-500 bg-blue-500/10"
         />
-        <QuickAction 
-          title="Commissions" 
-          description="Generate margins CSV" 
-          icon={TrendingUp} 
+        <QuickAction
+          title="Commissions"
+          description="Generate margins CSV"
+          icon={TrendingUp}
           onClick={async () => {
             const toastId = toast.loading("Exporting commission data...");
             try {
@@ -448,10 +448,10 @@ export const Dashboard = () => {
           }}
           colorClass="text-purple-500 bg-purple-500/10"
         />
-        <QuickAction 
-          title="Support Tickets" 
-          description="Resolve user disputes" 
-          icon={Ticket} 
+        <QuickAction
+          title="Support Tickets"
+          description="Resolve user disputes"
+          icon={Ticket}
           onClick={() => navigate('/reports/disputes')}
           colorClass="text-amber-500 bg-amber-500/10"
         />
@@ -459,8 +459,8 @@ export const Dashboard = () => {
 
       {/* Analytics Tabs and Charts */}
       <WidgetErrorBoundary title="Analytics Control Board">
-        <ChartContainer 
-          title="Analytics Control Board" 
+        <ChartContainer
+          title="Analytics Control Board"
           subtitle="Platform profit and transaction performance data sets"
           loading={chartsLoading}
           height={320}
@@ -475,11 +475,10 @@ export const Dashboard = () => {
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`px-3 py-1 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
-                    activeTab === tab.key 
+                  className={`px-3 py-1 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${activeTab === tab.key
                       ? 'bg-[var(--card-bg)] text-[var(--color-primary)] border border-[var(--border-soft)] shadow-sm'
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  }`}
+                    }`}
                 >
                   {tab.label}
                 </button>
@@ -491,14 +490,14 @@ export const Dashboard = () => {
             <AreaChart data={Array.isArray(chartData?.dailyRevenue) ? chartData.dailyRevenue.map(item => (item ? { ...item, revenue: Number(item.revenue) || 0, formattedDate: item.date ? formatLabel(item.date) : '' } : { revenue: 0, formattedDate: '' })) : []} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.2}/>
-                  <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.gridColor} />
               <XAxis dataKey="formattedDate" axisLine={false} tickLine={false} tick={{ fill: chartTheme.textColor, fontSize: 9 }} dy={8} />
               <YAxis axisLine={false} tickLine={false} tick={{ fill: chartTheme.textColor, fontSize: 9 }} tickFormatter={(value) => `₹${value}`} />
-              <Tooltip 
+              <Tooltip
                 contentStyle={{ background: 'var(--card-bg)', border: '1px solid var(--border-soft)', borderRadius: '12px', fontSize: '11px', color: 'var(--text-primary)' }}
                 formatter={(value) => [`₹${value}`, 'Revenue']}
               />
@@ -529,7 +528,7 @@ export const Dashboard = () => {
                   <Cell key={`cell-${index}`} fill={COLORS[entry.name]} stroke="var(--card-bg)" strokeWidth={2} />
                 ))}
               </Pie>
-              <Tooltip 
+              <Tooltip
                 contentStyle={{ background: 'var(--card-bg)', border: '1px solid var(--border-soft)', borderRadius: '12px', fontSize: '11px', color: 'var(--text-primary)' }}
               />
               <Legend verticalAlign="bottom" formatter={(value) => <span className="text-[9px] font-bold text-[var(--text-secondary)] tracking-wider uppercase">{value}</span>} />
@@ -646,7 +645,7 @@ export const Dashboard = () => {
                         if (!mobileVal) {
                           mobileVal = 'System';
                         }
-                        
+
                         const displayMobile = (mobileVal.includes('@') || mobileVal === 'System')
                           ? mobileVal
                           : `+91 ${mobileVal.replace(/^\+91\s*/, '')}`;
@@ -824,15 +823,15 @@ export const Dashboard = () => {
       <AnimatePresence>
         {isCreateUserOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsCreateUserOpen(false)}
               className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs"
             />
-            
-            <motion.div 
+
+            <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 12 }}
@@ -844,7 +843,7 @@ export const Dashboard = () => {
                   <h3 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-tight">Create User Account</h3>
                   <p className="text-[10px] text-[var(--text-secondary)] font-medium">Add a new email-login member to the directory</p>
                 </div>
-                <button 
+                <button
                   onClick={() => setIsCreateUserOpen(false)}
                   className="p-1 hover:bg-[var(--bg-secondary)] rounded-full text-[var(--text-secondary)] cursor-pointer"
                 >
@@ -855,10 +854,10 @@ export const Dashboard = () => {
               <form onSubmit={handleCreateUser} className="p-6 space-y-3.5">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block">Full Name</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     required
-                    placeholder="e.g. John Doe"
+                    placeholder="John Doe"
                     value={userForm.name}
                     onChange={(e) => setUserForm(prev => ({ ...prev, name: e.target.value }))}
                     className="w-full px-3 py-2 bg-[var(--admin-input-bg)] border border-[var(--border-soft)] rounded-xl text-xs text-[var(--text-primary)] outline-none"
@@ -867,10 +866,10 @@ export const Dashboard = () => {
 
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block">Email Address</label>
-                  <input 
-                    type="email" 
+                  <input
+                    type="email"
                     required
-                    placeholder="e.g. john@dizipay.com"
+                    placeholder="name@dizipay.com"
                     value={userForm.email}
                     onChange={(e) => setUserForm(prev => ({ ...prev, email: e.target.value }))}
                     className="w-full px-3 py-2 bg-[var(--admin-input-bg)] border border-[var(--border-soft)] rounded-xl text-xs text-[var(--text-primary)] outline-none"
@@ -879,8 +878,8 @@ export const Dashboard = () => {
 
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block">Phone Number (WhatsApp Preferred)</label>
-                  <input 
-                    type="tel" 
+                  <input
+                    type="tel"
                     placeholder="e.g. 9876543210"
                     value={userForm.phone}
                     onChange={(e) => setUserForm(prev => ({ ...prev, phone: e.target.value }))}
@@ -890,8 +889,8 @@ export const Dashboard = () => {
 
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block">Security Password</label>
-                  <input 
-                    type="password" 
+                  <input
+                    type="password"
                     required
                     placeholder="Min 6 characters"
                     value={userForm.password}
@@ -902,8 +901,8 @@ export const Dashboard = () => {
 
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block">Referral Sponsor Code (Optional)</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="e.g. REF12ABC"
                     value={userForm.referralCode}
                     onChange={(e) => setUserForm(prev => ({ ...prev, referralCode: e.target.value }))}
@@ -912,14 +911,14 @@ export const Dashboard = () => {
                 </div>
 
                 <div className="flex gap-2.5 pt-3">
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setIsCreateUserOpen(false)}
                     className="flex-1 py-2.5 border border-[var(--border-soft)] hover:bg-[var(--bg-secondary)] text-[var(--text-secondary)] rounded-xl text-xs font-semibold uppercase tracking-wider cursor-pointer"
                   >
                     Cancel
                   </button>
-                  <button 
+                  <button
                     type="submit"
                     disabled={actionLoading}
                     className="flex-1 py-2.5 bg-[var(--color-primary)] text-[var(--bg-primary)] rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"

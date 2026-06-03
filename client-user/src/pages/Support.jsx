@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { HelpCircle, Mail, Clock, ChevronDown, MessageSquare, AlertCircle, ArrowLeft } from 'lucide-react';
+import { HelpCircle, Mail, Clock, ChevronDown, MessageSquare, AlertCircle, ArrowLeft, ShieldAlert, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import api from '../api';
 
 const FAQs = [
   {
@@ -33,6 +34,26 @@ const FAQs = [
 export default function Support() {
   const [openIndex, setOpenIndex] = useState(null);
   const navigate = useNavigate();
+  const [disputes, setDisputes] = useState([]);
+  const [loadingDisputes, setLoadingDisputes] = useState(true);
+
+  const fetchDisputes = async () => {
+    setLoadingDisputes(true);
+    try {
+      const res = await api.get('/user/disputes');
+      if (res.data?.success) {
+        setDisputes(res.data.data || []);
+      }
+    } catch (err) {
+      if (import.meta.env.DEV) console.error("Failed to fetch disputes:", err);
+    } finally {
+      setLoadingDisputes(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDisputes();
+  }, []);
 
   const toggleAccordion = (index) => {
     setOpenIndex(openIndex === index ? null : index);
@@ -117,6 +138,108 @@ export default function Support() {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* My Disputes Section */}
+          <div className="space-y-4 pt-6 border-t border-[var(--glass-border)]">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="w-5 h-5 text-rose-400 hover:scale-105 transition-transform animate-pulse" />
+                <h3 className="text-sm font-black text-[var(--text-color)] uppercase tracking-tight">My Support Tickets & Disputes</h3>
+              </div>
+              <button 
+                onClick={fetchDisputes}
+                disabled={loadingDisputes}
+                className="p-2 text-xs text-[var(--text-secondary)] hover:text-[var(--text-color)] flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50"
+                title="Refresh disputes list"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loadingDisputes ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            </div>
+
+            {loadingDisputes ? (
+              <div className="flex flex-col items-center justify-center py-8 space-y-2">
+                <RefreshCw className="w-6 h-6 text-[var(--text-muted)] animate-spin" />
+                <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Loading tickets...</span>
+              </div>
+            ) : disputes.length === 0 ? (
+              <div className="bg-[var(--glass-card-bg)] p-6 rounded-2xl border border-[var(--glass-border)] text-center space-y-2">
+                <p className="text-xs text-[var(--text-secondary)] font-bold uppercase tracking-wider">No active disputes</p>
+                <p className="text-[10px] text-[var(--text-muted)] max-w-md mx-auto leading-relaxed">
+                  You don't have any raised disputes. If you face any issues with a recharge, go to your 
+                  <span 
+                    onClick={() => navigate('/history')}
+                    className="text-indigo-400 font-bold hover:underline mx-1 cursor-pointer"
+                  >
+                    Purchase History
+                  </span> 
+                  and click the "Raise Dispute" button next to the transaction.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4">
+                {disputes.map((dispute) => {
+                  let statusBg = 'bg-amber-500/10 text-amber-500 border-amber-500/20';
+                  if (dispute.status === 'UNDER_REVIEW') statusBg = 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20';
+                  if (dispute.status === 'RESOLVED') statusBg = 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
+                  if (dispute.status === 'REJECTED') statusBg = 'bg-rose-500/10 text-rose-500 border-rose-500/20';
+
+                  return (
+                    <motion.div 
+                      key={dispute.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-[var(--glass-card-bg)] border border-[var(--glass-border)] rounded-2xl p-5 space-y-4 hover:border-indigo-500/20 transition-all hover:shadow-lg hover:shadow-indigo-500/5"
+                    >
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-[10px] font-black text-[var(--text-color)] uppercase tracking-wider">
+                            Case #{dispute.id}_DIS
+                          </span>
+                          <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider border ${statusBg}`}>
+                            {dispute.status.replace('_', ' ')}
+                          </span>
+                        </div>
+                        <span className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
+                          {new Date(dispute.createdAt).toLocaleDateString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}
+                        </span>
+                      </div>
+
+                      <div className="bg-[var(--glass-input-bg)] border border-[var(--glass-border)] px-4 py-3 rounded-xl flex flex-wrap gap-x-6 gap-y-1 text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-wider">
+                        <span>Operator: <span className="text-[var(--text-color)]">{dispute.transaction?.operator || 'N/A'}</span></span>
+                        <span>Mobile: <span className="text-[var(--text-color)]">{dispute.transaction?.mobile || 'N/A'}</span></span>
+                        <span>Amount: <span className="text-[var(--text-color)]">₹{dispute.transaction?.amount || 'N/A'}</span></span>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-wider">Your Complaint</p>
+                        <p className="text-xs text-[var(--text-color)] bg-[var(--bg-secondary)]/10 p-3 rounded-xl italic leading-relaxed border border-[var(--glass-border)]">
+                          "{dispute.description}"
+                        </p>
+                      </div>
+
+                      {dispute.remarks && (
+                        <div className="space-y-1.5 pt-1 border-t border-[var(--glass-border)]">
+                          <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-wider">Resolution Remarks</p>
+                          <div className={`p-3 rounded-xl text-xs leading-relaxed border ${
+                            dispute.status === 'RESOLVED' 
+                              ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400/90' 
+                              : 'bg-rose-500/5 border-rose-500/20 text-rose-400/90'
+                          }`}>
+                            {dispute.remarks}
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="bg-[var(--glass-card-bg)] p-6 rounded-2xl border border-[var(--glass-border)] flex items-start gap-4">

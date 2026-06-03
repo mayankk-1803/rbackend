@@ -13,7 +13,7 @@ class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     if (import.meta.env.DEV) {
-      if (import.meta.env.DEV) console.error("Uncaught error:", error, errorInfo);
+      if (import.meta.env.DEV) if (import.meta.env.DEV) console.error("Uncaught error:", error, errorInfo);
     }
   }
 

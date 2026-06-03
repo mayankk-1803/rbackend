@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatAmount, safeArray, safeValue } from '../utils/helpers';
 import socket from '../services/socket';
 import toast from 'react-hot-toast';
+import { DisputeModal } from '../components/reports/DisputeModal';
 
 const formatCurrency = (value) => `INR ${Number(value || 0).toLocaleString("en-IN", {
   minimumFractionDigits: 2,
@@ -16,7 +17,7 @@ const getOrderTotal = (order) => Number(order?.totalAmount || 0);
 
 const statusMeta = {
   PENDING_REVIEW: { label: "Pending Review", className: "bg-purple-500/10 text-purple-500 border-purple-500/15" },
-  PROCESSING: { label: "Processing", className: "bg-cyan-500/10 text-cyan-500 border-cyan-500/15" },
+  PROCESSING: { label: "Processing", className: "bg-[var(--color-primary-glow)] text-[var(--color-primary)] border-[var(--color-primary)]/15" },
   SUCCESS: { label: "Success", className: "bg-emerald-500/10 text-emerald-500 border-emerald-500/15" },
   FAILED: { label: "Failed", className: "bg-rose-500/10 text-rose-500 border-rose-500/15" },
   REFUNDED: { label: "Refunded", className: "bg-indigo-500/10 text-indigo-500 border-indigo-500/15" },
@@ -33,6 +34,8 @@ export default function History() {
   const [activeSection, setActiveSection] = useState("RECHARGE");
   const [activeTab, setActiveTab] = useState("All");
   const [refreshingTxnId, setRefreshingTxnId] = useState(null);
+  const [selectedTxn, setSelectedTxn] = useState(null);
+  const [showDispute, setShowDispute] = useState(false);
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -43,7 +46,7 @@ export default function History() {
       setTransactions(safeArray(txnRes.data.data));
       setOrders(orderRes.data?.success ? safeArray(orderRes.data.data) : []);
     } catch (err) {
-      if (import.meta.env.DEV) console.error(err);
+      if (import.meta.env.DEV) if (import.meta.env.DEV) console.error(err);
     } finally {
       setLoading(false);
     }
@@ -52,7 +55,7 @@ export default function History() {
   const handleRefreshStatus = async (txnId) => {
     if (refreshingTxnId === txnId) return;
     setRefreshingTxnId(txnId);
-    console.log(`[MANUAL_REFRESH] Refresh requested for txn: ${txnId}`);
+    if (import.meta.env.DEV) console.log(`[MANUAL_REFRESH] Refresh requested for txn: ${txnId}`);
     try {
       const { data } = await api.get(`/recharge/${txnId}/refresh-status`);
       if (data.success && data.transaction) {
@@ -79,7 +82,7 @@ export default function History() {
   };
 
   const handleSocketTransactionUpdate = useCallback((data) => {
-    console.log("[SOCKET_ROW_UPDATE] Received transaction update event in client history:", data);
+    if (import.meta.env.DEV) console.log("[SOCKET_ROW_UPDATE] Received transaction update event in client history:", data);
     const updatedTxnId = data?.transactionId || data?.txnId || data?.transaction?.id;
     const nextStatus = data?.status || data?.transaction?.status;
     const incomingTxn = data?.transaction;
@@ -103,7 +106,7 @@ export default function History() {
       const nextPriority = statusPriority[nextStatus] || 0;
 
       if (nextPriority < existingPriority) {
-        console.log(`[SOCKET_STALE_BLOCKED] Stale socket update blocked. Current: ${existing.status}, Incoming: ${nextStatus}`);
+        if (import.meta.env.DEV) console.log(`[SOCKET_STALE_BLOCKED] Stale socket update blocked. Current: ${existing.status}, Incoming: ${nextStatus}`);
         return prev;
       }
 
@@ -111,12 +114,12 @@ export default function History() {
         const existingTime = new Date(existing.updatedAt).getTime();
         const incomingTime = new Date(incomingTxn.updatedAt).getTime();
         if (incomingTime < existingTime) {
-          console.log(`[SOCKET_STALE_BLOCKED] Older update blocked. Current: ${existing.updatedAt}, Incoming: ${incomingTxn.updatedAt}`);
+          if (import.meta.env.DEV) console.log(`[SOCKET_STALE_BLOCKED] Older update blocked. Current: ${existing.updatedAt}, Incoming: ${incomingTxn.updatedAt}`);
           return prev;
         }
       }
 
-      console.log(`[SOCKET_ROW_UPDATE] Patching transaction #${updatedTxnId} status from ${existing.status} to ${nextStatus}`);
+      if (import.meta.env.DEV) console.log(`[SOCKET_ROW_UPDATE] Patching transaction #${updatedTxnId} status from ${existing.status} to ${nextStatus}`);
       return prev.map(tx => 
         tx.id === updatedTxnId ? { ...tx, ...incomingTxn, status: nextStatus } : tx
       );
@@ -124,7 +127,7 @@ export default function History() {
   }, []);
 
   const softRefresh = useCallback(async () => {
-    console.log("[UI_AUTO_REFRESH] Soft refreshing client history visible rows...");
+    if (import.meta.env.DEV) console.log("[UI_AUTO_REFRESH] Soft refreshing client history visible rows...");
     try {
       const txnRes = await api.get(API_ROUTES.USER.TRANSACTIONS);
       const freshTxns = safeArray(txnRes.data.data);
@@ -141,7 +144,7 @@ export default function History() {
         });
       });
     } catch (err) {
-      console.warn("[UI_AUTO_REFRESH] Soft refresh failed:", err);
+      if (import.meta.env.DEV) console.warn("[UI_AUTO_REFRESH] Soft refresh failed:", err);
     }
   }, []);
 
@@ -226,7 +229,7 @@ export default function History() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6">
         <div className="space-y-1">
           <h1 className="text-2xl md:text-3xl font-black text-[var(--text-color)] tracking-tighter uppercase italic">
-            Purchase <span className="text-[var(--color-accent)] cyan-glow">History</span>
+            Purchase <span className="text-[var(--color-accent)] purple-glow">History</span>
           </h1>
           <p className="text-[var(--text-secondary)] text-[8px] md:text-[10px] font-bold uppercase tracking-[0.2em]">
             Recharge and IMART records
@@ -258,7 +261,7 @@ export default function History() {
               onClick={() => setActiveSection(section.id)}
               className={`min-h-12 px-3 py-3 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest border transition-all flex items-center justify-center gap-2 cursor-pointer ${
                 active
-                  ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)] shadow-lg shadow-cyan-400/20'
+                  ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)] shadow-lg shadow-purple-500/20'
                   : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--text-color)] hover:bg-[var(--glass-button-bg)]'
               }`}
             >
@@ -277,7 +280,7 @@ export default function History() {
               onClick={() => setActiveTab(tab)}
               className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap cursor-pointer ${
                 activeTab === tab
-                  ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)] shadow-lg shadow-cyan-400/20'
+                  ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)] shadow-lg shadow-purple-500/20'
                   : 'bg-[var(--glass-button-bg)] text-[var(--text-secondary)] border-[var(--glass-border)] hover:border-[var(--glass-border-hover)] hover:text-[var(--text-color)]'
               }`}
             >
@@ -350,9 +353,13 @@ export default function History() {
                         <button className="p-2 min-w-10 min-h-10 hover:bg-[var(--color-accent-glow)] rounded-lg transition-colors text-[var(--text-secondary)] hover:text-[var(--color-accent)] cursor-pointer" title="View Invoice">
                           <FileText className="w-4 h-4" />
                         </button>
-                        <button className="p-2 min-w-10 min-h-10 hover:bg-rose-500/10 rounded-lg transition-colors text-[var(--text-secondary)] hover:text-rose-500 cursor-pointer" title="Raise Dispute">
-                          <AlertCircle className="w-4 h-4" />
-                        </button>
+                         <button 
+                           onClick={() => { setSelectedTxn(txn); setShowDispute(true); }}
+                           className="p-2 min-w-10 min-h-10 hover:bg-rose-500/10 rounded-lg transition-colors text-[var(--text-secondary)] hover:text-rose-500 cursor-pointer" 
+                           title="Raise Dispute"
+                         >
+                           <AlertCircle className="w-4 h-4" />
+                         </button>
                       </div>
                     </div>
                     <div className="w-full border-t border-[var(--glass-border)] pt-3 mt-1">
@@ -439,6 +446,12 @@ export default function History() {
           <EmptyState text="No IMART purchase history found" />
         )}
       </div>
+
+      <DisputeModal 
+        isOpen={showDispute} 
+        onClose={() => setShowDispute(false)} 
+        transaction={selectedTxn} 
+      />
     </motion.div>
   );
 }

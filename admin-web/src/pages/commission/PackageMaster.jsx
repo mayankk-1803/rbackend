@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Database
 } from "lucide-react";
+import { PackageActionsMenu } from "../../components/commission/PackageActionsMenu";
 
 export const PackageMaster = () => {
   const [packages, setPackages] = useState([]);
@@ -367,63 +368,16 @@ export const PackageMaster = () => {
                     <td className="py-2 px-3 text-center font-mono text-[var(--text-secondary)]">
                       {(page - 1) * limit + index + 1}
                     </td>
-                    <td className="py-2 px-3 text-center relative">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveActionMenu(activeActionMenu === pkg.id ? null : pkg.id);
-                        }}
-                        className="p-1 hover:bg-[var(--accent-hover)] rounded-md transition-colors cursor-pointer inline-block"
-                      >
-                        <MoreVertical className="w-3.5 h-3.5" />
-                      </button>
-
-                      {activeActionMenu === pkg.id && (
-                        <div className="absolute left-10 mt-1 w-52 bg-[var(--bg-secondary)] border border-[var(--border-soft)] shadow-md rounded-lg py-1.5 z-40 text-left font-semibold uppercase text-[10px] tracking-wider">
-                          <button
-                            onClick={() => handleEditInit(pkg)}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-[var(--accent-hover)] text-[var(--text-primary)] cursor-pointer"
-                          >
-                            <Edit2 className="w-3 h-3" /> Edit / Service Matrix
-                          </button>
-                          <button
-                            onClick={() => handleMatrixViewInit(pkg)}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-[var(--accent-hover)] text-[var(--text-primary)] cursor-pointer"
-                          >
-                            <Database className="w-3 h-3" /> View Service Matrix
-                          </button>
-                          <button
-                            onClick={() => handleAssignInit(pkg)}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-[var(--accent-hover)] text-[var(--text-primary)] cursor-pointer"
-                          >
-                            <UserPlus className="w-3 h-3" /> Assign Users
-                          </button>
-                          <button
-                            onClick={() => handleCloneInit(pkg)}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-[var(--accent-hover)] text-[var(--text-primary)] cursor-pointer"
-                          >
-                            <Copy className="w-3 h-3" /> Clone Package
-                          </button>
-                          <button
-                            onClick={() => handleStatusToggle(pkg)}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-[var(--accent-hover)] text-[var(--text-primary)] cursor-pointer border-t border-[var(--border-soft)] mt-1 pt-1.5"
-                          >
-                            {pkg.isActive ? (
-                              <span className="flex items-center gap-2 text-amber-500"><X className="w-3 h-3" /> Disable</span>
-                            ) : (
-                              <span className="flex items-center gap-2 text-emerald-500"><Check className="w-3 h-3" /> Enable</span>
-                            )}
-                          </button>
-                          {!pkg.isDefault && (
-                            <button
-                              onClick={() => handleDelete(pkg.id, pkg.name)}
-                              className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-rose-500/10 text-rose-500 cursor-pointer"
-                            >
-                              <Trash2 className="w-3 h-3 text-rose-500" /> Delete
-                            </button>
-                          )}
-                        </div>
-                      )}
+                    <td className="py-2 px-3 text-center">
+                      <PackageActionsMenu
+                        pkg={pkg}
+                        onEditInit={handleEditInit}
+                        onMatrixViewInit={handleMatrixViewInit}
+                        onAssignInit={handleAssignInit}
+                        onCloneInit={handleCloneInit}
+                        onStatusToggle={handleStatusToggle}
+                        onDelete={handleDelete}
+                      />
                     </td>
                     <td className="py-2 px-3 font-semibold uppercase tracking-tight text-[var(--text-primary)]">
                       {pkg.name}

@@ -78,8 +78,8 @@ const ServiceCard = memo(({ service }) => {
   const cardRef = useRef(null);
   const name = service.label.toLowerCase();
   
-  let glowColor = "rgba(0, 217, 255, 0.4)"; // Default Cyan
-  let hoverIconColor = "text-[#00D9FF]";
+  let glowColor = "rgba(139, 92, 246, 0.4)"; // Default Purple
+  let hoverIconColor = "text-[var(--color-accent)]";
   
   if (name.includes("electricity")) {
     glowColor = "rgba(245, 158, 11, 0.4)"; // Amber
@@ -91,8 +91,8 @@ const ServiceCard = memo(({ service }) => {
     glowColor = "rgba(59, 130, 246, 0.4)"; // Blue
     hoverIconColor = "text-blue-400";
   } else if (name.includes("broadband") || name.includes("wifi")) {
-    glowColor = "rgba(123, 97, 255, 0.4)"; // Purple
-    hoverIconColor = "text-[#7B61FF]";
+    glowColor = "rgba(139, 92, 246, 0.4)"; // Purple
+    hoverIconColor = "text-[var(--color-primary)]";
   } else if (name.includes("loan") || name.includes("emi")) {
     glowColor = "rgba(16, 185, 129, 0.4)"; // Emerald
     hoverIconColor = "text-emerald-400";
@@ -205,14 +205,14 @@ const TransactionItem = memo(({ txn, idx }) => {
 // Interactive scan modal
 const QRModal = memo(({ qrCode, amount, onClose }) => {
   return (
-    <div className="fixed inset-0 bg-[var(--glass-bg)] backdrop-blur-md flex items-center justify-center z-[200] p-6">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[200] p-6">
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="glass-modal p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center space-y-6 border border-[var(--glass-border)]"
+        className="bg-[var(--glass-modal-bg)] p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center space-y-6 border border-[var(--glass-border)]"
       >
-        <h3 className="text-lg font-black text-[var(--text-color)] uppercase italic tracking-tighter">Scan to <span className="text-[var(--color-accent)] cyan-glow">Pay</span></h3>
+        <h3 className="text-lg font-black text-[var(--text-color)] uppercase italic tracking-tighter">Scan to <span className="text-[var(--color-accent)] purple-glow">Pay</span></h3>
         <div className="bg-white p-4 rounded-2xl flex items-center justify-center">
           <img src={qrCode} alt="Payment QR" className="w-full aspect-square object-contain rounded-xl" />
         </div>
@@ -481,8 +481,8 @@ export default function Home() {
 
           <div className="space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[var(--color-accent-glow)] border border-[var(--color-accent)]/20 rounded-full shadow-[0_0_15px_var(--color-accent-glow)]">
-              <Cpu className="w-3.5 h-3.5 text-[#00D9FF] animate-pulse" />
-              <span className="text-[8px] font-black text-[#00D9FF] uppercase tracking-[0.2em] cyan-glow">Secure node authorized</span>
+              <Cpu className="w-3.5 h-3.5 text-[var(--color-primary)] animate-pulse" />
+              <span className="text-[8px] font-black text-[var(--color-primary)] uppercase tracking-[0.2em] purple-glow">Secure node authorized</span>
             </div>
             
             <div className="space-y-2">
@@ -497,14 +497,14 @@ export default function Home() {
 
           <div className="pt-8 border-t border-[var(--glass-border)] flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-2 h-2 rounded-full bg-[#00FFA3] animate-pulse shadow-[0_0_8px_#00FFA3]"></div>
+              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.4)]"></div>
               <div>
                 <p className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-widest">Network latency</p>
                 <p className="text-sm font-black text-[var(--text-color)] mt-0.5">12 ms</p>
               </div>
             </div>
             <div>
-              <span className="text-[8px] font-black text-[var(--color-accent)] uppercase tracking-[0.2em] border border-[var(--color-accent)]/20 bg-[var(--color-accent-glow)] px-3 py-1.5 rounded-full cyan-glow">
+              <span className="text-[8px] font-black text-[var(--color-accent)] uppercase tracking-[0.2em] border border-[var(--color-accent)]/20 bg-[var(--color-accent-glow)] px-3 py-1.5 rounded-full purple-glow">
                 System Active
               </span>
             </div>
@@ -558,7 +558,7 @@ export default function Home() {
               <p className="text-[8px] text-[var(--text-secondary)] uppercase font-black tracking-widest mb-1">AVAILABLE BALANCE</p>
               <h2 className="text-3xl md:text-4xl font-black tracking-tighter text-[var(--text-color)] flex items-baseline gap-1">
                 <span className="text-xl text-[var(--color-accent)] font-bold">₹</span>
-                <span className="cyan-glow font-mono">
+                <span className="purple-glow font-mono">
                   <AnimatedCounter value={wallet?.balance} />
                 </span>
               </h2>
@@ -631,7 +631,7 @@ export default function Home() {
               </div>
               <div className="bg-[var(--bg-tertiary)]/20 p-4 rounded-2xl border border-[var(--glass-border)]">
                 <p className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-widest">Total Received</p>
-                <p className="text-lg font-black text-[#00FFA3] font-mono mt-1">₹{formatAmount(stats.totalReceived)}</p>
+                <p className="text-lg font-black text-emerald-400 font-mono mt-1">₹{formatAmount(stats.totalReceived)}</p>
               </div>
               <div className="bg-[var(--bg-tertiary)]/20 p-4 rounded-2xl border border-[var(--glass-border)]">
                 <p className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-widest">Success Rate</p>
@@ -655,7 +655,7 @@ export default function Home() {
                     </linearGradient>
                   </defs>
                   <path d={graphPaths.area} fill="url(#chartGrad)" />
-                  <path d={graphPaths.line} fill="none" stroke="url(#cyanGrad)" strokeWidth="2.5" />
+                  <path d={graphPaths.line} fill="none" stroke="var(--color-accent)" strokeWidth="2.5" />
                 </svg>
               </div>
               <div className="flex justify-between mt-3 text-[8px] font-black text-[var(--text-muted)] uppercase tracking-wider">
@@ -675,38 +675,38 @@ export default function Home() {
           <div className="glass-card border border-[var(--glass-border)] rounded-3xl p-6 md:p-8 space-y-6">
             <div className="border-b border-[var(--glass-border)] pb-4 flex justify-between items-center">
               <h3 className="text-[10px] font-black text-[var(--text-color)] uppercase tracking-widest flex items-center gap-2">
-                <Activity className="w-4 h-4 text-[#00FFA3] animate-pulse" />
+                <Activity className="w-4 h-4 text-[var(--color-primary)] animate-pulse" />
                 <GsapTextReveal text="SYSTEM MONITOR" className="text-[var(--text-color)]" />
               </h3>
-              <div className="w-2.5 h-2.5 bg-[#00FFA3] rounded-full animate-ping"></div>
+              <div className="w-2.5 h-2.5 bg-[var(--color-primary)] rounded-full animate-ping"></div>
             </div>
 
             <div className="space-y-4">
-              <div className="p-4 bg-[var(--bg-tertiary)]/20 border border-[var(--glass-border)] rounded-2xl flex items-center justify-between hover:border-emerald-500/20 transition-all duration-300">
+              <div className="p-4 bg-[var(--bg-tertiary)]/20 border border-[var(--glass-border)] rounded-2xl flex items-center justify-between hover:border-[var(--color-primary)]/20 transition-all duration-300">
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-[#00FFA3] rounded-full animate-pulse shadow-[0_0_10px_#00FFA3]"></div>
+                  <div className="w-2 h-2 bg-[var(--color-primary)] rounded-full animate-pulse shadow-[0_0_10px_var(--color-primary-glow)]"></div>
                   <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">API Gateway</span>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs font-black text-[#00FFA3]">99.98%</p>
+                  <p className="text-xs font-black text-[var(--color-primary)]">99.98%</p>
                   <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase">LATENCY 12ms</p>
                 </div>
               </div>
 
-              <div className="p-4 bg-[var(--bg-tertiary)]/20 border border-[var(--glass-border)] rounded-2xl flex items-center justify-between hover:border-emerald-500/20 transition-all duration-300">
+              <div className="p-4 bg-[var(--bg-tertiary)]/20 border border-[var(--glass-border)] rounded-2xl flex items-center justify-between hover:border-[var(--color-primary)]/20 transition-all duration-300">
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-[#00FFA3] rounded-full animate-pulse shadow-[0_0_10px_#00FFA3]"></div>
+                  <div className="w-2 h-2 bg-[var(--color-primary)] rounded-full animate-pulse shadow-[0_0_10px_var(--color-primary-glow)]"></div>
                   <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Payment Engine</span>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs font-black text-[#00FFA3]">100%</p>
+                  <p className="text-xs font-black text-[var(--color-primary)]">100%</p>
                   <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase">QUEUE SUCCESS</p>
                 </div>
               </div>
 
-              <div className="p-4 bg-[var(--bg-tertiary)]/20 border border-[var(--glass-border)] rounded-2xl flex items-center justify-between hover:border-emerald-500/20 transition-all duration-300">
+              <div className="p-4 bg-[var(--bg-tertiary)]/20 border border-[var(--glass-border)] rounded-2xl flex items-center justify-between hover:border-[var(--color-primary)]/20 transition-all duration-300">
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-[#00FFA3] rounded-full animate-pulse shadow-[0_0_10px_#00FFA3]"></div>
+                  <div className="w-2 h-2 bg-[var(--color-primary)] rounded-full animate-pulse shadow-[0_0_10px_var(--color-primary-glow)]"></div>
                   <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Database Sync</span>
                 </div>
                 <div className="text-right">
@@ -735,12 +735,12 @@ export default function Home() {
       {/* Add Money Modal */}
       <AnimatePresence mode="wait">
         {showAddMoney && (
-          <div className="fixed inset-0 bg-[var(--glass-bg)] backdrop-blur-md flex items-center justify-center z-50 p-6">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-6">
             <motion.div 
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="glass-modal p-8 md:p-10 w-full max-w-lg shadow-[0_20px_50px_rgba(0,0,0,0.6)] relative border border-[var(--glass-border)] rounded-3xl"
+              className="bg-[var(--glass-modal-bg)] p-8 md:p-10 w-full max-w-lg shadow-2xl relative border border-[var(--glass-border)] rounded-3xl"
             >
               <div className="absolute top-0 right-0 p-6">
                 <button onClick={() => setShowAddMoney(false)} className="text-[var(--text-muted)] hover:text-[var(--text-color)] transition-colors cursor-pointer">
@@ -749,7 +749,7 @@ export default function Home() {
               </div>
 
               <div className="space-y-6">
-                <h2 className="text-2xl font-black text-[var(--text-color)] uppercase italic tracking-tighter">Add <span className="text-[var(--color-accent)] cyan-glow">Money</span></h2>
+                <h2 className="text-2xl font-black text-[var(--text-color)] uppercase italic tracking-tighter">Add <span className="text-[var(--color-accent)] purple-glow">Money</span></h2>
                 <div className="space-y-4">
                   <div className="relative">
                     <input 

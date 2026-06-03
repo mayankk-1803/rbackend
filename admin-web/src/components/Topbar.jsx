@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Search, Bell, User, Shield, Menu, CheckCircle2, AlertTriangle, Wallet } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
@@ -81,7 +82,7 @@ export const Topbar = ({ toggleSidebar }) => {
       
       <div className="flex items-center gap-3 md:gap-4 relative">
         {/* Wallet Balance Summary */}
-        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-soft)] rounded-xl">
+        <Link to="/wallet" className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-soft)] rounded-xl hover:bg-[var(--accent-hover)] transition-all cursor-pointer">
           <Wallet className="w-4 h-4 text-[var(--color-primary)]" />
           <div className="text-left leading-none">
             <span className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block">Admin Vault</span>
@@ -89,7 +90,7 @@ export const Topbar = ({ toggleSidebar }) => {
               ₹{Number(adminWallet).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
-        </div>
+        </Link>
 
         {/* API Health Status */}
         <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-soft)] rounded-xl">

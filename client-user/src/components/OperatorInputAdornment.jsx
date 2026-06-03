@@ -6,10 +6,10 @@ import { isIOSDevice } from "../utils/device";
 
 const accentStyles = {
   cyan: {
-    border: "border-cyan-400/25",
-    ring: "ring-cyan-400/10",
-    spinner: "border-cyan-400",
-    glow: "0 0 16px rgba(34, 211, 238, 0.28)"
+    border: "border-purple-400/25",
+    ring: "ring-purple-400/10",
+    spinner: "border-purple-400",
+    glow: "0 0 16px rgba(192, 132, 252, 0.28)"
   },
   purple: {
     border: "border-purple-400/25",
@@ -19,10 +19,10 @@ const accentStyles = {
   }
 };
 
-export default function OperatorInputAdornment({ operator, loading = false, accent = "cyan" }) {
+export default function OperatorInputAdornment({ operator, loading = false, accent = "purple" }) {
   const iconRef = useRef(null);
   const [visibleOperator, setVisibleOperator] = useState(operator);
-  const style = accentStyles[accent] || accentStyles.cyan;
+  const style = accentStyles[accent] || accentStyles.purple;
   const currentOperator = visibleOperator || operator;
 
   useEffect(() => {

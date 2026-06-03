@@ -148,24 +148,22 @@ const cleanClientMessage = (message = "") => {
     return "Invalid or expired reset code";
   }
   if (raw.includes("password") || raw.includes("mustchangepassword")) return message;
+  if (raw.includes("insufficient")) return "Insufficient Wallet Balance";
   if (raw.includes("refund")) return "Refund processed";
   if (raw.includes("queued") || raw.includes("pending_review") || raw.includes("pending review")) return "Recharge queued";
   if (raw.includes("processing")) return "Recharge processing";
   if (raw.includes("recharge") && raw.includes("failed")) return "Recharge failed";
-  if (raw.includes("recharge") && raw.includes("success")) return "Recharge Successful";
   if (
     raw.includes("payment") ||
     raw.includes("gateway") ||
     raw.includes("order") ||
-    raw.includes("declined") ||
-    raw.includes("insufficient")
+    raw.includes("declined")
   ) return "Payment Failed";
-  if (raw.includes("success")) return "Order Placed Successfully";
   return "Something went wrong";
 };
 
 app.use((req, res, next) => {
-  if (!req.path.startsWith("/api")) return next();
+  if (!req.path.startsWith("/api") || req.path.includes("/disputes") || req.path.startsWith("/api/admin/commission")) return next();
   const originalJson = res.json.bind(res);
   res.json = (body) => {
     if (body && typeof body === "object" && body.success === false) {

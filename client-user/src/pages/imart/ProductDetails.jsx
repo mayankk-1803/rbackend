@@ -38,7 +38,7 @@ const ProductDetails = () => {
         }
       }
     } catch (err) {
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
       const demoProduct = getDemoProductBySlug(slug);
       if (demoProduct) {
         setProduct(demoProduct);
@@ -81,7 +81,7 @@ const ProductDetails = () => {
         }
       }
     } catch (err) {
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
     } finally {
       setWishing(false);
     }
@@ -225,7 +225,7 @@ const ProductDetails = () => {
             <div className="flex items-baseline gap-3">
               {product.discountPrice ? (
                 <>
-                  <span className="text-2xl font-black text-[var(--color-accent)] cyan-glow">
+                  <span className="text-2xl font-black text-[var(--color-accent)] purple-glow">
                     ₹{Number(product.discountPrice).toFixed(2)}
                   </span>
                   <span className="text-[var(--text-muted)] line-through text-xs font-bold">
@@ -305,7 +305,7 @@ const ProductDetails = () => {
             <button
               disabled={isOutOfStock}
               onClick={handleProceedToBuy}
-              className="flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white font-black text-[10px] uppercase tracking-widest shadow-[var(--shadow-medium)] hover:shadow-[var(--shadow-glow)] disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer"
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-[10px] uppercase tracking-widest shadow-[var(--shadow-medium)] hover:shadow-[var(--shadow-glow)] disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer"
             >
               <ShoppingBag className="w-4 h-4" />
               Proceed to Buy

@@ -24,7 +24,7 @@ export default function EarnedCoins() {
         setPagination(historyRes.data.pagination);
       }
     } catch (err) {
-      if (import.meta.env.DEV) console.error("Failed to fetch history:", err);
+      if (import.meta.env.DEV) if (import.meta.env.DEV) console.error("Failed to fetch history:", err);
     } finally {
       setLoading(false);
     }

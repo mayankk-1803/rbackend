@@ -5,14 +5,6 @@ import {
   Plus,
   Search,
   Filter,
-  MoreVertical,
-  Copy,
-  CheckCircle,
-  XCircle,
-  Edit2,
-  Trash2,
-  Check,
-  X,
   RefreshCw,
   ChevronLeft,
   ChevronRight,
@@ -20,6 +12,7 @@ import {
   Layers,
   TrendingUp
 } from "lucide-react";
+import RangeSlabActionsMenu from "../../components/commission/RangeSlabActionsMenu";
 
 export const RangeCommissionSlab = () => {
   const [rules, setRules] = useState([]);
@@ -478,55 +471,15 @@ export const RangeCommissionSlab = () => {
                     <td className="py-2 px-2 text-center font-mono text-[var(--text-secondary)]">
                       {(page - 1) * limit + index + 1}
                     </td>
-                    <td className="py-2 px-2 text-center relative">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveActionMenu(activeActionMenu === rule.id ? null : rule.id);
-                        }}
-                        className="p-1 hover:bg-[var(--accent-hover)] rounded-md transition-colors cursor-pointer inline-block"
-                      >
-                        <MoreVertical className="w-3.5 h-3.5" />
-                      </button>
-
-                      {activeActionMenu === rule.id && (
-                        <div className="absolute left-10 mt-1 w-44 bg-[var(--bg-secondary)] border border-[var(--border-soft)] shadow-md rounded-lg py-1.5 z-40 text-left font-semibold uppercase text-[10px] tracking-wider">
-                          <button
-                            onClick={() => handleEditInit(rule)}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-[var(--accent-hover)] text-[var(--text-primary)] cursor-pointer"
-                          >
-                            <Edit2 className="w-3 h-3" /> Edit
-                          </button>
-                          <button
-                            onClick={() => handleClone(rule)}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-[var(--accent-hover)] text-[var(--text-primary)] cursor-pointer"
-                          >
-                            <Copy className="w-3 h-3" /> Clone Rule
-                          </button>
-                          {rule.status === "PENDING" && (
-                            <>
-                              <button
-                                onClick={() => handleApproveInit(rule)}
-                                className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-emerald-500/10 text-emerald-500 cursor-pointer border-t border-[var(--border-soft)] pt-1"
-                              >
-                                <CheckCircle className="w-3 h-3" /> Approve
-                              </button>
-                              <button
-                                onClick={() => handleRejectInit(rule)}
-                                className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-rose-500/10 text-rose-500 cursor-pointer"
-                              >
-                                <XCircle className="w-3 h-3" /> Reject
-                              </button>
-                            </>
-                          )}
-                          <button
-                            onClick={() => handleDelete(rule.id)}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-rose-500/10 text-rose-500 cursor-pointer border-t border-[var(--border-soft)] mt-1 pt-1"
-                          >
-                            <Trash2 className="w-3 h-3" /> Delete
-                          </button>
-                        </div>
-                      )}
+                    <td className="py-2 px-2 text-center">
+                      <RangeSlabActionsMenu
+                        rule={rule}
+                        onEditInit={handleEditInit}
+                        onClone={handleClone}
+                        onApproveInit={handleApproveInit}
+                        onRejectInit={handleRejectInit}
+                        onDelete={handleDelete}
+                      />
                     </td>
                     <td className="py-2 px-2 uppercase font-bold text-[var(--text-primary)]">{rule.slab?.name}</td>
                     <td className="py-2 px-2 uppercase">{rule.operatorRel?.name}</td>

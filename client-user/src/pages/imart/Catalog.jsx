@@ -57,7 +57,7 @@ const Catalog = () => {
         setCategories(DEMO_CATEGORIES);
       }
     } catch (err) {
-      console.error("Failed to load catalog data, using fallback", err);
+      if (import.meta.env.DEV) console.error("Failed to load catalog data, using fallback", err);
       setProducts(DEMO_PRODUCTS);
       setCategories(DEMO_CATEGORIES);
     } finally {
@@ -112,7 +112,7 @@ const Catalog = () => {
         }
       }
     } catch (error) {
-      console.error(error);
+      if (import.meta.env.DEV) console.error(error);
     } finally {
       setWishingId(null);
     }
@@ -138,7 +138,7 @@ const Catalog = () => {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <ShoppingBag className="w-5 h-5 text-[var(--color-accent)]" />
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--color-accent)] cyan-glow">
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--color-accent)] purple-glow">
               Quantum Marketplace
             </span>
           </div>
@@ -152,9 +152,9 @@ const Catalog = () => {
 
         <Link
           to="/imart/wishlist"
-          className="flex items-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-cyan-500/20 to-purple-500/20 hover:from-cyan-500/30 hover:to-purple-500/30 border border-cyan-500/30 text-[var(--color-accent)] text-[10px] font-black uppercase tracking-widest shadow-[var(--shadow-soft)] transition-all cursor-pointer group"
+          className="flex items-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-purple-500/10 to-indigo-500/10 hover:from-purple-500/20 hover:to-indigo-500/20 border border-[var(--color-accent)]/20 text-[var(--color-accent)] text-[10px] font-black uppercase tracking-widest shadow-[var(--shadow-soft)] transition-all cursor-pointer group"
         >
-          <Heart className="w-4 h-4 fill-cyan-400/20 group-hover:scale-110 transition-transform" />
+          <Heart className="w-4 h-4 fill-[var(--color-accent)]/20 group-hover:scale-110 transition-transform" />
           Wishlist & Cart ({wishlistProductIds.size})
           <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
         </Link>

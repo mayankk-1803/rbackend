@@ -26,13 +26,13 @@ const OperatorDropdown = memo(({ selected, onSelect }) => {
     <div className="relative" ref={dropdownRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between px-4 py-4 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl text-[var(--text-color)] font-bold focus:border-cyan-500 transition-all cursor-pointer"
+        className="w-full flex items-center justify-between px-4 py-4 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl text-[var(--text-color)] font-bold focus:border-[var(--color-primary)] transition-all cursor-pointer"
       >
         <div className="flex items-center gap-3">
           <span className="text-sm font-black uppercase tracking-tight">
             {selected ? operatorMeta[selected]?.label : "Select Operator"}
           </span>
-          {selected && <div className={`w-2 h-2 rounded-full bg-cyan-400 animate-pulse`} />}
+          {selected && <div className={`w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse`} />}
         </div>
         <ChevronDown className={`w-4 h-4 text-[var(--text-secondary)] transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
@@ -51,10 +51,10 @@ const OperatorDropdown = memo(({ selected, onSelect }) => {
                 <button
                   key={op}
                   onClick={() => { onSelect(op); setIsOpen(false); }}
-                  className="w-full flex items-center justify-between px-6 py-4 hover:bg-cyan-500/10 transition-all border-b border-[var(--glass-border)] last:border-none cursor-pointer"
+                  className="w-full flex items-center justify-between px-6 py-4 hover:bg-[var(--color-primary-glow)] transition-all border-b border-[var(--glass-border)] last:border-none cursor-pointer"
                 >
                   <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">{meta.label}</span>
-                  {selected === op && <CheckCircle2 className="w-4 h-4 text-cyan-400" />}
+                  {selected === op && <CheckCircle2 className="w-4 h-4 text-[var(--color-primary)]" />}
                 </button>
               );
             })}
@@ -84,7 +84,7 @@ const mapDetectedOperator = (operatorName = '') => {
   return '';
 };
 
-const OperatorSwitchPanel = memo(({ selectedOperator, detectedOperator, isManualOverride, isOpen, loading, onToggle, onSelect }) => {
+const OperatorSwitchPanel = memo(({ selectedOperator, detectedOperator, isManualOverride, isOpen, loading, onToggle, onSelect, activeOperatorOptions = PREPAID_OPERATOR_OPTIONS }) => {
   if (!selectedOperator && !detectedOperator && !isOpen) return null;
   const displayOperator = selectedOperator || detectedOperator;
 
@@ -94,9 +94,9 @@ const OperatorSwitchPanel = memo(({ selectedOperator, detectedOperator, isManual
       animate={{ opacity: 1, y: 0 }}
       className="space-y-3"
     >
-      <div className="flex flex-col gap-3 rounded-3xl border border-[var(--glass-border)] bg-[var(--glass-input-bg)]/80 p-4 shadow-lg shadow-cyan-950/5 backdrop-blur-xl md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-3 rounded-3xl border border-[var(--glass-border)] bg-[var(--glass-input-bg)]/80 p-4 shadow-lg shadow-purple-950/5 backdrop-blur-xl md:flex-row md:items-center md:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 shadow-inner">
+          <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-[var(--color-primary)]/20 bg-[var(--color-primary-glow)] shadow-inner">
               <OperatorLogo operator={displayOperator} imageClassName="h-8 w-8" />
             </div>
             <div className="min-w-0">
@@ -117,7 +117,7 @@ const OperatorSwitchPanel = memo(({ selectedOperator, detectedOperator, isManual
             <button
               type="button"
               onClick={onToggle}
-              className="mt-1 text-left text-[10px] font-black uppercase tracking-widest text-cyan-400 transition-colors hover:text-cyan-300"
+              className="mt-1 text-left text-[10px] font-black uppercase tracking-widest text-[var(--color-primary)] transition-colors hover:opacity-85"
             >
               {displayOperator ? 'Wrong operator? Change manually' : 'Select operator manually'}
             </button>
@@ -125,7 +125,7 @@ const OperatorSwitchPanel = memo(({ selectedOperator, detectedOperator, isManual
         </div>
         {loading && (
           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">
-            <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
+            <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[var(--color-primary)] border-t-transparent" />
             Refreshing Plans
           </div>
         )}
@@ -140,7 +140,7 @@ const OperatorSwitchPanel = memo(({ selectedOperator, detectedOperator, isManual
             className="overflow-hidden"
           >
             <div className="grid grid-cols-2 gap-3 rounded-3xl border border-[var(--glass-border)] bg-[var(--glass-modal-bg)]/80 p-3 shadow-xl backdrop-blur-2xl sm:grid-cols-3 md:flex md:overflow-x-auto md:pb-4">
-              {PREPAID_OPERATOR_OPTIONS.map((op) => {
+              {activeOperatorOptions.map((op) => {
                 const active = selectedOperator === op;
                 return (
                   <button
@@ -150,8 +150,8 @@ const OperatorSwitchPanel = memo(({ selectedOperator, detectedOperator, isManual
                     onClick={() => onSelect(op)}
                     className={`flex min-w-0 items-center gap-3 rounded-2xl border px-3 py-3 text-left transition-all md:min-w-[150px] ${
                       active
-                        ? 'border-cyan-400 bg-cyan-400/15 shadow-lg shadow-cyan-500/10'
-                        : 'border-[var(--glass-border)] bg-[var(--glass-button-bg)] hover:border-cyan-400/50 hover:bg-cyan-400/10'
+                        ? 'border-[var(--color-primary)] bg-[var(--color-primary-glow)] shadow-lg shadow-[var(--color-primary-glow)]'
+                        : 'border-[var(--glass-border)] bg-[var(--glass-button-bg)] hover:border-[var(--color-primary)]/50 hover:bg-[var(--color-primary-glow)]'
                     } ${loading ? 'opacity-70' : ''}`}
                   >
                     <OperatorLogo operator={op} imageClassName="h-8 w-8" />
@@ -161,7 +161,7 @@ const OperatorSwitchPanel = memo(({ selectedOperator, detectedOperator, isManual
                         {detectedOperator === op ? 'Detected' : 'Prepaid'}
                       </p>
                     </div>
-                    {active && <CheckCircle2 className="ml-auto h-4 w-4 flex-shrink-0 text-cyan-400" />}
+                    {active && <CheckCircle2 className="ml-auto h-4 w-4 flex-shrink-0 text-[var(--color-primary)]" />}
                   </button>
                 );
               })}
@@ -181,7 +181,7 @@ const PlanCard = memo(({ plan, onSelect }) => {
       whileHover={isIOS ? undefined : { y: -4, borderColor: 'var(--color-accent)', boxShadow: '0 12px 24px -8px var(--color-accent-glow)' }}
       className="glass-card border border-[var(--glass-border)] p-6 rounded-3xl shadow-sm flex flex-col justify-between transition-all relative overflow-hidden group"
     >
-    <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-cyan-500/10 to-transparent rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+    <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-[var(--color-primary-glow)] to-transparent rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
     
     <div>
       <div className="flex justify-between items-start mb-4">
@@ -189,21 +189,21 @@ const PlanCard = memo(({ plan, onSelect }) => {
           <span className="text-3xl font-black text-[var(--text-color)] tracking-tighter">₹{plan.amount}</span>
           <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-0.5">Plan Voucher</p>
         </div>
-        <span className="bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-[9px] font-black uppercase px-3 py-1 rounded-full shadow-sm">
+        <span className="bg-[var(--color-primary-glow)] text-[var(--color-primary)] border border-[var(--color-primary)]/20 text-[9px] font-black uppercase px-3 py-1 rounded-full shadow-sm">
           {plan.validity}
         </span>
       </div>
-
+ 
       <div className="grid grid-cols-2 gap-4 py-4 my-4 border-y border-[var(--glass-border)] bg-[var(--bg-tertiary)]/40 rounded-2xl p-4">
         <div className="flex items-center gap-2.5">
-          <Wifi className="w-4 h-4 text-cyan-400" />
+          <Wifi className="w-4 h-4 text-[var(--color-primary)]" />
           <div>
             <span className="block text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Data</span>
             <span className="text-xs font-black text-[var(--text-color)]">{plan.data}</span>
           </div>
         </div>
         <div className="flex items-center gap-2.5">
-          <PhoneCall className="w-4 h-4 text-cyan-400" />
+          <PhoneCall className="w-4 h-4 text-[var(--color-primary)]" />
           <div>
             <span className="block text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Voice</span>
             <span className="text-xs font-black text-[var(--text-color)] truncate">{plan.calls || plan.unlimitedCalls || "Unlimited"}</span>
@@ -225,7 +225,7 @@ const PlanCard = memo(({ plan, onSelect }) => {
 
     <button
       onClick={() => onSelect(plan)}
-      className="w-full py-4 bg-[var(--glass-button-bg)] border border-[var(--glass-border)] hover:bg-cyan-500 hover:text-slate-950 hover:border-cyan-500 text-[var(--text-color)] font-black rounded-2xl shadow-md hover:shadow-lg hover:shadow-cyan-600/20 transition-all transform active:scale-95 text-[11px] uppercase tracking-widest cursor-pointer"
+      className="w-full py-4 bg-[var(--glass-button-bg)] border border-[var(--glass-border)] hover:bg-[var(--color-primary)] hover:text-white hover:border-[var(--color-primary)] text-[var(--text-color)] font-black rounded-2xl shadow-md hover:shadow-lg hover:shadow-[var(--color-primary-glow)] transition-all transform active:scale-95 text-[11px] uppercase tracking-widest cursor-pointer"
     >
       View Details
     </button>
@@ -348,7 +348,7 @@ const PlanDetailsModal = ({ isOpen, onClose, plan, operator, circle, onConfirm }
                 <div className="mt-4 pt-4 border-t border-[var(--glass-border)] flex justify-center">
                   <button 
                     onClick={() => setIsDescExpanded(!isDescExpanded)}
-                    className="text-xs font-black text-cyan-400 hover:text-cyan-300 uppercase tracking-widest flex items-center gap-1 transition-all cursor-pointer"
+                    className="text-xs font-black text-[var(--color-primary)] hover:opacity-80 uppercase tracking-widest flex items-center gap-1 transition-all cursor-pointer"
                   >
                     {isDescExpanded ? 'View less' : 'View more'}
                   </button>
@@ -417,7 +417,7 @@ const PlanDetailsModal = ({ isOpen, onClose, plan, operator, circle, onConfirm }
         <div className="p-5 md:p-6 border-t border-[var(--glass-border)] bg-[var(--glass-modal-bg)] backdrop-blur-md sticky bottom-0 z-20 shadow-lg flex justify-end isolate sticky-layer-perf modal-footer-safe-area">
           <button 
             onClick={() => onConfirm(plan)}
-            className="w-full sm:w-auto px-12 py-5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black rounded-2xl shadow-xl shadow-cyan-600/20 hover:shadow-cyan-600/20 transition-all text-xs uppercase tracking-widest active:scale-95 cursor-pointer"
+            className="w-full sm:w-auto px-12 py-5 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] hover:opacity-90 text-white font-black rounded-2xl shadow-xl shadow-[var(--color-primary-glow)] border-none transition-all text-xs uppercase tracking-widest active:scale-95 cursor-pointer"
           >
             Continue with ₹{plan.amount}
           </button>
@@ -448,6 +448,32 @@ export default function MobilePrepaid() {
   const navigate = useNavigate();
   const isIOS = isIOSDevice();
   const operator = selectedOperator;
+
+  const [activeOperatorOptions, setActiveOperatorOptions] = useState(PREPAID_OPERATOR_OPTIONS);
+
+  useEffect(() => {
+    const loadActiveOperators = async () => {
+      try {
+        const { data } = await api.get('/recharge/operators');
+        if (data.success && Array.isArray(data.data)) {
+          const dbActiveNames = data.data.map(op => op.name.toUpperCase());
+          const dbActiveCodes = data.data.map(op => String(op.code || op.codes));
+
+          const filtered = PREPAID_OPERATOR_OPTIONS.filter(op => {
+            const meta = operatorMeta[op];
+            if (!meta) return false;
+            const nameMatch = dbActiveNames.includes(op.toUpperCase()) || dbActiveNames.includes(meta.label.toUpperCase());
+            const codeMatch = dbActiveCodes.includes(String(meta.code));
+            return nameMatch || codeMatch;
+          });
+          setActiveOperatorOptions(filtered);
+        }
+      } catch (err) {
+        console.error("Failed to load active operators", err);
+      }
+    };
+    loadActiveOperators();
+  }, []);
   const planRequestRef = useRef({ id: 0, controller: null });
   const detectionRequestRef = useRef({ id: 0, controller: null });
   const planCacheKeyRef = useRef('');
@@ -492,7 +518,7 @@ export default function MobilePrepaid() {
     const controller = new AbortController();
     planRequestRef.current = { id: requestId, controller };
     setPlansLoading(true);
-    console.log("[MPLAN_FETCH]", {
+    if (import.meta.env.DEV) console.log("[MPLAN_FETCH]", {
       operator: meta.label,
       circle: circleName,
       mplanCode
@@ -516,7 +542,7 @@ export default function MobilePrepaid() {
         planCacheKeyRef.current = fetchKey;
         const categories = Object.keys(data.plans || {}).filter((key) => Array.isArray(data.plans?.[key]) && data.plans[key].length > 0);
         const totalPlans = categories.reduce((sum, key) => sum + data.plans[key].length, 0);
-        console.log("[PLAN_FETCH_SUCCESS]", { totalPlans, categories });
+        if (import.meta.env.DEV) console.log("[PLAN_FETCH_SUCCESS]", { totalPlans, categories });
       } else {
         setPlansData({});
       }
@@ -556,7 +582,7 @@ export default function MobilePrepaid() {
             setDetectedCircleCode(String(circleCode));
             
             const detected = mapDetectedOperator(data.operator?.name || '') || OPERATORS.JIO;
-            console.log("[HLR_DETECTED]", {
+            if (import.meta.env.DEV) console.log("[HLR_DETECTED]", {
               mobile: number,
               operator: data.operator?.name || operatorMeta[detected]?.label,
               circle: circleName
@@ -641,7 +667,7 @@ export default function MobilePrepaid() {
     setShowOperatorSelector(false);
     setPlansData({});
     setSelectedPlanDetails(null);
-    console.log("[MANUAL_OPERATOR_OVERRIDE]", {
+    if (import.meta.env.DEV) console.log("[MANUAL_OPERATOR_OVERRIDE]", {
       previousOperator: operatorMeta[selectedOperator]?.label || selectedOperator || 'None',
       selectedOperator: operatorMeta[nextOperator]?.label || nextOperator
     });
@@ -695,6 +721,7 @@ export default function MobilePrepaid() {
     setShowRechargeModal(false);
     const lt = toast.loading('Initiating secure recharge...');
     setLoading(true);
+    let toastResolved = false;
     try {
       const opCode = operatorMeta[operator]?.code;
       const { data } = await api.post('/recharge', { 
@@ -705,11 +732,30 @@ export default function MobilePrepaid() {
       
       if (data.success) {
         toast.success("Recharge queued", { id: lt });
+        toastResolved = true;
         navigate('/reports/transactions');
-      } else throw new Error(data.message || "Recharge failed");
+      } else {
+        throw new Error(data.message || "Recharge failed");
+      }
     } catch(err) {
-      toast.error(err.safeMessage || "Recharge could not be processed.", { id: lt });
-    } finally { setLoading(false); }
+      const errorMsg = err.safeMessage || err.message || "Recharge could not be processed.";
+      toast.error(errorMsg, { id: lt });
+      toastResolved = true;
+
+      const isInsufficient = errorMsg.toLowerCase().includes("insufficient") || 
+                           err.response?.data?.message?.toLowerCase().includes("insufficient") ||
+                           err.message?.toLowerCase().includes("insufficient");
+      if (isInsufficient) {
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 2000);
+      }
+    } finally { 
+      setLoading(false); 
+      if (!toastResolved) {
+        toast.dismiss(lt);
+      }
+    }
   };
 
   const tabs = [
@@ -727,19 +773,19 @@ export default function MobilePrepaid() {
     <Motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-6xl mx-auto space-y-8 py-6 px-4 md:px-0 relative z-10">
       {/* Header */}
       <div className="glass-card border border-[var(--glass-border)] rounded-[2.5rem] shadow-xl overflow-hidden relative group">
-        <div className="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-cyan-500/5 to-transparent pointer-events-none"></div>
+        <div className="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-[var(--color-primary-glow)] to-transparent pointer-events-none"></div>
         <div className="px-6 md:px-10 py-8 border-b border-[var(--glass-border)] bg-[var(--bg-tertiary)]/20 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-10">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <Zap className="w-6 h-6 text-cyan-400 cyan-glow" />
-              <h2 className="text-2xl md:text-3xl font-black text-[var(--text-color)] tracking-tight uppercase italic">Mobile <span className="text-cyan-400 cyan-glow">Prepaid</span></h2>
+              <Zap className="w-6 h-6 text-[var(--color-accent)] purple-glow" />
+              <h2 className="text-2xl md:text-3xl font-black text-[var(--text-color)] tracking-tight uppercase italic">Mobile <span className="text-[var(--color-accent)] purple-glow">Prepaid</span></h2>
             </div>
             <p className="text-xs font-black text-[var(--text-secondary)] uppercase tracking-widest">Intelligent Auto-Detect Recharge Gateway</p>
           </div>
           {operator && detectedCircle && (
             <div className="flex max-w-full flex-wrap items-center gap-2 px-4 py-2.5 bg-[var(--bg-secondary)]/60 border border-[var(--glass-border)] rounded-2xl shadow-sm">
               <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">OPERATOR:</span>
-              <span className="min-w-0 break-words text-xs font-black uppercase tracking-wider text-cyan-400">{operatorMeta[operator]?.label} • {detectedCircle}</span>
+              <span className="min-w-0 break-words text-xs font-black uppercase tracking-wider text-[var(--color-primary)]">{operatorMeta[operator]?.label} • {detectedCircle}</span>
             </div>
           )}
         </div>
@@ -756,10 +802,10 @@ export default function MobilePrepaid() {
                   maxLength="10" 
                   value={number} 
                   onChange={handleNumberChange} 
-                  className="w-full pl-14 pr-20 py-5 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl text-[var(--text-color)] text-lg sm:text-xl font-bold focus:border-cyan-500 transition-all outline-none shadow-inner" 
+                  className="w-full pl-14 pr-20 py-5 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl text-[var(--text-color)] text-lg sm:text-xl font-bold focus:border-[var(--color-primary)] transition-all outline-none shadow-inner" 
                   placeholder="Enter 10-digit number" 
                 />
-                <OperatorInputAdornment operator={operator} loading={detecting} accent="cyan" />
+                <OperatorInputAdornment operator={operator} loading={detecting} accent="purple" />
               </div>
               <p className="text-[9px] text-[var(--text-muted)] font-bold uppercase tracking-widest ml-1">Auto-fetches operator & best plans</p>
             </div>
@@ -781,7 +827,7 @@ export default function MobilePrepaid() {
                   type="tel" 
                   value={amount} 
                   onChange={handleAmountChange} 
-                  className="w-full px-6 py-5 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl text-[var(--text-color)] text-xl font-bold focus:border-cyan-500 transition-all outline-none shadow-inner" 
+                  className="w-full px-6 py-5 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl text-[var(--text-color)] text-xl font-bold focus:border-[var(--color-primary)] transition-all outline-none shadow-inner" 
                   placeholder="0.00" 
                 />
                 <p className="text-[9px] text-[var(--text-muted)] font-bold uppercase tracking-widest ml-1">Enter custom amount</p>
@@ -798,7 +844,7 @@ export default function MobilePrepaid() {
                       <p className="text-[9px] text-[var(--text-muted)] font-medium">REALTIME ROUTING ACTIVE</p>
                     </div>
                   </div>
-                  <span className="text-[10px] font-black uppercase px-3 py-1 bg-[var(--glass-button-bg)] rounded-xl text-cyan-300 border border-[var(--glass-border)]">Protected</span>
+                  <span className="text-[10px] font-black uppercase px-3 py-1 bg-[var(--glass-button-bg)] rounded-xl text-[var(--color-primary)] border border-[var(--glass-border)]">Protected</span>
                 </div>
               </div>
             )}
@@ -813,6 +859,7 @@ export default function MobilePrepaid() {
               loading={plansLoading}
               onToggle={() => setShowOperatorSelector((value) => !value)}
               onSelect={handleOperatorOverride}
+              activeOperatorOptions={activeOperatorOptions}
             />
           )}
 
@@ -822,7 +869,7 @@ export default function MobilePrepaid() {
               <button 
                 disabled={loading} 
                 onClick={() => validateForm() && setShowRechargeModal(true)} 
-                className="w-full md:w-auto px-12 py-5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black rounded-2xl shadow-xl shadow-cyan-600/20 transition-all text-xs uppercase tracking-widest active:scale-95 cursor-pointer"
+                className="w-full md:w-auto px-12 py-5 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] hover:opacity-90 text-white font-black rounded-2xl shadow-xl shadow-[var(--color-primary-glow)] border-none transition-all text-xs uppercase tracking-widest active:scale-95 cursor-pointer"
               >
                 {loading ? 'Authorizing...' : 'Proceed with Manual Recharge'}
               </button>
@@ -840,7 +887,7 @@ export default function MobilePrepaid() {
                     onClick={() => setActiveTab(tab.id)}
                     className={`px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex-shrink-0 cursor-pointer ${
                       activeTab === tab.id
-                        ? 'bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/20'
+                        ? 'bg-[var(--color-primary)] text-white shadow-lg shadow-[var(--color-primary-glow)]'
                         : 'bg-[var(--glass-button-bg)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-color)] border border-[var(--glass-border)]'
                     }`}
                   >
@@ -866,10 +913,10 @@ export default function MobilePrepaid() {
                     <Activity className="w-8 h-8 text-[var(--text-muted)] animate-pulse" />
                     <p className="text-xs font-black text-[var(--text-muted)] uppercase tracking-widest">No live plans found for this number</p>
                     <div className="flex flex-wrap items-center justify-center gap-4">
-                      <button onClick={() => setShowOperatorSelector(true)} className="mt-2 text-xs font-black text-cyan-400 uppercase tracking-widest underline cursor-pointer">
+                      <button onClick={() => setShowOperatorSelector(true)} className="mt-2 text-xs font-black text-[var(--color-primary)] uppercase tracking-widest underline cursor-pointer">
                         Change Operator
                       </button>
-                      <button onClick={() => setFallbackMode(true)} className="mt-2 text-xs font-black text-cyan-400 uppercase tracking-widest underline cursor-pointer">
+                      <button onClick={() => setFallbackMode(true)} className="mt-2 text-xs font-black text-[var(--color-primary)] uppercase tracking-widest underline cursor-pointer">
                         Enter Amount Manually
                       </button>
                     </div>
@@ -882,7 +929,7 @@ export default function MobilePrepaid() {
           {/* Awaiting Input Prompt */}
           {number.length < 10 && (
             <div className="py-20 border-2 border-dashed border-[var(--glass-border)] rounded-3xl flex flex-col items-center justify-center gap-4 text-center bg-[var(--bg-tertiary)]/20">
-              <div className="w-16 h-16 bg-[var(--bg-secondary)]/60 rounded-2xl shadow-sm flex items-center justify-center border border-[var(--glass-border)] text-cyan-400">
+              <div className="w-16 h-16 bg-[var(--bg-secondary)]/60 rounded-2xl shadow-sm flex items-center justify-center border border-[var(--glass-border)] text-[var(--color-primary)]">
                 <Smartphone className="w-8 h-8" />
               </div>
               <div>

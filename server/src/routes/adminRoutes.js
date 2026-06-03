@@ -1,4 +1,4 @@
-import express from "express";
+  import express from "express";
 import { auth } from "../middlewares/auth.js";
 import { isAdmin } from "../middlewares/admin.js"; 
 import { 
@@ -31,10 +31,22 @@ import {
   updatePartnerEnvironment,
   getPartnerWebhookEvents,
   replayPartnerWebhookEvent,
-  getPartnerUsageLogs
+  getPartnerUsageLogs,
+  getApiMarketplaceProducts,
+  getApiMarketplacePlans,
+  getApiMarketplaceBilling,
+  getApiMarketplaceThreats,
+  getApiDocsMetadata,
+  downloadApiDocs
 } from "../controllers/adminController.js";
 import { getCommissionReport } from "../controllers/reportController.js";
 import { resolveDispute, getAllDisputes } from "../controllers/disputeController.js";
+import { 
+  getKeys, 
+  generateKeys, 
+  toggleKeyStatus,
+  getAdminDeveloperAnalytics
+} from "../controllers/developerController.js";
 
 
 import { 
@@ -88,6 +100,20 @@ router.patch("/cashback/settings", updateCashbackSettings);
 router.patch("/disputes/:id", resolveDispute);
 router.get("/disputes", getAllDisputes);
 
+// API Marketplace Platform Routes
+router.get("/api-marketplace/products", getApiMarketplaceProducts);
+router.get("/api-marketplace/plans", getApiMarketplacePlans);
+router.get("/api-marketplace/billing", getApiMarketplaceBilling);
+router.get("/api-marketplace/threats", getApiMarketplaceThreats);
 
+// API Documentation Routes
+router.get("/api-docs/metadata", getApiDocsMetadata);
+router.get("/api-docs/download", downloadApiDocs);
+
+// Isolated Admin Developer Credentials Management Routes
+router.get("/developer/keys", getKeys);
+router.post("/developer/keys/generate", generateKeys);
+router.put("/developer/keys/:clientId/toggle", toggleKeyStatus);
+router.get("/developer/analytics", getAdminDeveloperAnalytics);
 
 export default router;

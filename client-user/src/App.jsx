@@ -48,14 +48,14 @@ import InactivityManager from './components/InactivityManager';
 
   const PageLoader = () => (
     <div className="flex items-center justify-center min-h-[60vh] relative z-10">
-      <div className="flex flex-col items-center gap-6 p-8 rounded-3xl bg-slate-950/40 border border-white/5 backdrop-blur-md shadow-2xl">
+      <div className="flex flex-col items-center gap-5 p-8 rounded-2xl ui-card shadow-2xl">
         <div className="relative flex items-center justify-center">
-          <div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin"></div>
-          <div className="w-4 h-4 bg-purple-500 rounded-full absolute animate-pulse"></div>
+          <div className="w-12 h-12 border-4 border-[var(--color-accent)]/15 border-t-[var(--color-accent)] rounded-full animate-spin"></div>
+          <div className="w-4 h-4 bg-[var(--color-accent)] rounded-full absolute animate-pulse"></div>
         </div>
         <div className="text-center space-y-1">
-          <p className="text-[10px] font-black text-cyan-400 uppercase tracking-[0.25em] cyan-glow">DiziPay Vault</p>
-          <p className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] animate-pulse">Synchronizing ledger...</p>
+          <p className="text-xs font-extrabold text-[var(--color-accent)] uppercase">iRecharge Vault</p>
+          <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase animate-pulse">Synchronizing ledger</p>
         </div>
       </div>
     </div>
@@ -71,7 +71,7 @@ import InactivityManager from './components/InactivityManager';
         return <Navigate to="/profile/security" replace />;
       }
     } catch (e) {
-      console.error(e);
+      if (import.meta.env.DEV) console.error(e);
     }
 
     return children;
@@ -83,6 +83,7 @@ import InactivityManager from './components/InactivityManager';
 
   const Layout = ({ children }) => {
     const location = useLocation();
+    const [collapsed, setCollapsed] = useState(false);
 
     // Do not show the app's internal navbar/bottomnav on public pages
     const hideNavbarRoutes = ['/', '/login', '/register', '/forgot-password'];
@@ -96,8 +97,8 @@ import InactivityManager from './components/InactivityManager';
 
     return (
       <LazyMotion features={domAnimation}>
-        {showNavbar && <Navbar />}
-        <main className={showNavbar ? "max-w-[1600px] mx-auto px-4 md:px-6 lg:px-8 py-5 md:py-6 pb-24 md:pb-6" : ""}>
+        {showNavbar && <Navbar collapsed={collapsed} setCollapsed={setCollapsed} />}
+        <main className={showNavbar ? `app-main max-w-[1680px] mx-auto px-4 md:pr-6 lg:pr-8 py-5 md:pt-6 md:pb-8 pb-24 transition-all duration-300 ${collapsed ? "md:pl-28" : "md:pl-[19rem]"}` : ""}>
           {mustChangePassword && showNavbar && (
             <motion.div 
               initial={{ opacity: 0, y: -10 }}
@@ -182,21 +183,15 @@ import InactivityManager from './components/InactivityManager';
     return (
       <ErrorBoundary>
           <Router>
-            <div className={`client-shell min-h-screen bg-[var(--bg-color)] text-[var(--text-color)] relative overflow-hidden selection:bg-cyan-500/30 selection:text-white transition-colors duration-300 ${isIOS ? 'ios-runtime' : ''}`}>
-              {/* Ambient Nebula Light System */}
-              <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0 dashboard-ambient-layer">
-                <div className="ambient-blob absolute -top-[10%] -left-[10%] w-[60%] h-[60%] bg-cyan-600/8 rounded-full blur-[150px] animate-blob-left"></div>
-                <div className="ambient-blob absolute top-[20%] -right-[10%] w-[50%] h-[50%] bg-purple-600/8 rounded-full blur-[130px] animate-blob-right"></div>
-                <div className="ambient-blob absolute -bottom-[10%] left-[20%] w-[60%] h-[60%] bg-blue-600/6 rounded-full blur-[160px] animate-blob-bottom"></div>
-                <div className="absolute inset-0 neural-grid opacity-30"></div>
-              </div>
+            <div className={`client-shell min-h-screen bg-[var(--bg-color)] text-[var(--text-color)] relative overflow-hidden selection:bg-[var(--color-accent)]/30 selection:text-white transition-colors duration-300 ${isIOS ? 'ios-runtime' : ''}`}>
+              <div className="absolute inset-0 pointer-events-none z-0 app-shell-grid" />
               <div className="relative z-10">
               <Toaster position="top-right" />
               <InactivityManager />
               {isAuth && <RewardPopup />}
 
-              <Layout>
-                <WalletProvider>
+              <WalletProvider>
+                <Layout>
                   <Routes>
                     <Route path="/login" element={<PublicRoute isAuth={isAuth}><Login /></PublicRoute>} />
                     <Route path="/register" element={<PublicRoute isAuth={isAuth}><Register /></PublicRoute>} />
@@ -234,8 +229,8 @@ import InactivityManager from './components/InactivityManager';
                     <Route path="/admin/*" element={<Navigate to="/" replace />} />
                     <Route path="*" element={<Navigate to="/" />} />
                   </Routes>
-                </WalletProvider>
-              </Layout>
+                </Layout>
+              </WalletProvider>
               </div>
             </div>
           </Router>

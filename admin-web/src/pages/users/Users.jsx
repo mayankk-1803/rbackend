@@ -2657,7 +2657,7 @@ export const Users = () => {
                     <input 
                       type="text" 
                       required
-                      placeholder="John Doe" 
+                      placeholder="Enter name" 
                       value={outletForm.ownerName}
                       onChange={(e) => setOutletForm(prev => ({ ...prev, ownerName: e.target.value }))}
                       className="w-full px-3.5 py-2 bg-[var(--admin-input-bg)] border border-[var(--border-soft)] rounded-xl text-xs text-[var(--text-primary)] outline-none"

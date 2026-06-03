@@ -171,7 +171,9 @@ const normalizeStatus = (status) => {
  * Creates a payment order
  */
 export const createNexgateOrder = async (data) => {
-  const { amount, mobile, name, email, txnId } = data;
+  const { amount, mobile, name, email, txnId, apiKey, baseUrl } = data;
+  const finalApiKey = apiKey || process.env.NEXGATE_APIKEY;
+  const finalBaseUrl = baseUrl || BASE_URL;
 
   try {
     const payload = {
@@ -185,17 +187,24 @@ export const createNexgateOrder = async (data) => {
       notify_url: `https://rchserver.irecharge.in/api/webhook/nexgate`
     };
 
-    console.log("[NEXGATE REQUEST]", payload);
+    console.log(`[NEXGATE_REQUEST] Endpoint: /create_order.php | MerchantCode: ${process.env.NEXGATE_USERNAME || "dizipay"} | ProviderId: NEXGATE | OrderId: ${txnId}`);
+
+    const headers = {
+      "Content-Type": "application/json",
+      "x-client-username": process.env.NEXGATE_USERNAME || "dizipay",
+      "x-client-apikey": finalApiKey
+    };
 
     const response = await requestWithRetryAndLogging({
       method: "POST",
       url: "/create_order.php",
+      baseURL: finalBaseUrl,
       data: payload,
-      headers: getHeaders(),
+      headers,
       validateStatus: (status) => status < 500 // Allow 403 to be handled in the try block
     });
 
-    console.log("[NEXGATE RESPONSE]", JSON.stringify(response.data, null, 2));
+    console.log(`[NEXGATE_RESPONSE] StatusCode: ${response.status} | ResponseBody: ${JSON.stringify(response.data)}`);
 
     const resData = response.data;
 
@@ -212,7 +221,11 @@ export const createNexgateOrder = async (data) => {
     const success = resData?.status === "success" || resData?.success === true;
 
     if (!success) {
-      throw new Error(resData?.message || "Gateway failed initialization");
+      const errMsg = resData?.message || "Gateway failed initialization";
+      if (errMsg.includes("No Active Merchant Integration Found")) {
+        console.warn("[NEXGATE_MERCHANT_NOT_LINKED] REMOTE ACCOUNT CONFIGURATION ERROR: The PhonePe merchant integration is active in DiziPay but not correctly configured or linked on Nexgate.");
+      }
+      throw new Error(errMsg);
     }
 
     const paymentUrl =

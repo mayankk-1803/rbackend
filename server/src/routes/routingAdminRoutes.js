@@ -1,7 +1,7 @@
 import express from "express";
 import { auth } from "../middlewares/auth.js";
 import { isAdmin } from "../middlewares/admin.js";
-import { checkPermission } from "../middlewares/rbac.js";
+import { checkPermission, superAdminOnly } from "../middlewares/rbac.js";
 import {
   getProvidersList,
   updateProviderSettings,
@@ -17,39 +17,109 @@ import {
   toggleWhatsappTemplate,
   getNotificationLogs,
   getTelemetryData,
-  toggleEnterpriseFeatureFlag
+  toggleEnterpriseFeatureFlag,
+  patchEnterpriseFeatureFlag,
+  promoteRoutingRollout,
+  pauseRoutingRollout,
+  rollbackRoutingRollout,
+  getOperatorsRegistry,
+  createOperatorRegistry,
+  updateOperatorRegistry,
+  deleteOperatorRegistry,
+  importOperatorsCSV,
+  exportOperatorsCSV
 } from "../controllers/routingAdminController.js";
+
+import ops from "../controllers/operationsController.js";
+import { getPrometheusMetrics } from "../services/routingEngine/routingMetrics.js";
 
 const router = express.Router();
 
 // Enforce administrative scope globally across all endpoints
 router.use(auth, isAdmin);
 
-// 1. Providers Management (Matches: GET /api/admin/enterprise/providers)
-router.get("/providers", checkPermission("recharges", "read"), getProvidersList);
-router.put("/providers/:id", checkPermission("recharges", "write"), updateProviderSettings);
+// ==========================================
+// LEGACY ENTERPRISE ROUTING ENDPOINTS (Preserved)
+// ==========================================
+router.get("/providers", checkPermission("operations", "read"), getProvidersList);
+router.put("/providers/:id", checkPermission("operations", "write"), updateProviderSettings);
 
-// 2. Operator Mappings (Matches: GET /api/admin/enterprise/operators/mappings)
-router.get("/operators/mappings", checkPermission("recharges", "read"), getOperatorMappings);
-router.post("/operators/mappings", checkPermission("recharges", "write"), createOperatorMapping);
-router.patch("/operators/mappings/:id/toggle", checkPermission("recharges", "write"), toggleOperatorMapping);
+// Operator Registry Endpoints (Phase 7)
+router.get("/operators", checkPermission("operations", "read"), getOperatorsRegistry);
+router.post("/operators", checkPermission("operations", "write"), createOperatorRegistry);
+router.put("/operators/:id", checkPermission("operations", "write"), updateOperatorRegistry);
+router.delete("/operators/:id", checkPermission("operations", "write"), deleteOperatorRegistry);
+router.post("/operators/import", checkPermission("operations", "write"), importOperatorsCSV);
+router.get("/operators/export", checkPermission("operations", "read"), exportOperatorsCSV);
 
-// 3. Routing & Switching Rules (Matches: GET /api/admin/enterprise/routing/rules)
-router.get("/routing/rules", checkPermission("recharges", "read"), getRoutingRules);
-router.post("/routing/rules", checkPermission("recharges", "write"), createRoutingRule);
-router.patch("/routing/rules/:id/toggle", checkPermission("recharges", "write"), toggleRoutingRule);
+router.get("/operators/mappings", checkPermission("operations", "read"), getOperatorMappings);
+router.post("/operators/mappings", checkPermission("operations", "write"), createOperatorMapping);
+router.patch("/operators/mappings/:id/toggle", checkPermission("operations", "write"), toggleOperatorMapping);
 
-// 3.5 Routing Decision Logs (Matches: GET /api/admin/enterprise/routing/logs)
-router.get("/routing/logs", checkPermission("recharges", "read"), getRoutingDecisionLogs);
+router.get("/routing/rules", checkPermission("operations", "read"), getRoutingRules);
+router.post("/routing/rules", checkPermission("operations", "write"), createRoutingRule);
+router.patch("/routing/rules/:id/toggle", checkPermission("operations", "write"), toggleRoutingRule);
 
-// 4. WhatsApp Notifications & Templates (Matches: GET /api/admin/enterprise/whatsapp/templates)
-router.get("/whatsapp/templates", checkPermission("recharges", "read"), getWhatsappTemplates);
-router.post("/whatsapp/templates", checkPermission("recharges", "write"), createWhatsappTemplate);
-router.patch("/whatsapp/templates/:id/toggle", checkPermission("recharges", "write"), toggleWhatsappTemplate);
-router.get("/whatsapp/logs", checkPermission("recharges", "read"), getNotificationLogs);
+router.get("/routing/logs", checkPermission("operations", "read"), getRoutingDecisionLogs);
 
-// 5. Telemetry & Feature Flags (Matches: GET /api/admin/enterprise/telemetry)
-router.get("/telemetry", checkPermission("recharges", "read"), getTelemetryData);
-router.post("/features/flags", checkPermission("recharges", "write"), toggleEnterpriseFeatureFlag);
+router.get("/whatsapp/templates", checkPermission("operations", "read"), getWhatsappTemplates);
+router.post("/whatsapp/templates", checkPermission("operations", "write"), createWhatsappTemplate);
+router.patch("/whatsapp/templates/:id/toggle", checkPermission("operations", "write"), toggleWhatsappTemplate);
+router.get("/whatsapp/logs", checkPermission("operations", "read"), getNotificationLogs);
+
+router.get("/telemetry", checkPermission("operations", "read"), getTelemetryData);
+router.post("/features/flags", checkPermission("operations", "write"), toggleEnterpriseFeatureFlag);
+router.patch("/features/flags/:key", checkPermission("operations", "write"), patchEnterpriseFeatureFlag);
+router.post("/routing/promote", checkPermission("operations", "write"), promoteRoutingRollout);
+router.post("/routing/pause", checkPermission("operations", "write"), pauseRoutingRollout);
+router.post("/routing/rollback", checkPermission("operations", "write"), rollbackRoutingRollout);
+
+// ==========================================
+// NEW ROUTING SUITE ENDPOINTS (Additive & Isolated)
+// ==========================================
+
+// Section Master
+router.get("/sections", checkPermission("operations", "read"), ops.getSections);
+router.post("/sections", checkPermission("operations", "write"), ops.createSection);
+router.put("/sections/:id", checkPermission("operations", "write"), ops.updateSection);
+router.delete("/sections/:id", checkPermission("operations", "write"), ops.deleteSection);
+
+// Operator mappings provider resolution
+router.get("/operators/provider-mappings", checkPermission("operations", "read"), ops.getOperatorMappings);
+router.post("/operators/provider-mappings", checkPermission("operations", "write"), ops.createOperatorMapping);
+router.put("/operators/provider-mappings/:id", checkPermission("operations", "write"), ops.updateOperatorMapping);
+router.delete("/operators/provider-mappings/:id", checkPermission("operations", "write"), ops.deleteOperatorMapping);
+
+// Advanced Routing Rules & Maker Checker Workflow
+router.get("/routing/advanced-rules", checkPermission("operations", "read"), ops.getRules);
+router.post("/routing/advanced-rules", checkPermission("operations", "write"), ops.createRuleDraft);
+router.post("/routing/advanced-rules/:id/submit", checkPermission("operations", "write"), ops.submitRuleForApproval);
+router.post("/routing/advanced-rules/:id/approve", superAdminOnly, ops.approveRule);
+router.post("/routing/advanced-rules/:id/reject", checkPermission("operations", "write"), ops.rejectRule);
+router.delete("/routing/advanced-rules/:id", checkPermission("operations", "write"), ops.deleteRule);
+
+// Route Simulator
+router.post("/routing/simulate", checkPermission("operations", "read"), ops.simulateRoute);
+
+// Performance Analytics & Immutable Audits
+router.get("/routing/analytics", checkPermission("operations", "read"), ops.getRoutingAnalytics);
+router.get("/routing/audit-logs", checkPermission("operations", "read"), ops.getAuditLogs);
+
+// Emergency overrides and forced paths
+router.get("/routing/emergency", superAdminOnly, ops.getOverrides);
+router.post("/routing/emergency", superAdminOnly, ops.updateOverride);
+router.post("/routing/emergency/rollback", superAdminOnly, ops.rollbackOverride);
+router.post("/routing/cache/rebuild", checkPermission("operations", "write"), ops.rebuildCacheEndpoint);
+
+// Prometheus metric endpoint
+router.get("/routing/metrics", checkPermission("operations", "read"), async (req, res) => {
+  try {
+    const rawMetrics = await getPrometheusMetrics();
+    res.set("Content-Type", "text/plain");
+    return res.send(rawMetrics);
+  } catch (err) {
+    return res.status(500).send("Error generating prometheus metrics string");
+  }
+});
 
 export default router;

@@ -15,15 +15,15 @@ const router = express.Router();
 router.use(auth, isAdmin);
 
 // GET: Fetch list of all providers (read scope required)
-router.get("/providers", checkPermission("recharges", "read"), getProvidersList);
+router.get("/providers", checkPermission("operations", "read"), getProvidersList);
 
 // POST: Register a new recharge provider (write scope required)
-router.post("/providers", checkPermission("recharges", "write"), createProvider);
+router.post("/providers", checkPermission("operations", "write"), createProvider);
 
 // PATCH: Granularly update provider configuration (write scope required)
-router.patch("/providers/:id", checkPermission("recharges", "write"), updateProvider);
+router.patch("/providers/:id", checkPermission("operations", "write"), updateProvider);
 
 // POST: Safe ping / diagnostic API check (write scope required)
-router.post("/providers/:id/test", checkPermission("recharges", "write"), testProviderApi);
+router.post("/providers/:id/test", checkPermission("operations", "write"), testProviderApi);
 
 export default router;

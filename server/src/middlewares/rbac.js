@@ -13,12 +13,38 @@ export const checkPermission = (moduleName, actionType) => {
         return res.status(401).json({ success: false, message: "Unauthorized request" });
       }
 
+      // Fetch user from DB to verify active status and fetch DB roles (commissionRole / role)
+      const dbUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { role: true, commissionRole: true }
+      });
+
+      if (!dbUser) {
+        return res.status(401).json({ success: false, message: "User not found" });
+      }
+
       // SUPER_ADMIN automatically bypasses all RBAC constraints
-      if (user.role === "SUPER_ADMIN") {
+      if (dbUser.role === "SUPER_ADMIN" || dbUser.commissionRole === "SUPER_ADMIN") {
         return next();
       }
 
-      const role = user.role;
+      // Enforce read-only bounds for SUB_ADMIN
+      if (dbUser.commissionRole === "SUB_ADMIN") {
+        if (actionType === "read") {
+          return next();
+        }
+        return res.status(403).json({
+          success: false,
+          message: `Access Denied: Sub-Admins have read-only access to module ${moduleName}`
+        });
+      }
+
+      // If they are not ADMIN/SUPER_ADMIN at UserRole level, block them
+      if (dbUser.role !== "ADMIN") {
+        return res.status(403).json({ success: false, message: "Access Denied: Administrative access required" });
+      }
+
+      const role = dbUser.role;
       const permission = await prisma.rolePermission.findUnique({
         where: {
           role_module: {

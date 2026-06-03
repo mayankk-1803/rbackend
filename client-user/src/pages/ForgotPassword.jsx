@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
-import { Loader2, ArrowRight, Smartphone, Mail, Lock, ShieldCheck, KeyRound, Check, X } from 'lucide-react';
+import { Loader2, ArrowRight, Smartphone, Lock, KeyRound, Check, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import AuthLeftPanel from '../components/AuthLeftPanel';
 
 export default function ForgotPassword() {
   const [step, setStep] = useState(1); // 1: Request Reset, 2: Reset Password
@@ -98,178 +99,236 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg-color)] flex flex-col justify-center items-center p-4 relative overflow-hidden font-['Inter'] transition-colors duration-300">
-      {/* Background Orbs */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
-        <div className="absolute -top-40 -left-40 w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-[140px]"></div>
-        <div className="absolute top-1/2 -right-40 w-[500px] h-[500px] bg-cyan-500/5 rounded-full blur-[120px]"></div>
+    <div className="min-h-screen w-full flex flex-col md:flex-row bg-[#FFFFFF] dark:bg-[#111122] text-[var(--text-color)] font-['Inter'] transition-colors duration-500 overflow-x-hidden">
+      {/* Left Experience Panel */}
+      <div className="w-full md:w-1/2 lg:w-[60%] shrink-0">
+        <AuthLeftPanel />
       </div>
 
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="max-w-md w-full relative z-10"
-      >
-        <div className="glass-card p-8 rounded-[2.5rem] shadow-[var(--glass-shadow)] border border-[var(--glass-border)] bg-[var(--glass-card-bg)]">
-          <div className="text-center mb-8">
-            <div className="inline-flex p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 mb-4">
-              <KeyRound className="w-6 h-6 text-cyan-400" />
-            </div>
-            <h2 className="text-3xl font-black text-[var(--text-color)] tracking-tight italic uppercase">
-              RESET PASSWORD
-            </h2>
-            <p className="text-[var(--text-secondary)] text-sm mt-2">Secure recovery wizard</p>
-          </div>
+      {/* Right Authentication Area */}
+      <div className="w-full md:w-1/2 lg:w-[40%] flex items-center justify-center p-6 sm:p-12 lg:p-16 relative bg-[#F8F7FC] dark:bg-[#0B0B16] min-h-screen shrink-0 transition-colors duration-500">
+        
+        {/* Background Ambient Glow */}
+        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+          <div className="absolute top-[20%] -right-32 w-[350px] h-[350px] bg-[var(--color-primary-glow)] rounded-full blur-[100px]" />
+          <div className="absolute bottom-[20%] -left-32 w-[300px] h-[300px] bg-[var(--color-accent-glow)] rounded-full blur-[90px]" />
+        </div>
 
-          <AnimatePresence mode="wait">
-            {step === 1 ? (
-              <motion.form
-                key="step1-form"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                onSubmit={handleRequestReset}
-                className="space-y-6"
-              >
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] ml-1">Email or Phone Number</label>
+        {/* Form Container Wrapper */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.3 }}
+          className="max-w-[480px] w-full relative z-10"
+        >
+          <div className="glass-card p-8 sm:p-10 rounded-[32px] shadow-[var(--shadow-card)] border border-[#E5E7EB] dark:border-[#2A2A45] bg-[var(--glass-card-bg)] backdrop-blur-xl">
+            
+            {/* Heading Zone */}
+            <div className="text-left mb-8">
+              <h2 className="text-3xl font-black text-[var(--text-color)] tracking-tight lowercase navbar-logo-text leading-tight">
+                irecharge
+              </h2>
+              <p className="text-[var(--text-secondary)] text-xs font-semibold mt-2 leading-relaxed">
+                Reset access securely.
+              </p>
+            </div>
+
+            {/* Auth Mode Forms */}
+            <AnimatePresence mode="wait">
+              {step === 1 ? (
+                <motion.form
+                  key="step1-recovery"
+                  initial={{ opacity: 0, x: -15 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 15 }}
+                  transition={{ duration: 0.2 }}
+                  onSubmit={handleRequestReset}
+                  className="space-y-6"
+                >
+                  {/* Identity Input with Floating Label */}
                   <div className="relative">
                     <input
+                      id="identity"
                       type="text"
                       value={identity}
                       onChange={e => setIdentity(e.target.value)}
-                      className="w-full pl-12 pr-4 py-4 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl text-[var(--text-color)] font-medium outline-none focus:ring-2 focus:ring-cyan-500/10 focus:border-cyan-400 transition-all placeholder:text-[var(--text-muted)]"
-                      placeholder="name@example.com or 98********"
+                      className="peer w-full pl-12 pr-4 pt-6 pb-2.5 h-[58px] md:h-16 bg-[#FFFFFF] dark:bg-[#161629] border border-[#E5E7EB] dark:border-[#2A2A45] rounded-2xl text-[var(--text-color)] font-medium outline-none focus:ring-2 focus:ring-[var(--color-primary-glow)] focus:border-[var(--color-primary)] transition-all placeholder-transparent text-sm"
+                      placeholder=" "
                     />
-                    <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-muted)]" />
+                    <label
+                      htmlFor="identity"
+                      className="absolute left-12 top-2 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider transition-all transform-none pointer-events-none peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-sm peer-placeholder-shown:font-semibold peer-placeholder-shown:normal-case peer-placeholder-shown:tracking-normal peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-[10px] peer-focus:font-bold peer-focus:text-[var(--color-primary)] peer-focus:uppercase peer-focus:tracking-wider"
+                    >
+                      Email or Mobile Number
+                    </label>
+                    <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-muted)] pointer-events-none" />
                   </div>
-                </div>
 
-                <button
-                  type="submit"
-                  disabled={loading || !identity}
-                  className="w-full py-4 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white rounded-2xl text-sm font-black tracking-widest shadow-lg shadow-cyan-500/20 hover:shadow-cyan-400/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2 group cursor-pointer"
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    type="submit"
+                    disabled={loading || !identity}
+                    className="w-full h-14 bg-gradient-to-r from-[#A78BFA] to-[#8B5CF6] dark:from-[#7C3AED] dark:to-[#5B21B6] hover:shadow-[0_0_24px_rgba(139,92,246,0.35)] dark:hover:shadow-[0_0_24px_rgba(124,58,237,0.45)] text-white rounded-2xl text-xs font-black tracking-widest transition-all disabled:opacity-50 flex items-center justify-center gap-2 group cursor-pointer shadow-lg"
+                  >
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                      <>
+                        SEND RESET CODE
+                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      </>
+                    )}
+                  </motion.button>
+                </motion.form>
+              ) : (
+                <motion.form
+                  key="step2-recovery"
+                  initial={{ opacity: 0, x: 15 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -15 }}
+                  transition={{ duration: 0.2 }}
+                  onSubmit={handleResetPassword}
+                  className="space-y-6"
                 >
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
-                    <>
-                      SEND RESET CODE
-                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                    </>
-                  )}
-                </button>
-              </motion.form>
-            ) : (
-              <motion.form
-                key="step2-form"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                onSubmit={handleResetPassword}
-                className="space-y-6"
-              >
-                {/* OTP Reset Code */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center px-1">
-                    <label className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em]">Reset Code / OTP</label>
-                    <button type="button" onClick={() => setStep(1)} className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300 cursor-pointer">CHANGE ID</button>
+                  {/* Reset Code Input with Floating Label */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center px-1">
+                      <label className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em]">Reset Code / OTP</label>
+                      <button type="button" onClick={() => setStep(1)} className="text-[10px] font-black text-[var(--color-primary)] hover:opacity-80 cursor-pointer uppercase tracking-wider">Change ID</button>
+                    </div>
+                    <div className="relative">
+                      <input
+                        id="code"
+                        type="text"
+                        maxLength={6}
+                        value={code}
+                        onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
+                        className="peer w-full pl-12 pr-4 pt-6 pb-2.5 h-[58px] md:h-16 bg-[#FFFFFF] dark:bg-[#161629] border border-[#E5E7EB] dark:border-[#2A2A45] rounded-2xl text-[var(--text-color)] font-medium outline-none focus:ring-2 focus:ring-[var(--color-primary-glow)] focus:border-[var(--color-primary)] transition-all placeholder-transparent text-sm"
+                        placeholder=" "
+                      />
+                      <label
+                        htmlFor="code"
+                        className="absolute left-12 top-2 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider transition-all transform-none pointer-events-none peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-sm peer-placeholder-shown:font-semibold peer-placeholder-shown:normal-case peer-placeholder-shown:tracking-normal peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-[10px] peer-focus:font-bold peer-focus:text-[var(--color-primary)] peer-focus:uppercase peer-focus:tracking-wider"
+                      >
+                        6-digit reset code
+                      </label>
+                      <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-muted)] pointer-events-none" />
+                    </div>
                   </div>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      maxLength={6}
-                      value={code}
-                      onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
-                      className="w-full pl-12 pr-4 py-4 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl text-[var(--text-color)] font-medium outline-none focus:ring-2 focus:ring-cyan-500/10 focus:border-cyan-400 transition-all placeholder:text-[var(--text-muted)]"
-                      placeholder="6-digit reset code"
-                    />
-                    <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-muted)]" />
-                  </div>
-                </div>
 
-                {/* New Password */}
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] ml-1">New Password</label>
+                  {/* New Password Input with Floating Label */}
                   <div className="relative">
                     <input
+                      id="newPassword"
                       type="password"
                       value={newPassword}
                       onChange={e => setNewPassword(e.target.value)}
-                      className="w-full pl-12 pr-4 py-4 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl text-[var(--text-color)] font-medium outline-none focus:ring-2 focus:ring-cyan-500/10 focus:border-cyan-400 transition-all placeholder:text-[var(--text-muted)]"
-                      placeholder="••••••••"
+                      className="peer w-full pl-12 pr-4 pt-6 pb-2.5 h-[58px] md:h-16 bg-[#FFFFFF] dark:bg-[#161629] border border-[#E5E7EB] dark:border-[#2A2A45] rounded-2xl text-[var(--text-color)] font-medium outline-none focus:ring-2 focus:ring-[var(--color-primary-glow)] focus:border-[var(--color-primary)] transition-all placeholder-transparent text-sm"
+                      placeholder=" "
                     />
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-muted)]" />
-                  </div>
-                </div>
-
-                {/* Password Strength Requirements */}
-                <div className="p-4 rounded-2xl bg-[var(--bg-secondary)]/50 border border-[var(--glass-border)] space-y-2 text-[11px] font-semibold text-[var(--text-secondary)]">
-                  <p className="text-[10px] font-extrabold uppercase tracking-widest text-[var(--text-muted)] mb-2">Password Requirements</p>
-                  
-                  <div className="flex items-center gap-2">
-                    {hasMinLength ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <X className="w-3.5 h-3.5 text-[var(--text-muted)]" />}
-                    <span className={hasMinLength ? "text-emerald-400" : ""}>At least 8 characters long</span>
+                    <label
+                      htmlFor="newPassword"
+                      className="absolute left-12 top-2 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider transition-all transform-none pointer-events-none peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-sm peer-placeholder-shown:font-semibold peer-placeholder-shown:normal-case peer-placeholder-shown:tracking-normal peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-[10px] peer-focus:font-bold peer-focus:text-[var(--color-primary)] peer-focus:uppercase peer-focus:tracking-wider"
+                    >
+                      New Password
+                    </label>
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-muted)] pointer-events-none" />
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {hasUppercase && hasLowercase ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <X className="w-3.5 h-3.5 text-[var(--text-muted)]" />}
-                    <span className={hasUppercase && hasLowercase ? "text-emerald-400" : ""}>Contains uppercase and lowercase letters</span>
+                  {/* Password Strength Requirements */}
+                  <div className="p-4 rounded-2xl bg-[#F8F7FC] dark:bg-[#161629] border border-[#E5E7EB] dark:border-[#2A2A45] space-y-2 text-[10px] font-semibold text-[var(--text-secondary)]">
+                    <p className="text-[9px] font-extrabold uppercase tracking-widest text-[var(--text-muted)] mb-2">Password Requirements</p>
+                    
+                    <div className="flex items-center gap-2">
+                      {hasMinLength ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <X className="w-3.5 h-3.5 text-[var(--text-muted)]" />}
+                      <span className={hasMinLength ? "text-emerald-400" : ""}>At least 8 characters long</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {hasUppercase && hasLowercase ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <X className="w-3.5 h-3.5 text-[var(--text-muted)]" />}
+                      <span className={hasUppercase && hasLowercase ? "text-emerald-400" : ""}>Contains uppercase and lowercase letters</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {hasNumber ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <X className="w-3.5 h-3.5 text-[var(--text-muted)]" />}
+                      <span className={hasNumber ? "text-emerald-400" : ""}>Contains at least one number</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {hasSpecial ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <X className="w-3.5 h-3.5 text-[var(--text-muted)]" />}
+                      <span className={hasSpecial ? "text-emerald-400" : ""}>Contains at least one special character (@$!%*?&)</span>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {hasNumber ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <X className="w-3.5 h-3.5 text-[var(--text-muted)]" />}
-                    <span className={hasNumber ? "text-emerald-400" : ""}>Contains at least one number</span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {hasSpecial ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <X className="w-3.5 h-3.5 text-[var(--text-muted)]" />}
-                    <span className={hasSpecial ? "text-emerald-400" : ""}>Contains at least one special character (@$!%*?&)</span>
-                  </div>
-                </div>
-
-                {/* Confirm Password */}
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] ml-1">Confirm Password</label>
+                  {/* Confirm Password Input with Floating Label */}
                   <div className="relative">
                     <input
+                      id="confirmPassword"
                       type="password"
                       value={confirmPassword}
                       onChange={e => setConfirmPassword(e.target.value)}
-                      className="w-full pl-12 pr-4 py-4 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl text-[var(--text-color)] font-medium outline-none focus:ring-2 focus:ring-cyan-500/10 focus:border-cyan-400 transition-all placeholder:text-[var(--text-muted)]"
-                      placeholder="••••••••"
+                      className="peer w-full pl-12 pr-4 pt-6 pb-2.5 h-[58px] md:h-16 bg-[#FFFFFF] dark:bg-[#161629] border border-[#E5E7EB] dark:border-[#2A2A45] rounded-2xl text-[var(--text-color)] font-medium outline-none focus:ring-2 focus:ring-[var(--color-primary-glow)] focus:border-[var(--color-primary)] transition-all placeholder-transparent text-sm"
+                      placeholder=" "
                     />
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-muted)]" />
+                    <label
+                      htmlFor="confirmPassword"
+                      className="absolute left-12 top-2 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider transition-all transform-none pointer-events-none peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-sm peer-placeholder-shown:font-semibold peer-placeholder-shown:normal-case peer-placeholder-shown:tracking-normal peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-[10px] peer-focus:font-bold peer-focus:text-[var(--color-primary)] peer-focus:uppercase peer-focus:tracking-wider"
+                    >
+                      Confirm Password
+                    </label>
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-muted)] pointer-events-none" />
                   </div>
-                </div>
 
-                <button
-                  type="submit"
-                  disabled={loading || code.length < 6 || !isPasswordStrong || newPassword !== confirmPassword}
-                  className="w-full py-4 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white rounded-2xl text-sm font-black tracking-widest shadow-lg shadow-cyan-500/20 hover:shadow-cyan-400/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'UPDATE & RESET PASSWORD'}
-                </button>
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    type="submit"
+                    disabled={loading || code.length < 6 || !isPasswordStrong || newPassword !== confirmPassword}
+                    className="w-full h-14 bg-gradient-to-r from-[#A78BFA] to-[#8B5CF6] dark:from-[#7C3AED] dark:to-[#5B21B6] hover:shadow-[0_0_24px_rgba(139,92,246,0.35)] dark:hover:shadow-[0_0_24px_rgba(124,58,237,0.45)] text-white rounded-2xl text-xs font-black tracking-widest transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+                  >
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'UPDATE & RESET PASSWORD'}
+                  </motion.button>
 
-                <div className="text-center">
-                  {timer > 0 ? (
-                    <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Resend Code in {timer}s</p>
-                  ) : (
-                    <button type="button" onClick={handleRequestReset} className="text-[10px] font-black text-cyan-400 hover:text-cyan-300 uppercase tracking-widest cursor-pointer">RESEND CODE</button>
-                  )}
-                </div>
-              </motion.form>
-            )}
-          </AnimatePresence>
+                  <div className="text-center">
+                    {timer > 0 ? (
+                      <p className="text-[10px] font-extrabold text-[var(--text-secondary)] uppercase tracking-widest">Resend Code in {timer}s</p>
+                    ) : (
+                      <button type="button" onClick={handleRequestReset} className="text-[10px] font-black text-[var(--color-primary)] hover:opacity-80 uppercase tracking-widest cursor-pointer">RESEND CODE</button>
+                    )}
+                  </div>
+                </motion.form>
+              )}
+            </AnimatePresence>
 
-          <div className="mt-8 pt-8 border-t border-[var(--glass-border)] text-center">
-            <span className="text-[var(--text-secondary)] text-sm">Remember your details? </span>
-            <Link to="/login" className="text-cyan-400 font-bold hover:underline underline-offset-4">Log In</Link>
+            {/* Navigation Switch */}
+            <div className="mt-8 pt-6 border-t border-[var(--glass-border)] text-center">
+              <span className="text-[var(--text-secondary)] text-xs font-medium">Remember your details? </span>
+              <Link to="/login" className="text-[var(--color-primary)] text-xs font-black hover:underline underline-offset-4 tracking-wide">
+                Log In
+              </Link>
+            </div>
+
+            {/* Trust Zone */}
+            <div className="mt-8 grid grid-cols-2 gap-x-4 gap-y-3 pt-6 border-t border-[var(--glass-border)]/50 text-left">
+              <div className="flex items-center gap-1.5">
+                <span className="text-emerald-500 font-bold text-xs select-none">✓</span>
+                <span className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest leading-none">Enterprise-grade Security</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-emerald-500 font-bold text-xs select-none">✓</span>
+                <span className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest leading-none">Encrypted Sessions</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-emerald-500 font-bold text-xs select-none">✓</span>
+                <span className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest leading-none">Protected Transactions</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-emerald-500 font-bold text-xs select-none">✓</span>
+                <span className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest leading-none">Secure Authentication</span>
+              </div>
+            </div>
+
           </div>
-        </div>
-
-        <p className="mt-8 text-center text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.3em]">
-          Dizipay Security Infrastructure v2.0
-        </p>
-      </motion.div>
+        </motion.div>
+      </div>
     </div>
   );
 }

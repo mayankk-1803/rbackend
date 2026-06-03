@@ -5,17 +5,12 @@ import {
   Plus, 
   Search, 
   Filter, 
-  MoreVertical, 
-  Copy, 
-  UserPlus, 
-  Edit2, 
-  Trash2, 
-  Check, 
-  X,
   RefreshCw,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  X
 } from "lucide-react";
+import SlabActionsMenu from "../../components/commission/SlabActionsMenu";
 
 export const SlabMaster = () => {
   const [slabs, setSlabs] = useState([]);
@@ -148,19 +143,26 @@ export const SlabMaster = () => {
 
   const handleClone = async (e) => {
     e.preventDefault();
+    console.log("[CLONE] slab", selectedSlab);
+    console.log("[CLONE] slabId", selectedSlab?.id);
     try {
       const response = await api.post(`/admin/commission/slabs/${selectedSlab.id}/clone`, cloneData);
+      console.log("[CLONE] response", response);
       if (response.data?.success) {
         toast.success("Slab cloned successfully with all rules!");
         setIsCloneOpen(false);
         fetchSlabs();
       }
     } catch (error) {
+      console.log("[CLONE] error", error);
       toast.error(error.response?.data?.message || "Failed to clone slab");
     }
   };
 
   const handleAssignInit = (slab) => {
+    console.log("[ASSIGN USERS] modal opened");
+    console.log("[ASSIGN USERS] slab", slab);
+    console.log("[ASSIGN USERS] slabId", slab?.id);
     setSelectedSlab(slab);
     setAssignData({ userIds: "" });
     setIsAssignOpen(true);
@@ -175,19 +177,28 @@ export const SlabMaster = () => {
       return;
     }
 
+    const payload = {
+      userIds: ids.map(id => parseInt(id))
+    };
+
+    console.log("[ASSIGN USERS] slab", selectedSlab);
+    console.log("[ASSIGN USERS] slabId", selectedSlab?.id);
+    console.log("[ASSIGN USERS] payload", payload);
+
     try {
-      const response = await api.post(`/admin/commission/slabs/${selectedSlab.id}/assign-users`, {
-        userIds: ids.map(id => parseInt(id))
-      });
+      const response = await api.post(`/admin/commission/slabs/${selectedSlab.id}/assign-users`, payload);
+      console.log("[ASSIGN USERS] response", response);
       if (response.data?.success) {
         toast.success(response.data.message || "Users assigned successfully!");
         setIsAssignOpen(false);
         fetchSlabs();
       }
     } catch (error) {
+      console.log("[ASSIGN USERS] error", error);
       toast.error(error.response?.data?.message || "Failed to assign users");
     }
   };
+
 
   // Close menus when clicking outside
   useEffect(() => {
@@ -285,82 +296,15 @@ export const SlabMaster = () => {
                     <td className="py-2 px-3 text-center font-mono text-[var(--text-secondary)]">
                       {(page - 1) * limit + index + 1}
                     </td>
-                    <td className="py-2 px-3 text-center relative">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveActionMenu(activeActionMenu === slab.id ? null : slab.id);
-                        }}
-                        className="p-1 hover:bg-[var(--accent-hover)] rounded-md transition-colors cursor-pointer inline-block"
-                      >
-                        <MoreVertical className="w-3.5 h-3.5" />
-                      </button>
-
-                      {/* Telecom Style Action Menu Dropdown */}
-                      {activeActionMenu === slab.id && (
-                        <div className="absolute left-10 mt-1 w-52 bg-[var(--bg-secondary)] border border-[var(--border-soft)] shadow-md rounded-lg py-1.5 z-40 text-left font-semibold uppercase text-[10px] tracking-wider">
-                          <button
-                            onClick={() => handleEditInit(slab)}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-[var(--accent-hover)] text-[var(--text-primary)] cursor-pointer"
-                          >
-                            <Edit2 className="w-3 h-3" /> Edit
-                          </button>
-                          <a
-                            href={`/commission/recharge-slabs?slabId=${slab.id}`}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-[var(--accent-hover)] text-[var(--text-primary)] cursor-pointer"
-                          >
-                            <ChevronRight className="w-3 h-3" /> Recharge Commission Slab
-                          </a>
-                          <a
-                            href={`/commission/range-slabs?slabId=${slab.id}`}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-[var(--accent-hover)] text-[var(--text-primary)] cursor-pointer"
-                          >
-                            <ChevronRight className="w-3 h-3" /> Range Commission Slab
-                          </a>
-                          <button
-                            onClick={() => { toast.success("Target slabs configured (Self assignment)"); }}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-[var(--accent-hover)] text-[var(--text-primary)] cursor-pointer"
-                          >
-                            <ChevronRight className="w-3 h-3" /> Target
-                          </button>
-                          <button
-                            onClick={() => { toast.success("Circle configurations resolved."); }}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-[var(--accent-hover)] text-[var(--text-primary)] cursor-pointer"
-                          >
-                            <ChevronRight className="w-3 h-3" /> Circle Slab
-                          </button>
-                          <button
-                            onClick={() => handleAssignInit(slab)}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-[var(--accent-hover)] text-[var(--text-primary)] cursor-pointer"
-                          >
-                            <UserPlus className="w-3 h-3" /> Assign Users
-                          </button>
-                          <button
-                            onClick={() => handleCloneInit(slab)}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-[var(--accent-hover)] text-[var(--text-primary)] cursor-pointer"
-                          >
-                            <Copy className="w-3 h-3" /> Clone
-                          </button>
-                          <button
-                            onClick={() => handleStatusToggle(slab)}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-[var(--accent-hover)] text-[var(--text-primary)] cursor-pointer border-t border-[var(--border-soft)] mt-1 pt-1.5"
-                          >
-                            {slab.isActive ? (
-                              <span className="flex items-center gap-2 text-amber-500"><X className="w-3 h-3" /> Disable</span>
-                            ) : (
-                              <span className="flex items-center gap-2 text-emerald-500"><Check className="w-3 h-3" /> Enable</span>
-                            )}
-                          </button>
-                          {!slab.isDefault && (
-                            <button
-                              onClick={() => handleDelete(slab.id, slab.name)}
-                              className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-rose-500/10 text-rose-500 cursor-pointer"
-                            >
-                              <Trash2 className="w-3 h-3 text-rose-500" /> Delete
-                            </button>
-                          )}
-                        </div>
-                      )}
+                    <td className="py-2 px-3 text-center">
+                      <SlabActionsMenu
+                        slab={slab}
+                        onEditInit={handleEditInit}
+                        onAssignInit={handleAssignInit}
+                        onCloneInit={handleCloneInit}
+                        onStatusToggle={handleStatusToggle}
+                        onDelete={handleDelete}
+                      />
                     </td>
                     <td className="py-2 px-3 font-semibold uppercase tracking-tight text-[var(--text-primary)]">
                       {slab.name}

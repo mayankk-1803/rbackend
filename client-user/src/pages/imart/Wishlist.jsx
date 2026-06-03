@@ -189,7 +189,7 @@ const Wishlist = () => {
       const res = await api.get("/imart/wishlist");
       if (res.data?.success) setWishlist(res.data.data);
     } catch (err) {
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
       toast.error("Failed to load wishlist protocols");
     } finally {
       setLoading(false);
@@ -201,7 +201,7 @@ const Wishlist = () => {
       const res = await api.get("/imart/orders");
       if (res.data?.success) setOrders(res.data.data || []);
     } catch (err) {
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
     }
   };
 
@@ -238,7 +238,7 @@ const Wishlist = () => {
         setWishlist((prev) => ({ ...prev, items: prev.items.filter((item) => item.productId !== productId) }));
       }
     } catch (err) {
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
       toast.error("Failed to update wishlist registry");
     } finally {
       setRemovingId(null);
@@ -270,7 +270,7 @@ const Wishlist = () => {
         toast.success("iMart order paid successfully");
       }
     } catch (err) {
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
       setPaymentStatus("FAILED");
       setPaymentMessage("Payment Failed");
       toast.error("Payment Failed");
@@ -289,7 +289,7 @@ const Wishlist = () => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <Loader className="w-8 h-8 text-cyan-400 animate-spin" />
+        <Loader className="w-8 h-8 text-[var(--color-accent)] animate-spin" />
         <p className="text-[8px] font-black uppercase tracking-widest text-[var(--text-muted)]">Decrypting wishlist registry...</p>
       </div>
     );
@@ -317,7 +317,7 @@ const Wishlist = () => {
           <ShoppingBag className="w-16 h-16 text-[var(--text-muted)] mb-4" />
           <h2 className="text-sm font-black text-[var(--text-color)] uppercase tracking-widest mb-2">Registry is Empty</h2>
           <p className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider mb-6 max-w-sm">Add items from the marketplace to initialize your purchase ledger</p>
-          <Link to="/imart" className="px-6 py-3.5 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-500/30 text-[var(--color-accent)] text-[10px] font-black uppercase tracking-widest rounded-xl hover:from-cyan-500/30 hover:to-purple-500/30 transition-all">
+          <Link to="/imart" className="px-6 py-3.5 bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border border-[var(--color-accent)]/20 text-[var(--color-accent)] text-[10px] font-black uppercase tracking-widest rounded-xl hover:from-purple-500/20 hover:to-indigo-500/20 transition-all">
             Explore marketplace
           </Link>
         </div>
@@ -372,11 +372,11 @@ const Wishlist = () => {
                 <div className="flex justify-between text-[10px]"><span className="font-bold text-[var(--text-muted)] uppercase tracking-widest">Network fee</span><span className="font-black text-emerald-500 uppercase tracking-widest">FREE</span></div>
                 <div className="border-t border-[var(--glass-border)] pt-4 flex justify-between items-center">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-color)]">Final Payable</span>
-                  <span className="text-lg font-black text-[var(--color-accent)] cyan-glow">{formatCurrency(grandTotal)}</span>
+                  <span className="text-lg font-black text-[var(--color-accent)] purple-glow">{formatCurrency(grandTotal)}</span>
                 </div>
               </div>
 
-              <button onClick={() => setShowCheckoutModal(true)} className="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white font-black text-[10px] uppercase tracking-[0.15em] transition-all shadow-[0_0_20px_rgba(6,182,212,0.15)] hover:shadow-[0_0_35px_rgba(147,51,234,0.3)]">
+              <button onClick={() => setShowCheckoutModal(true)} className="w-full py-4 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-[10px] uppercase tracking-[0.15em] transition-all shadow-[0_0_20px_rgba(139,92,246,0.15)] hover:shadow-[0_0_35px_rgba(168,85,247,0.3)]">
                 Proceed To Buy
               </button>
 
@@ -470,14 +470,14 @@ const Wishlist = () => {
                     const Icon = option.icon;
                     const active = paymentMethod === option.id;
                     return (
-                      <button key={option.id} onClick={() => setPaymentMethod(option.id)} className={`p-4 rounded-2xl border text-left transition-all ${active ? "border-[var(--color-accent)] bg-cyan-500/10 shadow-[0_0_18px_rgba(6,182,212,0.15)]" : "border-[var(--glass-border)] bg-[var(--glass-card-bg)] hover:border-[var(--glass-border-hover)]"}`}>
+                      <button key={option.id} onClick={() => setPaymentMethod(option.id)} className={`p-4 rounded-2xl border text-left transition-all ${active ? "border-[var(--color-accent)] bg-[var(--color-primary-glow)] shadow-[0_0_18px_rgba(139,92,246,0.15)]" : "border-[var(--glass-border)] bg-[var(--glass-card-bg)] hover:border-[var(--glass-border-hover)]"}`}>
                         <Icon className={`w-5 h-5 mb-3 ${active ? "text-[var(--color-accent)]" : "text-[var(--text-secondary)]"}`} />
                         <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-color)]">{option.label}</span>
                       </button>
                     );
                   })}
                 </div>
-                <button onClick={runSecurePayment} disabled={checkoutLoading} className="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
+                <button onClick={runSecurePayment} disabled={checkoutLoading} className="w-full py-4 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
                   <ShieldCheck className="w-4 h-4" /> Authorize Payment
                 </button>
               </div>

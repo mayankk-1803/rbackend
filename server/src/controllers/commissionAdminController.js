@@ -3,6 +3,7 @@ import { logAction } from "../services/auditService.js";
 import { redisClient } from "../config/redis.js";
 import { acquireLock, releaseLock } from "../utils/redisLock.js";
 import { getHighestPriorityRule } from "../utils/getHighestPriorityRule.js";
+import commissionIntel from "../services/commissionIntelligenceService.js";
 
 /**
  * Increment global commission version in both Database and Redis.
@@ -443,6 +444,11 @@ export const assignUsersToSlab = async (req, res) => {
   try {
     const slabId = parseInt(req.params.id);
     const { userIds } = req.body;
+
+    console.log("[SERVER] assignUsersToSlab hit");
+    console.log("[SERVER] slabId", req.params.id);
+    console.log("[SERVER] userIds", req.body.userIds);
+
 
     if (isNaN(slabId)) {
       return res.status(400).json({ success: false, message: "Invalid Slab ID" });
@@ -4222,6 +4228,227 @@ export const getCommissionMigrationMetrics = async (req, res) => {
     return res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
+
+export const getCommissionRecommendations = async (req, res) => {
+  try {
+    const recommendations = await prisma.commissionRecommendation.findMany({
+      include: {
+        forecasts: true,
+        replayResults: true,
+        experiments: true
+      },
+      orderBy: { createdAt: "desc" }
+    });
+    return res.json({ success: true, data: recommendations });
+  } catch (error) {
+    console.error("[Recommendations] Fetch Error:", error);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+export const getCommissionIntelConfig = async (req, res) => {
+  try {
+    let config = await prisma.commissionIntelligenceConfig.findUnique({
+      where: { id: 1 }
+    });
+    if (!config) {
+      config = await prisma.commissionIntelligenceConfig.create({
+        data: {
+          id: 1,
+          minVolume: 1000,
+          minTransactions: 50,
+          targetProfitMargin: 0.02,
+          automationMode: "MANUAL",
+          profitDropThreshold: 0.05
+        }
+      }).catch(() => null);
+    }
+    return res.json({ success: true, data: config });
+  } catch (error) {
+    console.error("[Config] Fetch Error:", error);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+export const updateCommissionIntelConfig = async (req, res) => {
+  try {
+    const { minVolume, minTransactions, targetProfitMargin, automationMode, profitDropThreshold } = req.body;
+    
+    let config = await prisma.commissionIntelligenceConfig.findUnique({
+      where: { id: 1 }
+    });
+    if (!config) {
+      await prisma.commissionIntelligenceConfig.create({
+        data: { id: 1 }
+      });
+    }
+
+    const updated = await prisma.commissionIntelligenceConfig.update({
+      where: { id: 1 },
+      data: {
+        ...(minVolume !== undefined && { minVolume: Number(minVolume) }),
+        ...(minTransactions !== undefined && { minTransactions: Number(minTransactions) }),
+        ...(targetProfitMargin !== undefined && { targetProfitMargin: Number(targetProfitMargin) }),
+        ...(automationMode && { automationMode: String(automationMode) }),
+        ...(profitDropThreshold !== undefined && { profitDropThreshold: Number(profitDropThreshold) })
+      }
+    });
+
+    return res.json({ success: true, message: "Commission intelligence config updated successfully", data: updated });
+  } catch (error) {
+    console.error("[Config] Update Error:", error);
+    return res.status(500).json({ success: false, message: error.message || "Internal server error" });
+  }
+};
+
+export const simulateCommissionRecommendation = async (req, res) => {
+  try {
+    const { operatorId, serviceCategoryId, role, currentCommission, recommendedCommission, reasoning } = req.body;
+    if (!operatorId || !serviceCategoryId || !role || currentCommission === undefined || recommendedCommission === undefined) {
+      return res.status(400).json({ success: false, message: "Missing required simulation fields" });
+    }
+
+    const rec = await commissionIntel.createRecommendation(
+      Number(operatorId),
+      Number(serviceCategoryId),
+      role,
+      Number(currentCommission),
+      Number(recommendedCommission),
+      reasoning || `Manual simulation run by admin: ${req.user?.email || req.user?.id}`
+    );
+
+    return res.json({ success: true, message: "Commission recommendation simulated successfully", data: rec });
+  } catch (error) {
+    console.error("[Recommendation Simulate] Error:", error);
+    return res.status(500).json({ success: false, message: error.message || "Internal server error" });
+  }
+};
+
+export const approveCommissionRecommendation = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const rec = await commissionIntel.approveRecommendation(id, req.user.id);
+    return res.json({ success: true, message: "Recommendation approved successfully", data: rec });
+  } catch (error) {
+    console.error("[Recommendation Approve] Error:", error);
+    return res.status(500).json({ success: false, message: error.message || "Internal server error" });
+  }
+};
+
+export const rejectCommissionRecommendation = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const rec = await commissionIntel.rejectRecommendation(id, req.user.id);
+    return res.json({ success: true, message: "Recommendation rejected successfully", data: rec });
+  } catch (error) {
+    console.error("[Recommendation Reject] Error:", error);
+    return res.status(500).json({ success: false, message: error.message || "Internal server error" });
+  }
+};
+
+export const applyCommissionRecommendation = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const rule = await commissionIntel.applyRecommendation(id, req.user.id);
+    return res.json({ success: true, message: "Recommendation applied successfully to slab rule table", data: rule });
+  } catch (error) {
+    console.error("[Recommendation Apply] Error:", error);
+    return res.status(500).json({ success: false, message: error.message || "Internal server error" });
+  }
+};
+
+export const rollbackCommissionRecommendation = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const success = await commissionIntel.rollbackRecommendation(id, req.user.id);
+    return res.json({ success: true, message: "Recommendation rolled back successfully", data: success });
+  } catch (error) {
+    console.error("[Recommendation Rollback] Error:", error);
+    return res.status(500).json({ success: false, message: error.message || "Internal server error" });
+  }
+};
+
+/**
+ * GET /api/admin/commission/audit-logs
+ * Fetch and filter commission-related administrative audit logs.
+ */
+export const getCommissionAuditLogs = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const search = req.query.search || "";
+    const actionFilter = req.query.actionFilter || "";
+
+    // Build standard query constraints for commission-specific activities
+    const where = {
+      OR: [
+        { action: { contains: "SLAB" } },
+        { action: { contains: "PACKAGE" } },
+        { action: { contains: "RULE" } },
+        { action: { contains: "BULK" } },
+        { entity: { in: ["Slab", "CommissionPackage", "rechargeCommissionRule", "rangeCommissionRule"] } }
+      ]
+    };
+
+    // Apply keyword filters on action, entity name, and admin email/name
+    if (search) {
+      where.AND = [
+        {
+          OR: [
+            { action: { contains: search } },
+            { entity: { contains: search } },
+            {
+              admin: {
+                OR: [
+                  { name: { contains: search } },
+                  { email: { contains: search } }
+                ]
+              }
+            }
+          ]
+        }
+      ];
+    }
+
+    // Apply specific action filters (e.g. SLAB vs PACKAGE vs RULE)
+    if (actionFilter) {
+      if (!where.AND) where.AND = [];
+      where.AND.push({ action: { contains: actionFilter } });
+    }
+
+    // Execute in transaction to preserve read consistency
+    const [logs, total] = await prisma.$transaction([
+      prisma.auditLog.findMany({
+        where,
+        include: {
+          admin: { select: { id: true, name: true, email: true, role: true } }
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit
+      }),
+      prisma.auditLog.count({ where })
+    ]);
+
+    return res.json({
+      success: true,
+      data: {
+        logs,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit)
+        }
+      }
+    });
+  } catch (error) {
+    console.error("[Commission Audit Logs] Fetch Error:", error);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
 
 
 

@@ -1,4 +1,5 @@
-import { createPaymentOrder } from "../services/paymentService.js";
+import { createPaymentOrder, processSuccessfulPayment } from "../services/paymentService.js";
+import { verifyPayment as verifyNextgatePayment } from "../services/payments/nextgate/verifyPayment.js";
 import { structuredLog, structuredAlert } from "../utils/logger.js";
 import {
   recordWebhookSuccess,
@@ -176,6 +177,7 @@ export const confirmPayment = async (req, res) => {
 };
 
 export const getPaymentStatus = async (req, res) => {
+  let lockToken = null;
   try {
     const { orderId } = req.params;
     const userId = req.user.id;
@@ -195,7 +197,7 @@ export const getPaymentStatus = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid payment ID" });
     }
 
-    const payment = await prisma.payment.findUnique({
+    let payment = await prisma.payment.findUnique({
       where: { id: parsedId },
       include: {
         user: {
@@ -211,6 +213,104 @@ export const getPaymentStatus = async (req, res) => {
         success: false,
         code: "PAYMENT_NOT_FOUND",
         message: "Payment record not found"
+      });
+    }
+
+    // Safe Fallback Status Reconciliation (Only if status is currently PENDING)
+    if (payment.status === "PENDING") {
+      let correlationId = crypto.randomBytes(8).toString('hex');
+      let adminId = null;
+      if (payment.idempotencyKey) {
+        const parts = payment.idempotencyKey.split(":");
+        if (parts.length >= 4) {
+          correlationId = parts[3]; // The UUID
+        }
+        const adminIdPart = parts[1]?.split("=")[1];
+        adminId = adminIdPart ? Number(adminIdPart) : null;
+      }
+
+      structuredLog({
+        eventType: "PAYMENT_RECONCILIATION_STARTED",
+        correlationId,
+        paymentId: parsedId,
+        message: `Status polling reconciliation started for payment ${parsedId}`
+      });
+
+      try {
+        const verifyRes = await verifyNextgatePayment(parsedId);
+        console.log(`[PaymentStatus] NexGate verifyPayment result for ${parsedId}:`, JSON.stringify(verifyRes));
+
+        if (verifyRes.success && (verifyRes.status === "SUCCESS" || verifyRes.status === "PAID")) {
+          // Acquire distributed lock matching webhook processing
+          lockToken = await acquireLock(`payment_webhook:${parsedId}`, 15000);
+          if (!lockToken) {
+            structuredLog({
+              eventType: "PAYMENT_RECONCILIATION_SKIPPED",
+              correlationId,
+              paymentId: parsedId,
+              message: `Reconciliation lock skipped: lock already held for payment ${parsedId}`
+            });
+          } else {
+            try {
+              const settlement = await processSuccessfulPayment({
+                paymentId: parsedId,
+                gatewayTxnId: verifyRes.gatewayTxnId || "",
+                gatewayAmount: verifyRes.amount ? parseFloat(verifyRes.amount) : null,
+                rawPayload: verifyRes.raw || {},
+                correlationId,
+                ipAddress: req.ip || "127.0.0.1",
+                adminId
+              });
+
+              if (settlement.alreadyProcessed) {
+                structuredLog({
+                  eventType: "PAYMENT_RECONCILIATION_ALREADY_SETTLED",
+                  correlationId,
+                  paymentId: parsedId,
+                  message: `Reconciliation skipped: Payment ${parsedId} already settled`
+                });
+              } else if (settlement.securityAlert) {
+                structuredLog({
+                  eventType: "PAYMENT_RECONCILIATION_AMOUNT_MISMATCH",
+                  correlationId,
+                  paymentId: parsedId,
+                  message: `Reconciliation failed: Amount mismatch for payment ${parsedId}`
+                });
+              } else {
+                structuredLog({
+                  eventType: "PAYMENT_RECONCILIATION_SUCCESS",
+                  correlationId,
+                  paymentId: parsedId,
+                  message: `Reconciliation completed successfully for payment ${parsedId}`
+                });
+              }
+            } finally {
+              await releaseLock(`payment_webhook:${parsedId}`, lockToken);
+              lockToken = null;
+            }
+          }
+        } else {
+          structuredLog({
+            eventType: "PAYMENT_RECONCILIATION_SKIPPED",
+            correlationId,
+            paymentId: parsedId,
+            message: `Reconciliation skipped: NexGate status is not SUCCESS (status: ${verifyRes.status})`
+          });
+        }
+      } catch (err) {
+        console.error(`[PaymentStatus] NexGate verification/settlement error for order ${parsedId}:`, err);
+      }
+
+      // Re-fetch payment post-reconciliation to return fresh DB state
+      payment = await prisma.payment.findUnique({
+        where: { id: parsedId },
+        include: {
+          user: {
+            select: {
+              wallet: true
+            }
+          }
+        }
       });
     }
 
@@ -237,6 +337,12 @@ export const getPaymentStatus = async (req, res) => {
   } catch (error) {
     console.error("[PaymentStatus Error]:", error);
     res.status(500).json({ success: false, message: "Internal server error" });
+  } finally {
+    if (lockToken) {
+      try {
+        await releaseLock(`payment_webhook:${Number(req.params.orderId || 0)}`, lockToken);
+      } catch (e) {}
+    }
   }
 };
 
@@ -504,200 +610,35 @@ export const paymentWebhook = async (req, res) => {
         });
       }
 
-      let createdTx = null;
-      let isAdminFunding = false;
-      let ledgerDesc = null;
-
       let result;
       try {
-        result = await prisma.$transaction(async (tx) => {
-          // Fetch and lock payment record
-          const payments = await tx.$queryRaw`SELECT * FROM payment WHERE id = ${paymentId} FOR UPDATE`;
-          if (!payments || payments.length === 0) throw new Error(`Payment ${paymentId} not found`);
-          const payment = payments[0];
+        if (mappedStatus === "SUCCESS") {
+          result = await processSuccessfulPayment({
+            paymentId,
+            gatewayTxnId,
+            gatewayAmount,
+            rawPayload: body,
+            correlationId,
+            ipAddress: req.ip || "127.0.0.1",
+            adminId,
+            req
+          });
+        } else {
+          result = await prisma.$transaction(async (tx) => {
+            // Fetch and lock payment record
+            const payments = await tx.$queryRaw`SELECT * FROM payment WHERE id = ${paymentId} FOR UPDATE`;
+            if (!payments || payments.length === 0) throw new Error(`Payment ${paymentId} not found`);
+            const payment = payments[0];
 
-          // Idempotency: If already success or failed, stop
-          if (["SUCCESS", "FAILED", "REFUNDED"].includes(payment.status)) {
-            return { alreadyProcessed: true, payment };
-          }
-
-          // Amount integrity check
-          if (gatewayAmount !== null && Math.abs(gatewayAmount - Number(payment.amount)) > 0.01) {
-            // Amount tampered! Fail payment record.
-            const tamperedPayment = await tx.payment.update({
-              where: { id: payment.id },
-              data: { status: "FAILED", errorMessage: "Amount mismatch detected", webhookReceived: true }
-            });
-            return { alreadyProcessed: false, payment: tamperedPayment, securityAlert: true };
-          }
-
-          if (mappedStatus === "PENDING") {
-            return { alreadyProcessed: false, payment, isPending: true };
-          }
-
-          const isSuccess = mappedStatus === "SUCCESS";
-          let balanceBefore = null;
-          let balanceAfter = null;
-
-          if (isSuccess) {
-            const idempotencyKey = `topup:${payment.id}`;
-            const canClaim = await claimIdempotencyKey(idempotencyKey, body, tx);
-            if (!canClaim) {
+            // Idempotency: If already success or failed, stop
+            if (["SUCCESS", "FAILED", "REFUNDED"].includes(payment.status)) {
               return { alreadyProcessed: true, payment };
             }
 
-            const wallets = await tx.$queryRaw`SELECT * FROM wallet WHERE userId = ${payment.userId} FOR UPDATE`;
-            if (!wallets || wallets.length === 0) throw new Error(`Wallet not found for user ${payment.userId}`);
-            const wallet = wallets[0];
-            balanceBefore = wallet.balance;
-
-            if (payment.intent === "IMART") {
-              const balanceAfterCredit = new Prisma.Decimal(balanceBefore).plus(new Prisma.Decimal(payment.amount));
-              balanceAfter = balanceBefore;
-
-              await tx.wallet.update({
-                where: { userId: payment.userId },
-                data: { balance: { increment: Number(payment.amount) } }
-              });
-
-              await tx.wallet.update({
-                where: { userId: payment.userId },
-                data: { balance: { decrement: Number(payment.amount) } }
-              });
-
-              await recordFinancialEntry({
-                userId: payment.userId,
-                amount: payment.amount,
-                type: 'TOPUP_CREDIT',
-                transactionId: null,
-                description: `iMart Topup credit | Order: ${payment.id}`,
-                context: { correlationId, ipAddress: req.ip },
-                tx,
-                skipWalletUpdate: true,
-                overrideBalanceBefore: balanceBefore,
-                overrideBalanceAfter: balanceAfterCredit
-              });
-
-              await recordFinancialEntry({
-                userId: payment.userId,
-                amount: payment.amount.negated(),
-                type: 'IMART_DEBIT',
-                transactionId: null,
-                description: `iMart Purchase debit | Order: ${payment.id}`,
-                context: { correlationId, ipAddress: req.ip },
-                tx,
-                skipWalletUpdate: true,
-                overrideBalanceBefore: balanceAfterCredit,
-                overrideBalanceAfter: balanceBefore
-              });
-
-              await tx.transaction.create({
-                data: {
-                  userId: payment.userId,
-                  amount: payment.amount,
-                  type: "TOPUP",
-                  status: "SUCCESS",
-                  direction: "CREDIT",
-                  gatewayTxnId: gatewayTxnId,
-                  balanceAfter: balanceAfterCredit,
-                  description: `iMart payment credit | Order: ${payment.id}`,
-                  idempotencyKey: `topup:${payment.id}`,
-                  financialSequenceId: correlationId + "_credit"
-                }
-              });
-
-              await tx.transaction.create({
-                data: {
-                  userId: payment.userId,
-                  amount: payment.amount,
-                  type: "IMART_BUY",
-                  status: "SUCCESS",
-                  direction: "DEBIT",
-                  gatewayTxnId: gatewayTxnId,
-                  balanceAfter: balanceBefore,
-                  description: `iMart purchase debit | Order: ${payment.id}`,
-                  idempotencyKey: `imart:${payment.id}`,
-                  financialSequenceId: correlationId + "_debit"
-                }
-              });
-
-              const order = await tx.order.findUnique({
-                where: { paymentId: payment.id },
-                include: { items: true }
-              });
-
-              if (order) {
-                await tx.order.update({
-                  where: { id: order.id },
-                  data: { paymentStatus: "SUCCESS", status: "PROCESSING" }
-                });
-
-                for (const item of order.items) {
-                  await tx.product.update({
-                    where: { id: item.productId },
-                    data: { stock: { decrement: item.quantity } }
-                  });
-                }
-              }
-            } else {
-              balanceAfter = new Prisma.Decimal(balanceBefore).plus(new Prisma.Decimal(payment.amount));
-              isAdminFunding = payment.idempotencyKey && payment.idempotencyKey.startsWith("admin_funding:");
-              ledgerDesc = `Wallet topup | Order: ${payment.id}`;
-              let txDesc = `Wallet topup | Order: ${payment.id} | Before: ${balanceBefore}`;
-
-              if (isAdminFunding) {
-                try {
-                  const parts = payment.idempotencyKey.split(":");
-                  const reasonPart = parts[2]?.split("=")[1];
-                  if (reasonPart) {
-                    ledgerDesc = decodeURIComponent(reasonPart);
-                    txDesc = `${ledgerDesc} | Before: ${balanceBefore}`;
-                  } else {
-                    ledgerDesc = `Admin Wallet Funding | Order: ${payment.id}`;
-                    txDesc = `Admin Wallet Funding | Order: ${payment.id} | Before: ${balanceBefore}`;
-                  }
-                } catch (e) {
-                  console.error("Failed to parse admin funding key in webhook:", e);
-                }
-              }
-
-              // Update wallet balance
-              await tx.wallet.update({
-                where: { userId: payment.userId },
-                data: { balance: { increment: Number(payment.amount) } }
-              });
-
-              // Create Ledger Entry
-              await recordFinancialEntry({
-                userId: payment.userId,
-                amount: payment.amount,
-                type: 'TOPUP_CREDIT',
-                transactionId: null,
-                description: ledgerDesc,
-                context: { correlationId, ipAddress: req.ip },
-                tx,
-                skipWalletUpdate: true,
-                overrideBalanceBefore: balanceBefore,
-                overrideBalanceAfter: balanceAfter
-              });
-
-              // Create Transaction
-              createdTx = await tx.transaction.create({
-                data: {
-                  userId: payment.userId,
-                  amount: payment.amount,
-                  type: "TOPUP",
-                  status: "SUCCESS",
-                  direction: "CREDIT",
-                  gatewayTxnId: gatewayTxnId,
-                  balanceAfter: balanceAfter,
-                  description: txDesc,
-                  idempotencyKey,
-                  financialSequenceId: correlationId
-                }
-              });
+            if (mappedStatus === "PENDING") {
+              return { alreadyProcessed: false, payment, isPending: true };
             }
-          } else {
+
             if (payment.intent === "IMART") {
               const order = await tx.order.findUnique({
                 where: { paymentId: payment.id }
@@ -709,23 +650,23 @@ export const paymentWebhook = async (req, res) => {
                 });
               }
             }
-          }
 
-          // Mark payment success/failed
-          const updatedPayment = await tx.payment.update({
-            where: { id: payment.id },
-            data: {
-              status: isSuccess ? "SUCCESS" : "FAILED",
-              gatewayTxnId: gatewayTxnId,
-              errorMessage: isSuccess ? null : errorMessage,
-              webhookReceived: true
-            }
+            // Mark payment failed
+            const updatedPayment = await tx.payment.update({
+              where: { id: payment.id },
+              data: {
+                status: "FAILED",
+                gatewayTxnId: gatewayTxnId,
+                errorMessage: errorMessage,
+                webhookReceived: true
+              }
+            });
+
+            return { alreadyProcessed: false, payment: updatedPayment };
+          }, {
+            isolationLevel: Prisma.TransactionIsolationLevel.Serializable
           });
-
-          return { alreadyProcessed: false, payment: updatedPayment, balanceBefore, balanceAfter };
-        }, {
-          isolationLevel: Prisma.TransactionIsolationLevel.Serializable
-        });
+        }
       } catch (err) {
         structuredAlert({
           level: "error",
@@ -787,71 +728,18 @@ export const paymentWebhook = async (req, res) => {
           paymentId,
           adminId,
           targetUserId,
-          message: `Ledger entry created successfully. Description: "${ledgerDesc || 'Wallet Topup'}"`
+          message: `Ledger entry created successfully. Description: "${result.ledgerDesc || 'Wallet Topup'}"`
         });
 
-        // Trigger socket events
-        try {
-          const updatedWallet = await prisma.wallet.findUnique({
-            where: { userId: result.payment.userId }
-          });
-
-          eventBus.emit("wallet_updated", {
-            userId: result.payment.userId,
-            amount: result.payment.amount,
-            balance: updatedWallet ? updatedWallet.balance : undefined
-          });
-
-          if (createdTx) {
-            eventBus.emit("transaction_updated", {
-              userId: result.payment.userId,
-              txnId: createdTx.id,
-              status: "SUCCESS",
-              transaction: createdTx,
-              correlationId
-            });
-          }
-
-          recordSocketEmit(true);
-          structuredLog({
-            eventType: "TELEMETRY_EVENT_EMITTED",
-            correlationId,
-            paymentId,
-            adminId,
-            targetUserId,
-            message: `Emitted realtime telemetry updates for payment success.`
-          });
-        } catch (socketErr) {
-          recordSocketEmit(false);
-          console.warn("[WEBHOOK] Realtime event emit failed:", socketErr.message);
-        }
-
-        // Operational Audit Log
-        if (isAdminFunding && adminId) {
-          try {
-            const { logAction } = await import("../services/auditService.js");
-            await logAction({
-              action: "WALLET_ADJUSTMENT",
-              adminId,
-              userId: result.payment.userId,
-              entity: "WALLET",
-              entityId: result.payment.id,
-              details: { amount: result.payment.amount, description: ledgerDesc, paymentId: result.payment.id },
-              req
-            });
-            structuredLog({
-              eventType: "AUDIT_LOG_SUCCESS",
-              correlationId,
-              paymentId,
-              adminId,
-              targetUserId,
-              message: `Audit WALLET_ADJUSTMENT logged for admin ${adminId} and payment ${paymentId}`
-            });
-          } catch (auditErr) {
-            recordFailedAuditWrite();
-            console.error("Failed to write audit action:", auditErr);
-          }
-        }
+        recordSocketEmit(true);
+        structuredLog({
+          eventType: "TELEMETRY_EVENT_EMITTED",
+          correlationId,
+          paymentId,
+          adminId,
+          targetUserId,
+          message: `Emitted realtime telemetry updates for payment success.`
+        });
       } else {
         structuredLog({
           eventType: "PAYMENT_WEBHOOK_FINALIZED_FAILED",

@@ -4,7 +4,7 @@ import { idempotency, requireIdempotency } from "../middlewares/idempotency.js";
 import { fraudDetectionMiddleware } from "../middlewares/fraudDetection.js";
 import { getOperator } from "../controllers/operatorController.js";
 import { getWallet } from "../controllers/walletController.js";
-import { getPlans, recharge, payPostpaidBill, initPrepaidRecharge, initPostpaidRecharge, refreshStatus } from "../controllers/rechargeController.js";
+import { getPlans, recharge, payPostpaidBill, initPrepaidRecharge, initPostpaidRecharge, refreshStatus, getActiveOperators } from "../controllers/rechargeController.js";
 import { validateRechargeInput } from "../middlewares/validateInput.js";
 import { rechargeInitLimiter } from "../middlewares/rateLimiter.js";
 import prisma from "../config/prisma.js";
@@ -16,6 +16,11 @@ const router = express.Router();
  * @route GET /api/operator-detect/:mobile
  */
 router.get("/operator-detect/:mobile", getOperator);
+
+/**
+ * @route GET /api/recharge/operators
+ */
+router.get("/recharge/operators", getActiveOperators);
 
 /**
  * @route GET /api/recharge/plans

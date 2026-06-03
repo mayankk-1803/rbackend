@@ -4,9 +4,9 @@ import { getOperatorLogo } from "../config/operators";
 
 const accentClasses = {
   cyan: {
-    text: "text-cyan-400",
-    bg: "bg-cyan-400/10",
-    border: "border-cyan-400/20"
+    text: "text-purple-400",
+    bg: "bg-purple-400/10",
+    border: "border-purple-400/20"
   },
   purple: {
     text: "text-purple-400",
@@ -15,10 +15,10 @@ const accentClasses = {
   }
 };
 
-function OperatorLogo({ operator, accent = "cyan", className = "", imageClassName = "h-[26px] w-[26px]" }) {
+function OperatorLogo({ operator, accent = "purple", className = "", imageClassName = "h-[26px] w-[26px]" }) {
   const [failedSrc, setFailedSrc] = useState("");
   const logoSrc = getOperatorLogo(operator);
-  const styles = accentClasses[accent] || accentClasses.cyan;
+  const styles = accentClasses[accent] || accentClasses.purple;
   const failed = Boolean(logoSrc && failedSrc === logoSrc);
 
   if (logoSrc && !failed) {

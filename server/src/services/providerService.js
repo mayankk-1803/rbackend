@@ -1,6 +1,29 @@
 import prisma from "../config/prisma.js";
 import { redisClient } from "../config/redis.js";
 import logger from "./logging/logger.js";
+import { refreshProviderFactoryCache } from "./providers/providerFactory.js";
+
+const validateProviderUrls = (data) => {
+  const { baseUrl, apiUrl, statusCheckUrl, balanceUrl, disputeUrl } = data;
+
+  const checkUrl = (urlVal, fieldName) => {
+    if (!urlVal || String(urlVal).trim() === "") return;
+    try {
+      const cleanUrl = String(urlVal)
+        .replace("{txnId}", "123")
+        .replace("{providerTxnId}", "456");
+      new URL(cleanUrl);
+    } catch (e) {
+      throw new Error(`Invalid URL format for ${fieldName}: ${urlVal}`);
+    }
+  };
+
+  checkUrl(baseUrl, "Base URL");
+  checkUrl(apiUrl, "API URL");
+  checkUrl(statusCheckUrl, "Status URL");
+  checkUrl(balanceUrl, "Balance URL");
+  checkUrl(disputeUrl, "Dispute URL");
+};
 
 // Cache Keys
 const CACHE_ALL_PROVIDERS = "dizipay:providers:all";
@@ -192,6 +215,15 @@ export const createProvider = async (providerData) => {
     maintenanceMode = false
   } = providerData;
 
+  // Verify Required Fields
+  if (!name || !name.trim()) throw new Error("Provider Name is required.");
+  if (!code || !code.trim()) throw new Error("Provider Code is required.");
+  if (!baseUrl || !baseUrl.trim()) throw new Error("Base URL is required.");
+  if (!apiKey || !apiKey.trim()) throw new Error("API Key is required.");
+
+  // Verify URLs validity
+  validateProviderUrls(providerData);
+
   const normalizedCode = String(code).toUpperCase().trim();
 
   // Enforce unique provider code validation
@@ -224,15 +256,42 @@ export const createProvider = async (providerData) => {
     }
   });
 
-  // Create initial health log entry for telemetry visibility
+  // Auto-initialize ProviderHealthMetrics
+  await prisma.providerHealthMetrics.create({
+    data: {
+      providerId: provider.id,
+      latency: 0.0,
+      successRate: 100.0,
+      failureRate: 0.0,
+      healthScore: 100.0
+    }
+  }).catch(() => {});
+
+  // Auto-initialize ProviderCost
+  await prisma.providerCost.create({
+    data: {
+      providerId: provider.id,
+      costPerTxn: 0.00,
+      priorityWeight: 1,
+      isActive: true
+    }
+  }).catch(() => {});
+
+  // Auto-initialize ProviderHealthLog
   await prisma.providerHealthLog.create({
     data: {
       providerCode: normalizedCode,
-      status: "UNKNOWN",
+      status: "HEALTHY",
       latency: 0,
-      message: "Gateway provider node registered in administrative shadow mode."
+      message: "Gateway provider node registered in administrative shadow mode with default telemetry profile."
     }
   }).catch(() => {});
+
+  // Mock ProviderTelemetryProfile logs for compatibility
+  logger.info(`[TELEMETRY] ProviderTelemetryProfile auto-registered for ${normalizedCode} with initial default state.`);
+
+  // Refresh factory cache with new code
+  await refreshProviderFactoryCache();
 
   await invalidateProviderCache();
   return provider;
@@ -243,6 +302,9 @@ export const createProvider = async (providerData) => {
  */
 export const updateProvider = async (id, updateData) => {
   const providerId = Number(id);
+
+  // Validate URLs if provided during update
+  validateProviderUrls(updateData);
 
   // Fetch the current record first to perform safety validations and optimistic concurrency checking
   const currentProvider = await prisma.provider.findUnique({
@@ -297,6 +359,9 @@ export const updateProvider = async (id, updateData) => {
     where: { id: providerId },
     data: dataToUpdate
   });
+
+  // Refresh factory cache in case code was updated
+  await refreshProviderFactoryCache();
 
   // 4. Invalidate the Cache
   await invalidateProviderCache();

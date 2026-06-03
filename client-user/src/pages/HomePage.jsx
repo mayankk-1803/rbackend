@@ -4,20 +4,23 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Menu, X, Zap, Activity, Shield, RefreshCw, 
   Globe, Smartphone, CheckCircle2,
-  TrendingUp, Terminal, ArrowUpRight, Lock, Key, Server
+  TrendingUp, Terminal, ArrowUpRight, Lock, Key, Server,
+  Coins, Headphones
 } from 'lucide-react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import heroImage from '../assets/homelogo.png';
 import ThemeSelector from '../components/ThemeSelector';
 import { useIsIOS } from '../utils/device';
+import { useTheme } from '../context/ThemeContext';
 
 // Register GSAP ScrollTrigger
 gsap.registerPlugin(ScrollTrigger);
 
 export default function HomePage() {
+  const { resolvedTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [activeSection, setActiveSection] = useState('home');
   const isIOS = useIsIOS();
 
   const heroRef = useRef(null);
@@ -28,6 +31,61 @@ export default function HomePage() {
   const securityRef = useRef(null);
   const ctaRef = useRef(null);
   const ctaSpotlightRef = useRef(null);
+  const mobileToggleRef = useRef(null);
+  const drawerRef = useRef(null);
+
+  // Phase 10 & 11: Scroll Lock, Escape Key, Focus Management
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+      
+      const handleKeyDown = (e) => {
+        if (e.key === 'Escape') {
+          setIsOpen(false);
+        }
+      };
+      document.addEventListener('keydown', handleKeyDown);
+      
+      // Focus Close button inside drawer when opened
+      const timer = setTimeout(() => {
+        const closeBtn = drawerRef.current?.querySelector('.drawer-close-btn');
+        closeBtn?.focus();
+      }, 50);
+
+      return () => {
+        document.body.style.overflow = '';
+        document.removeEventListener('keydown', handleKeyDown);
+        clearTimeout(timer);
+      };
+    } else {
+      // Return focus to hamburger button when closed
+      mobileToggleRef.current?.focus();
+    }
+  }, [isOpen]);
+
+  const handleTabKey = (e) => {
+    if (!drawerRef.current) return;
+    const focusableElements = drawerRef.current.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusableElements.length === 0) return;
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+
+    if (e.key === 'Tab') {
+      if (e.shiftKey) {
+        if (document.activeElement === firstElement) {
+          lastElement.focus();
+          e.preventDefault();
+        }
+      } else {
+        if (document.activeElement === lastElement) {
+          firstElement.focus();
+          e.preventDefault();
+        }
+      }
+    }
+  };
 
   // Setup SEO and Global styles
   useEffect(() => {
@@ -50,12 +108,45 @@ export default function HomePage() {
 
   // Scrolling navbar state
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
+    const handleScroll = () => {
+      const isPastThreshold = window.scrollY >= 80;
+      setScrolled(prev => {
+        if (prev !== isPastThreshold) {
+          return isPastThreshold;
+        }
+        return prev;
+      });
+    };
+    handleScroll();
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // GSAP animations
+  // Track active section on scroll for navbar underline highlight
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPos = window.scrollY + 120;
+      
+      const homeEl = document.getElementById('home');
+      const featuresEl = document.getElementById('features');
+      const workflowEl = document.getElementById('workflow');
+      const securityEl = document.getElementById('security');
+      
+      if (securityEl && scrollPos >= securityEl.offsetTop) {
+        setActiveSection('security');
+      } else if (workflowEl && scrollPos >= workflowEl.offsetTop) {
+        setActiveSection('workflow');
+      } else if (featuresEl && scrollPos >= featuresEl.offsetTop) {
+        setActiveSection('features');
+      } else {
+        setActiveSection('home');
+      }
+    };
+    
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);  // GSAP animations for Hero Rebuild
   useEffect(() => {
     if (!heroRef.current) return undefined;
 
@@ -63,64 +154,46 @@ export default function HomePage() {
     const heroTitleWords = heroRef.current.querySelectorAll('.hero-title-line');
     const heroSubtitle = heroRef.current.querySelector('.hero-subtitle');
     const heroCtas = heroRef.current.querySelector('.hero-ctas');
-    const heroMockup = heroRef.current.querySelector('.hero-mockup-wrapper');
 
-    const heroTl = gsap.timeline({ defaults: { ease: "power4.out" } });
+    const heroTl = gsap.timeline({ defaults: { ease: "power3.out" } });
 
-    heroTl.fromTo(heroTitleWords, 
-      { y: 60, opacity: 0 }, 
-      { y: 0, opacity: 1, stagger: isIOS ? 0.06 : 0.15, duration: isIOS ? 0.55 : 1.2 }
+    heroTl.fromTo('.landing-nav',
+      { opacity: 0, y: -20 },
+      { opacity: 1, y: 0, duration: 0.8 }
+    )
+    .fromTo('.hero-badge',
+      { opacity: 0, y: 20 },
+      { opacity: 1, y: 0, duration: 0.6 },
+      "-=0.4"
+    )
+    .fromTo(heroTitleWords, 
+      { y: 30, opacity: 0 }, 
+      { y: 0, opacity: 1, duration: 0.8, stagger: 0.1 },
+      "-=0.2"
     )
     .fromTo(heroSubtitle, 
-      { y: 30, opacity: 0 }, 
-      { y: 0, opacity: 1, duration: isIOS ? 0.45 : 1 }, 
-      "-=0.6"
+      { y: 20, opacity: 0 }, 
+      { y: 0, opacity: 1, duration: 0.8 }, 
+      0.2
     )
     .fromTo(heroCtas, 
       { y: 20, opacity: 0 }, 
-      { y: 0, opacity: 1, duration: isIOS ? 0.35 : 0.8 }, 
-      "-=0.5"
+      { y: 0, opacity: 1, duration: 0.8 }, 
+      0.3
     )
-    .fromTo(heroMockup, 
-      { opacity: 0, scale: 0.9, y: 40 }, 
-      { opacity: 1, scale: 1, y: 0, duration: isIOS ? 0.55 : 1.5, ease: isIOS ? "power2.out" : "elastic.out(1, 0.75)" }, 
-      "-=0.8"
+    .fromTo('.hero-trust-metrics',
+      { y: 20, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.8 },
+      0.4
     );
 
     if (isIOS) {
-      gsap.set([".floating-card-1", ".floating-card-2", ".floating-card-3", ".security-shield-pulse"], { clearProps: "animation" });
+      gsap.set([".security-shield-pulse"], { clearProps: "animation" });
       gsap.set([".bento-card", ".timeline-step-card", ".security-card"], { opacity: 1, y: 0, x: 0, scale: 1 });
       return () => {
         heroTl.kill();
-        ScrollTrigger.getAll().forEach(t => t.kill());
       };
     }
-
-    // Continuous floating animation for right-side layers
-    gsap.to(".floating-card-1", {
-      y: -15,
-      rotationZ: 1.5,
-      repeat: -1,
-      yoyo: true,
-      duration: 5,
-      ease: "sine.inOut"
-    });
-    gsap.to(".floating-card-2", {
-      y: 12,
-      rotationZ: -1.5,
-      repeat: -1,
-      yoyo: true,
-      duration: 6,
-      ease: "sine.inOut"
-    });
-    gsap.to(".floating-card-3", {
-      y: -8,
-      rotationZ: 0.8,
-      repeat: -1,
-      yoyo: true,
-      duration: 4.5,
-      ease: "sine.inOut"
-    });
 
     // 2. Infinite Marquee Ticker with GSAP
     const tickerTrack = tickerTrackRef.current;
@@ -227,6 +300,7 @@ export default function HomePage() {
 
     // Cleanups
     return () => {
+      heroTl.kill();
       tickerAnim.kill();
       if (tickerContainer) {
         tickerContainer.removeEventListener('mouseenter', handleMouseEnter);
@@ -268,13 +342,13 @@ export default function HomePage() {
   };
 
   const features = [
-    { icon: Zap, title: "Instant Recharge", desc: "Sub-second processing via direct provider APIs with automated routing pathways.", size: "large", accent: "cyan" },
+    { icon: Zap, title: "Instant Recharge", desc: "Sub-second processing via direct provider APIs with automated routing pathways.", size: "large", accent: "purple" },
     { icon: RefreshCw, title: "Smart Retry Engine", desc: "Intelligent real-time failover preventing lost or stuck payments.", size: "small", accent: "purple" },
     { icon: Activity, title: "Queue Architecture", desc: "BullMQ-powered background tasks built for enterprise throughput scale.", size: "small", accent: "green" },
-    { icon: Globe, title: "Realtime Updates", desc: "Interactive WebSocket driven client dashboard syncing with state streams.", size: "medium", accent: "cyan" },
+    { icon: Globe, title: "Realtime Updates", desc: "Interactive WebSocket driven client dashboard syncing with state streams.", size: "medium", accent: "purple" },
     { icon: TrendingUp, title: "Cashback Incentive", desc: "Algorithmic wallet rebates distributed directly upon success validations.", size: "medium", accent: "green" },
     { icon: Shield, title: "Ledger Security", desc: "Cryptographically safe database balances backing multi-currency accounts.", size: "large", accent: "purple" },
-    { icon: Terminal, title: "Developer Gateway", desc: "High-performance REST architecture, detailed analytics logs, and sandbox credentials.", size: "small", accent: "cyan" },
+    { icon: Terminal, title: "Developer Gateway", desc: "High-performance REST architecture, detailed analytics logs, and sandbox credentials.", size: "small", accent: "purple" },
     { icon: Smartphone, title: "Global Tracking", desc: "Comprehensive step-by-step transaction logs monitoring all API states.", size: "small", accent: "purple" }
   ];
 
@@ -285,199 +359,332 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="landing-page min-h-screen bg-[#050816] text-slate-100 font-sans selection:bg-cyan-500/30 selection:text-white relative overflow-hidden">
+    <div className="landing-page min-h-screen bg-[#050816] text-slate-100 font-sans selection:bg-purple-500/30 selection:text-white relative overflow-hidden">
       
       {/* Ambient Nebula Light System */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
-        <div className="ambient-blob absolute -top-[10%] -left-[10%] w-[60%] h-[60%] bg-cyan-600/10 rounded-full blur-[150px] animate-blob-left"></div>
+        <div className="ambient-blob absolute -top-[10%] -left-[10%] w-[60%] h-[60%] bg-purple-600/10 rounded-full blur-[150px] animate-blob-left"></div>
         <div className="ambient-blob absolute top-[25%] -right-[15%] w-[60%] h-[60%] bg-purple-600/10 rounded-full blur-[160px] animate-blob-right"></div>
         <div className="ambient-blob absolute bottom-[10%] left-[20%] w-[50%] h-[50%] bg-blue-600/8 rounded-full blur-[130px] animate-blob-bottom"></div>
         <div className="absolute inset-0 neural-grid opacity-25"></div>
       </div>
 
-      {/* Floating Translucent Glass Navbar */}
-      <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${scrolled ? 'bg-slate-950/60 backdrop-blur-xl border-b border-white/5 py-4 shadow-2xl' : 'bg-transparent py-6'}`}>
-        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 group navbar-logo-container">
-            <div className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center border border-white/10 group-hover:border-white/30 transition-all duration-500">
-              <Zap className="w-4 h-4 text-white fill-white/10 animate-pulse" />
-            </div>
-            <span className="text-xl font-black text-white tracking-tight font-sans lowercase navbar-logo-text">irecharge</span>
-          </Link>
+      {/* Cinematic Hero Container */}
+      <section 
+        ref={heroRef} 
+        id="home" 
+        className="relative max-w-[1800px] mx-auto overflow-hidden rounded-[40px] flex flex-col justify-between mt-4 md:mt-5 lg:mt-6 min-h-[720px] md:min-h-[800px] lg:min-h-[850px] xl:min-h-[900px]"
+        style={{
+          background: resolvedTheme === 'light' ? '#F8F7FC' : '#050510',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          boxShadow: resolvedTheme === 'light' 
+            ? '0 20px 60px rgba(15, 23, 42, 0.08)' 
+            : '0 20px 80px rgba(0, 0, 0, 0.45)',
+          zIndex: 1
+        }}
+      >
+        {/* Video Layer */}
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          className="absolute inset-0 w-full h-full object-cover scale-105 gpu-accelerated pointer-events-none z-0"
+          style={{
+            filter: 'brightness(1.15) contrast(1.1) saturate(1.1)'
+          }}
+        >
+          <source src="/irechargevid.mp4" type="video/mp4" />
+        </video>
 
-          {/* Desktop Links */}
-          <div className="hidden md:flex items-center gap-10">
-            {navLinks.map((link) => (
-              <button 
-                key={link.name} 
-                onClick={() => scrollToSection(link.id)} 
-                className="text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white transition-colors cursor-pointer relative py-1 hover:cyan-glow"
+        {/* Theme Overlay Layer (Cinematic Overlay) */}
+        <div 
+          className="absolute inset-0 z-1 transition-all duration-500 pointer-events-none"
+          style={{
+            background: resolvedTheme === 'light' 
+              ? 'rgba(255, 255, 255, 0.20)' 
+              : 'rgba(5, 5, 16, 0.35)'
+          }}
+        />
+
+        {/* Ambient Glow Layer */}
+        <div 
+          className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full pointer-events-none z-2"
+          style={{
+            background: 'radial-gradient(circle, rgba(139, 92, 246, 0.22), transparent 70%)',
+            filter: 'blur(120px)',
+            animation: 'floatGlow 12s ease-in-out infinite'
+          }}
+        />
+        <div 
+          className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full pointer-events-none z-2"
+          style={{
+            background: 'radial-gradient(circle, rgba(139, 92, 246, 0.22), transparent 70%)',
+            filter: 'blur(120px)',
+            animation: 'floatGlow 12s ease-in-out infinite',
+            animationDelay: '-6s'
+          }}
+        />
+
+        {/* Purple Radial Glow */}
+        <div 
+          className="absolute inset-0 pointer-events-none z-2"
+          style={{
+            background: 'radial-gradient(circle at center, rgba(139, 92, 246, 0.12), transparent 70%)'
+          }}
+        />
+
+        {/* Left Side Gradient Mask */}
+        <div 
+          className="absolute inset-y-0 left-0 w-[60%] z-2 pointer-events-none"
+          style={{
+            background: resolvedTheme === 'light'
+              ? 'linear-gradient(90deg, rgba(255, 255, 255, 0.80) 0%, rgba(255, 255, 255, 0.55) 40%, rgba(255, 255, 255, 0.20) 75%, transparent 100%)'
+              : 'linear-gradient(90deg, rgba(5, 5, 16, 0.80) 0%, rgba(5, 5, 16, 0.55) 40%, rgba(5, 5, 16, 0.20) 75%, transparent 100%)'
+          }}
+        />
+
+        {/* Grid Layer */}
+        <div 
+          className="absolute inset-0 pointer-events-none z-2"
+          style={{
+            backgroundImage: resolvedTheme === 'light'
+              ? 'linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px)'
+              : 'linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px)',
+            backgroundSize: '60px 60px',
+            opacity: 0.15
+          }}
+        />
+
+        {/* Integrated Glass Navbar (Row #1) */}
+        <nav 
+          className="fixed top-5 left-1/2 z-50 landing-nav flex items-center px-8 h-[72px] transition-all duration-300 ease-out"
+          style={{
+            width: "calc(100% - 64px)",
+            maxWidth: "1700px",
+            transform: scrolled ? 'translateX(-50%) translateY(0)' : 'translateX(-50%) translateY(-8px)',
+            opacity: scrolled ? 1 : 0.9,
+            background: scrolled ? 'rgba(5, 5, 16, 0.85)' : 'rgba(5, 5, 16, 0.35)',
+            backdropFilter: scrolled ? 'blur(24px)' : 'blur(12px)',
+            WebkitBackdropFilter: scrolled ? 'blur(24px)' : 'blur(12px)',
+            border: scrolled ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(255, 255, 255, 0.05)',
+            boxShadow: scrolled ? '0 10px 40px rgba(0, 0, 0, 0.35)' : 'none',
+          }}
+        >
+          <div className="w-full flex items-center justify-between">
+            <Link to="/" className="flex items-center gap-1.5 group navbar-logo-container">
+              <div 
+                className="w-8 h-8 rounded-lg flex items-center justify-center border transition-all duration-500 bg-white/5 border-white/10"
               >
-                {link.name}
-              </button>
-            ))}
-          </div>
-
-          {/* Auth Buttons */}
-          <div className="hidden md:flex items-center gap-6">
-            <ThemeSelector />
-            <Link to="/login" className="text-xs font-black uppercase tracking-widest text-slate-300 hover:text-white transition-all">
-              Login
+                <Zap 
+                  className="w-4 h-4 animate-pulse text-white fill-white/10" 
+                />
+              </div>
+              <span 
+                className="text-xl font-black tracking-tight font-sans lowercase navbar-logo-text text-white"
+              >
+                irecharge
+              </span>
             </Link>
-            <Link to="/register" className="px-6 py-3 bg-cyan-400 hover:bg-cyan-300 text-slate-950 text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-cyan-400/25 active:scale-95">
-              Start Recharging
-            </Link>
-          </div>
-
-          {/* Mobile Toggle */}
-          <div className="md:hidden flex items-center gap-2">
-            <ThemeSelector />
-            <button className="text-slate-400 hover:text-white" onClick={() => setIsOpen(!isOpen)}>
-              {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile Menu */}
-        <AnimatePresence>
-          {isOpen && (
-            <motion.div 
-              initial={isIOS ? { opacity: 0, y: -8 } : { opacity: 0, height: 0 }}
-              animate={isIOS ? { opacity: 1, y: 0 } : { opacity: 1, height: 'auto' }}
-              exit={isIOS ? { opacity: 0, y: -8 } : { opacity: 0, height: 0 }}
-              className="md:hidden bg-slate-950/95 backdrop-blur-2xl border-b border-white/5 overflow-hidden shadow-2xl"
-            >
-              <div className="flex flex-col px-6 py-8 gap-6">
-                {navLinks.map((link) => (
+            
+            {/* Desktop Links */}
+            <div className="hidden md:flex items-center gap-10">
+              {navLinks.map((link) => {
+                const isActive = activeSection === link.id;
+                return (
                   <button 
                     key={link.name} 
-                    onClick={() => {
-                      setIsOpen(false);
-                      scrollToSection(link.id);
-                    }} 
-                    className="text-xs font-black uppercase tracking-widest text-left text-slate-400 border-b border-white/5 pb-3 bg-transparent cursor-pointer"
+                    onClick={() => scrollToSection(link.id)} 
+                    className={`text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer relative py-2 transform hover:-translate-y-[2px] ${
+                      isActive 
+                        ? 'text-[#C084FC] font-bold' 
+                        : 'text-white/70 hover:text-white'
+                    }`}
                   >
                     {link.name}
+                    {isActive && (
+                      <motion.div 
+                        layoutId="activeNavUnderline" 
+                        className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#C084FC]"
+                        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                      />
+                    )}
                   </button>
-                ))}
-                <div className="flex flex-col gap-4 mt-2">
-                  <Link to="/login" className="w-full text-center py-4 rounded-xl border border-white/10 text-slate-300 font-black uppercase tracking-widest text-xs">Log in</Link>
-                  <Link to="/register" className="w-full text-center py-4 rounded-xl bg-cyan-400 text-slate-950 font-black uppercase tracking-widest text-xs shadow-lg shadow-cyan-400/25">Get Started</Link>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </nav>
+                );
+              })}
+            </div>
 
-      {/* Cinematic Hero Section */}
-      <section ref={heroRef} id="home" className="relative pt-36 pb-20 md:pt-48 md:pb-36 overflow-hidden flex items-center min-h-[90vh]">
-        <div className="max-w-7xl mx-auto px-6 relative z-10 w-full">
-          <div className="grid lg:grid-cols-12 gap-16 items-center">
+            {/* Auth Buttons */}
+            <div className="hidden md:flex items-center gap-6">
+              <ThemeSelector />
+              <Link 
+                to="/login" 
+                className="text-xs font-semibold uppercase tracking-wider transition-all duration-200 text-white/75 hover:text-[#C084FC]"
+              >
+                Login
+              </Link>
+              <Link 
+                to="/register" 
+                className="h-12 px-6 text-white text-xs font-bold uppercase tracking-wider rounded-[14px] flex items-center justify-center transition-all duration-300 hover:scale-[1.02] active:scale-95"
+                style={{
+                  background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+                  boxShadow: '0 0 25px rgba(139, 92, 246, 0.35)',
+                }}
+              >
+                Start Recharging
+              </Link>
+            </div>
+
+            {/* Mobile Toggle */}
+            <div className="md:hidden flex items-center gap-2">
+              <ThemeSelector />
+              <button 
+                ref={mobileToggleRef}
+                className="transition-colors text-white/70 hover:text-white" 
+                onClick={() => setIsOpen(!isOpen)}
+                aria-label="Open mobile menu"
+              >
+                {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
+            </div>
+          </div>
+        </nav>
+
+        {/* Content Section (Row #2) */}
+        <div className="flex-1 flex flex-col justify-center z-20 w-full relative">
+          <div className="max-w-[1100px] mx-auto text-center relative w-full flex flex-col items-center justify-center space-y-8 px-6 pt-2 md:pt-4 lg:pt-6">
             
-            {/* Left Side Text Content */}
-            <div className="text-left lg:col-span-6 space-y-8">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-cyan-950/40 border border-cyan-500/30 rounded-full shadow-[0_0_20px_rgba(6,182,212,0.15)]">
-                <div className="w-2 h-2 bg-cyan-400 rounded-full animate-ping"></div>
-                <span className="text-[9px] font-black text-cyan-400 uppercase tracking-[0.25em] cyan-glow">Next-Gen Recharge Infrastructure</span>
-              </div>
-              
-              <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-white tracking-tighter leading-[0.95] uppercase italic">
-                <span className="block hero-title-line">Smart Recharge</span>
-                <span className="block hero-title-line text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-400 to-indigo-500 cyan-glow">
-                  Infrastructure
-                </span>
-              </h1>
-
-              <p className="text-slate-400 text-base md:text-lg max-w-xl leading-relaxed hero-subtitle font-medium">
-                High-performance transactional gateway with resilient queue distribution, real-time feedback loops, and sub-second payment settlement channels. Built for enterprise scale.
-              </p>
-
-              <div className="flex flex-col sm:flex-row items-center gap-5 pt-4 hero-ctas">
-                <Link to="/register" className="w-full sm:w-auto px-8 py-5 bg-cyan-400 hover:bg-cyan-300 text-slate-950 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg shadow-cyan-400/25 active:scale-95 cursor-pointer">
-                  Start Recharging <ArrowUpRight className="w-4 h-4" />
-                </Link>
-                <Link to="/login" className="w-full sm:w-auto px-8 py-5 bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/20 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center shadow-md active:scale-95 cursor-pointer">
-                  Open Mission Control
-                </Link>
-              </div>
+            {/* Badge */}
+            <div 
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full hero-badge"
+              style={{
+                background: resolvedTheme === 'light' ? 'rgba(124, 58, 237, 0.1)' : 'rgba(15, 10, 30, 0.6)',
+                border: resolvedTheme === 'light' ? '1px solid rgba(124, 58, 237, 0.2)' : '1px solid rgba(139, 92, 246, 0.3)',
+                boxShadow: resolvedTheme === 'light' ? 'none' : '0 0 20px rgba(139, 92, 246, 0.15)'
+              }}
+            >
+              <div 
+                className="w-2 h-2 rounded-full animate-ping"
+                style={{
+                  background: resolvedTheme === 'light' ? '#7C3AED' : '#c084fc'
+                }}
+              />
+              <span 
+                className="text-[9px] font-black uppercase tracking-[0.25em]"
+                style={{
+                  color: resolvedTheme === 'light' ? '#7C3AED' : '#c084fc'
+                }}
+              >
+                NEXT-GEN RECHARGE INFRASTRUCTURE
+              </span>
             </div>
+            
+            {/* Headline */}
+            <h1 
+              className="font-black tracking-tighter uppercase italic hero-headline"
+              style={{
+                fontSize: 'clamp(3rem, 6vw, 6rem)',
+                fontWeight: 900,
+                lineHeight: '0.92',
+                letterSpacing: '-0.04em',
+                textShadow: resolvedTheme === 'light' ? 'none' : '0 0 30px rgba(192,132,252,0.18)'
+              }}
+            >
+              <span 
+                className={`block hero-title-line pr-4 ${resolvedTheme === 'light' ? 'text-[#1E293B]' : 'text-transparent bg-clip-text'}`}
+                style={resolvedTheme === 'light' ? { color: '#1E293B' } : {
+                  backgroundImage: 'linear-gradient(90deg, #FFFFFF, #C084FC, #D946EF)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text'
+                }}
+              >
+                Smart Recharge
+              </span>
+              <span 
+                className={`block hero-title-line pr-4 ${resolvedTheme === 'light' ? 'text-[#1E293B]' : 'text-transparent bg-clip-text'}`}
+                style={resolvedTheme === 'light' ? { color: '#1E293B' } : {
+                  backgroundImage: 'linear-gradient(90deg, #FFFFFF, #C084FC, #D946EF)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text'
+                }}
+              >
+                Infrastructure
+              </span>
+            </h1>
 
-            {/* Right Side: Futuristic Floating Mockup Panel */}
-            <div className="lg:col-span-6 flex justify-center lg:justify-end relative hero-mockup-wrapper">
-              <div className="relative w-full max-w-md md:max-w-lg aspect-square flex items-center justify-center">
-                
-                {/* Glowing Core Orbit */}
-                <div className="absolute w-80 h-80 rounded-full bg-gradient-to-tr from-cyan-500/10 to-purple-600/10 blur-[60px] animate-pulse"></div>
+            {/* Description */}
+            <p 
+              className="hero-subtitle"
+              style={{
+                maxWidth: '700px',
+                margin: '0 auto',
+                lineHeight: '1.8',
+                fontWeight: '500',
+                color: resolvedTheme === 'light' ? '#334155' : 'rgba(255, 255, 255, 0.85)'
+              }}
+            >
+              Recharge, Wallet, Marketplace, Cashback, Utility Payments and Digital Services in one intelligent platform built for modern retailers, distributors and businesses.
+            </p>
 
-                {/* Layer 1: Simulated Main Terminal Panel */}
-                <div className="absolute w-[90%] aspect-[4/3] bg-slate-950/70 border border-white/10 rounded-3xl p-6 shadow-2xl backdrop-blur-md floating-card-1 z-10">
-                  <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-4">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500/60"></span>
-                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500/60"></span>
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/60"></span>
-                    </div>
-                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">ledger_stream_v2.log</span>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="p-3 bg-white/5 rounded-xl border border-white/5 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-cyan-400/10 rounded-lg"><Zap className="w-4 h-4 text-cyan-400" /></div>
-                        <div>
-                          <p className="text-[10px] font-black text-white uppercase">RECHARGE SECURED</p>
-                          <p className="text-[8px] text-slate-400 font-bold uppercase tracking-tight">JIO MOBILE • 9876543210</p>
-                        </div>
-                      </div>
-                      <span className="text-xs font-black text-cyan-400">+₹299.00</span>
-                    </div>
-                    <div className="p-3 bg-white/5 rounded-xl border border-white/5 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-purple-400/10 rounded-lg"><Server className="w-4 h-4 text-purple-400" /></div>
-                        <div>
-                          <p className="text-[10px] font-black text-white uppercase">QUEUE QUEUED</p>
-                          <p className="text-[8px] text-slate-400 font-bold uppercase tracking-tight">worker_node_4a • ACTIVE</p>
-                        </div>
-                      </div>
-                      <span className="text-[8px] px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 font-bold border border-purple-500/20">PENDING</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Layer 2: Glowing Chart Mockup Overlay */}
-                <div className="absolute w-[60%] aspect-square bg-slate-900/80 border border-white/10 rounded-3xl p-5 shadow-2xl backdrop-blur-md floating-card-2 right-0 bottom-4 z-20">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-2">TELEMETRY DATA</p>
-                  <p className="text-xl font-black text-white tracking-tighter uppercase italic">99.98% <span className="text-[8px] text-emerald-400 tracking-widest font-black uppercase">UPTIME</span></p>
-                  
-                  {/* Decorative Neon Graph Grid */}
-                  <div className="mt-4 h-24 w-full relative flex items-end">
-                    <svg className="w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
-                      <path d="M 0 80 Q 20 20, 40 50 T 80 10 T 100 40" fill="none" stroke="url(#cyanGrad)" strokeWidth="3" />
-                      <defs>
-                        <linearGradient id="cyanGrad" x1="0" y1="0" x2="1" y2="0">
-                          <stop offset="0%" stopColor="#7B61FF" />
-                          <stop offset="100%" stopColor="#00D9FF" />
-                        </linearGradient>
-                      </defs>
-                    </svg>
-                    <div className="absolute bottom-2 right-2 w-3 h-3 bg-cyan-400 rounded-full animate-ping"></div>
-                  </div>
-                </div>
-
-                {/* Layer 3: Cyber Security Badge Overlay */}
-                <div className="absolute w-[45%] bg-slate-950/90 border border-white/15 rounded-2xl p-4 shadow-xl floating-card-3 left-4 bottom-8 z-30">
-                  <div className="flex items-center gap-3">
-                    <Shield className="w-6 h-6 text-emerald-400 fill-current/10" />
-                    <div>
-                      <p className="text-[8px] font-black text-white uppercase tracking-widest">SECURITY STATUS</p>
-                      <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-tight">ACTIVE SHIELD</p>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mt-12 hero-ctas w-full">
+              <Link 
+                to="/register" 
+                className="w-full sm:w-auto px-8 h-[60px] text-white rounded-[18px] font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 active:scale-95 hover:scale-105 duration-300 cursor-pointer"
+                style={{
+                  background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+                  boxShadow: '0 0 35px rgba(139, 92, 246, 0.55)',
+                }}
+              >
+                START RECHARGING <ArrowUpRight className="w-4 h-4" />
+              </Link>
+              <button 
+                onClick={() => scrollToSection('features')} 
+                className="w-full sm:w-auto px-8 h-[60px] border rounded-[18px] font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center active:scale-95 hover:scale-105 duration-300 cursor-pointer hero-secondary-btn"
+                style={{
+                  background: resolvedTheme === 'light' ? '#FFFFFF' : 'rgba(255, 255, 255, 0.08)',
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                  borderColor: resolvedTheme === 'light' ? 'rgba(15, 23, 42, 0.12)' : 'rgba(255, 255, 255, 0.1)',
+                  color: resolvedTheme === 'light' ? '#1E293B' : '#ffffff'
+                }}
+              >
+                EXPLORE SERVICES
+              </button>
             </div>
+          </div>
 
+          {/* Hero Footer: Trust Metrics */}
+          <div className="relative w-full px-6 mt-12 lg:mt-14 pb-16 md:pb-20 lg:pb-24">
+            <div className="max-w-[1400px] mx-auto w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 hero-trust-metrics">
+              {[
+                { icon: Zap, label: "Instant Recharge" },
+                { icon: Shield, label: "Secure Payments" },
+                { icon: Coins, label: "Cashback Rewards" },
+                { icon: Headphones, label: "24x7 Support" }
+              ].map((item, idx) => (
+                <div 
+                  key={idx}
+                  className="flex items-center gap-4 p-5 rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:border-purple-500/30 group min-h-[72px]"
+                  style={{
+                    background: resolvedTheme === 'light' ? '#FFFFFF' : 'rgba(255, 255, 255, 0.08)',
+                    backdropFilter: 'blur(16px)',
+                    WebkitBackdropFilter: 'blur(16px)',
+                    border: resolvedTheme === 'light' ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(139, 92, 246, 0.20)',
+                    boxShadow: resolvedTheme === 'light' ? '0 4px 20px rgba(15, 23, 42, 0.05)' : '0 0 15px rgba(139, 92, 246, 0.15)',
+                    color: resolvedTheme === 'light' ? '#1E293B' : '#ffffff'
+                  }}
+                >
+                  <div className="p-3 bg-white/5 rounded-xl group-hover:bg-purple-500/10 group-hover:scale-105 transition-all">
+                    <item.icon className="w-5 h-5 text-purple-400 shrink-0 transition-all duration-300" />
+                  </div>
+                  <span className="text-sm font-bold uppercase tracking-wider">{item.label}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -488,19 +695,19 @@ export default function HomePage() {
           {[...Array(6)].map((_, i) => (
             <div key={i} className="flex gap-12 items-center flex-shrink-0">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0"/> Airtel Recharge Success <span className="text-cyan-400 font-black">₹299</span>
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0"/> Airtel Recharge Success <span className="text-purple-400 font-black">₹299</span>
               </span>
               <span className="text-white/10">•</span>
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0"/> Jio Completed <span className="text-cyan-400 font-black">₹719</span>
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0"/> Jio Completed <span className="text-purple-400 font-black">₹719</span>
               </span>
               <span className="text-white/10">•</span>
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0"/> Vi Topup Success <span className="text-cyan-400 font-black">₹19</span>
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0"/> Vi Topup Success <span className="text-purple-400 font-black">₹19</span>
               </span>
               <span className="text-white/10">•</span>
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0"/> BSNL Success <span className="text-cyan-400 font-black">₹199</span>
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0"/> BSNL Success <span className="text-purple-400 font-black">₹199</span>
               </span>
               <span className="text-white/10">•</span>
             </div>
@@ -513,7 +720,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-20 space-y-4">
             <h2 className="text-3xl md:text-5xl font-black text-white tracking-tighter uppercase italic">
-              Quantum <span className="text-cyan-400 cyan-glow">Engine Features</span>
+              Quantum <span className="text-purple-400 purple-glow">Engine Features</span>
             </h2>
             <p className="text-slate-400 text-base md:text-lg max-w-2xl mx-auto">
               Engineered with modern architectural standards, ensuring absolute ledger safety and high throughput processing.
@@ -527,14 +734,14 @@ export default function HomePage() {
               return (
                 <div 
                   key={i} 
-                  className={`bento-card glass-card p-8 rounded-3xl border border-white/5 hover:border-cyan-500/30 transition-all duration-500 group flex flex-col justify-between overflow-hidden relative ${colSpan}`}
+                  className={`bento-card glass-card p-8 rounded-3xl border border-white/5 hover:border-purple-500/30 transition-all duration-500 group flex flex-col justify-between overflow-hidden relative ${colSpan}`}
                 >
                   {/* Hover Accent spotlight background */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-purple-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-purple-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
                   
                   <div>
-                    <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/5 mb-8 group-hover:bg-cyan-500/10 group-hover:border-cyan-500/20 transition-all">
-                      <f.icon className="w-6 h-6 text-slate-300 group-hover:text-cyan-400 group-hover:scale-105 transition-all" />
+                    <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/5 mb-8 group-hover:bg-purple-500/10 group-hover:border-purple-500/20 transition-all">
+                      <f.icon className="w-6 h-6 text-slate-300 group-hover:text-purple-400 group-hover:scale-105 transition-all" />
                     </div>
                     <h3 className="text-lg font-black text-white uppercase tracking-tight mb-3">{f.title}</h3>
                     <p className="text-sm text-slate-400 leading-relaxed max-w-md">{f.desc}</p>
@@ -552,7 +759,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-24 space-y-4">
             <h2 className="text-3xl md:text-5xl font-black text-white tracking-tighter uppercase italic">
-              Lifecycle <span className="text-cyan-400 cyan-glow">Processing flow</span>
+              Lifecycle <span className="text-purple-400 purple-glow">Processing flow</span>
             </h2>
             <p className="text-slate-400 text-base md:text-lg max-w-xl mx-auto">
               Our automated, asynchronous execution pipeline guarantees zero payment loss.
@@ -562,7 +769,7 @@ export default function HomePage() {
           <div className="relative max-w-4xl mx-auto">
             {/* Timeline Progress connector line */}
             <div className="timeline-path absolute left-6 md:left-1/2 top-0 bottom-0 h-full w-[2px]"></div>
-            <div className="timeline-progress-bar absolute left-6 md:left-1/2 top-0 h-full w-[2px] bg-gradient-to-b from-cyan-400 to-purple-600 origin-top transform scale-y-0 z-10"></div>
+            <div className="timeline-progress-bar absolute left-6 md:left-1/2 top-0 h-full w-[2px] bg-gradient-to-b from-purple-400 to-purple-600 origin-top transform scale-y-0 z-10"></div>
 
             <div className="space-y-16">
               {steps.map((step, i) => (
@@ -570,20 +777,20 @@ export default function HomePage() {
                   
                   {/* Left layout wrapper */}
                   <div className="w-full md:w-[45%] flex justify-start md:justify-end md:text-right pr-0 md:pr-12 pl-14 md:pl-0 order-2 md:order-1 mt-4 md:mt-0">
-                    <div className="glass-card p-6 md:p-8 rounded-3xl border border-white/5 group-hover:border-cyan-500/20 transition-all duration-500 w-full">
+                    <div className="glass-card p-6 md:p-8 rounded-3xl border border-white/5 group-hover:border-purple-500/20 transition-all duration-500 w-full">
                       <h3 className="text-md font-black text-white uppercase tracking-tight mb-3">{step.title}</h3>
                       <p className="text-xs text-slate-400 leading-relaxed">{step.desc}</p>
                     </div>
                   </div>
 
                   {/* Bullet center dot */}
-                  <div className="absolute left-3.5 md:left-1/2 transform -translate-x-1/2 w-6 h-6 rounded-full bg-slate-950 border-4 border-white/10 flex items-center justify-center text-[10px] font-bold text-slate-400 z-30 group-[.active-step]:border-cyan-400 group-[.active-step]:text-cyan-400 transition-colors duration-500 order-1 md:order-2">
-                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full group-[.active-step]:bg-cyan-400"></span>
+                  <div className="absolute left-3.5 md:left-1/2 transform -translate-x-1/2 w-6 h-6 rounded-full bg-slate-950 border-4 border-white/10 flex items-center justify-center text-[10px] font-bold text-slate-400 z-30 group-[.active-step]:border-purple-400 group-[.active-step]:text-purple-400 transition-colors duration-500 order-1 md:order-2">
+                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full group-[.active-step]:bg-purple-400"></span>
                   </div>
 
                   {/* Right layout blank placeholder / Step Indicator */}
                   <div className="w-full md:w-[45%] pl-14 md:pl-12 order-3">
-                    <span className="text-4xl font-black text-white/5 group-hover:text-cyan-400/10 transition-colors duration-500 tracking-tighter uppercase italic">{step.num}</span>
+                    <span className="text-4xl font-black text-white/5 group-hover:text-purple-400/10 transition-colors duration-500 tracking-tighter uppercase italic">{step.num}</span>
                   </div>
 
                 </div>
@@ -598,7 +805,7 @@ export default function HomePage() {
         
         {/* Glowing Network Line visuals */}
         <div className="absolute inset-0 pointer-events-none opacity-20 z-0">
-          <div className="absolute w-[200%] h-[1px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent top-1/3 left-[-50%] transform rotate-12 animate-pulse"></div>
+          <div className="absolute w-[200%] h-[1px] bg-gradient-to-r from-transparent via-purple-400 to-transparent top-1/3 left-[-50%] transform rotate-12 animate-pulse"></div>
           <div className="absolute w-[200%] h-[1px] bg-gradient-to-r from-transparent via-purple-500 to-transparent top-2/3 left-[-50%] transform -rotate-12 animate-pulse"></div>
         </div>
 
@@ -607,13 +814,13 @@ export default function HomePage() {
             
             {/* Left side security info */}
             <div className="lg:col-span-7 space-y-6">
-              <div className="w-16 h-16 rounded-2xl bg-cyan-400/10 border border-cyan-400/20 flex items-center justify-center relative">
-                <Shield className="w-8 h-8 text-cyan-400 animate-pulse" />
-                <div className="absolute inset-0 rounded-2xl border-4 border-cyan-400/40 security-shield-pulse"></div>
+              <div className="w-16 h-16 rounded-2xl bg-purple-400/10 border border-purple-400/20 flex items-center justify-center relative">
+                <Shield className="w-8 h-8 text-purple-400 animate-pulse" />
+                <div className="absolute inset-0 rounded-2xl border-4 border-purple-400/40 security-shield-pulse"></div>
               </div>
               
               <h2 className="text-3xl md:text-5xl font-black text-white tracking-tighter uppercase italic leading-[0.95]">
-                Quantum <br /><span className="text-cyan-400 cyan-glow">Security Layer</span>
+                Quantum <br /><span className="text-purple-400 purple-glow">Security Layer</span>
               </h2>
               <p className="text-slate-400 text-base md:text-lg max-w-xl leading-relaxed">
                 Atomic database state modifications, idempotent payment signatures, and continuous transit encryption trace every credit point securely.
@@ -622,8 +829,8 @@ export default function HomePage() {
 
             {/* Right side interactive cards list */}
             <div className="lg:col-span-5 space-y-4">
-              <div className="security-card glass-card p-6 rounded-3xl border border-white/5 flex items-center gap-4 hover:border-cyan-500/20 transition-all duration-300">
-                <div className="p-3 bg-white/5 rounded-xl"><Lock className="w-5 h-5 text-cyan-400" /></div>
+              <div className="security-card glass-card p-6 rounded-3xl border border-white/5 flex items-center gap-4 hover:border-purple-500/20 transition-all duration-300">
+                <div className="p-3 bg-white/5 rounded-xl"><Lock className="w-5 h-5 text-purple-400" /></div>
                 <div>
                   <h4 className="text-sm font-black text-white uppercase tracking-wide">Encrypted Transit</h4>
                   <p className="text-xs text-slate-400 mt-0.5">TLS 1.3 cryptographic layers everywhere</p>
@@ -655,20 +862,20 @@ export default function HomePage() {
         {/* Dynamic tracking cursor spotlight */}
         <div 
           ref={ctaSpotlightRef} 
-          className="cta-spotlight absolute w-[400px] h-[400px] rounded-full bg-cyan-500/5 blur-[80px] pointer-events-none transform -translate-x-1/2 -translate-y-1/2 z-0"
+          className="cta-spotlight absolute w-[400px] h-[400px] rounded-full bg-purple-500/5 blur-[80px] pointer-events-none transform -translate-x-1/2 -translate-y-1/2 z-0"
           style={{ top: '50%', left: '50%' }}
         />
 
         <div className="max-w-4xl mx-auto px-6 text-center relative z-10 space-y-8">
           <h2 className="text-4xl md:text-6xl font-black text-white tracking-tighter uppercase italic leading-[1] max-w-2xl mx-auto">
             Start Building Modern <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 cyan-glow">Recharge Infrastructure</span>
+            <span className="inline-block not-italic -skew-x-12 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-purple-600 purple-glow-filter pr-4">Recharge Infrastructure</span>
           </h2>
           <p className="text-slate-400 text-sm md:text-base max-w-xl mx-auto leading-relaxed">
             Deploy secure billing modules, configure automated recharge flows, and interface with direct provider API clusters. Set up your mission control vault today.
           </p>
           <div className="pt-6">
-            <Link to="/register" className="px-10 py-5 bg-cyan-400 hover:bg-cyan-300 text-slate-950 text-xs font-black uppercase tracking-[0.2em] rounded-xl transition-all shadow-lg shadow-cyan-400/30 inline-block active:scale-95 cursor-pointer">
+            <Link to="/register" className="px-10 py-5 bg-purple-500 hover:bg-purple-400 text-white text-xs font-black uppercase tracking-[0.2em] rounded-xl transition-all shadow-lg shadow-purple-500/30 inline-block active:scale-95 cursor-pointer">
               Launch Wallet Portal
             </Link>
           </div>
@@ -692,6 +899,158 @@ export default function HomePage() {
           </div>
         </div>
       </footer>
+      {/* Premium Fullscreen Mobile Drawer */}
+      <AnimatePresence mode="wait">
+        {isOpen && (
+          <motion.div 
+            ref={drawerRef}
+            onKeyDown={handleTabKey}
+            role="dialog"
+            aria-modal="true"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.25 }}
+            className="md:hidden"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              width: '100vw',
+              height: '100vh',
+              zIndex: 9999,
+              background: resolvedTheme === 'light' ? 'rgba(255, 255, 255, 0.92)' : 'rgba(5, 5, 16, 0.92)',
+              backdropFilter: 'blur(24px)',
+              WebkitBackdropFilter: 'blur(24px)'
+            }}
+          >
+            <div 
+              className="flex flex-col h-full w-full justify-between"
+              style={{ 
+                zIndex: 10000, 
+                position: 'relative',
+                paddingTop: 'max(20px, env(safe-area-inset-top))',
+                paddingBottom: 'max(24px, env(safe-area-inset-bottom))'
+              }}
+            >
+              {/* HEADER ROW */}
+              <div 
+                className="flex items-center justify-between px-6 w-full shrink-0"
+                style={{ height: '72px' }}
+              >
+                {/* Logo */}
+                <Link to="/" onClick={() => setIsOpen(false)} className="flex items-center gap-1.5 group navbar-logo-container">
+                  <div 
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all duration-500 ${
+                      resolvedTheme === 'light' 
+                        ? 'bg-[#0F172A]/5 border-[#0F172A]/10' 
+                        : 'bg-white/5 border-white/10'
+                    }`}
+                  >
+                    <Zap 
+                      className={`w-4 h-4 animate-pulse ${
+                        resolvedTheme === 'light' 
+                          ? 'text-[#0F172A] fill-[#0F172A]/10' 
+                          : 'text-white fill-white/10'
+                      }`} 
+                    />
+                  </div>
+                  <span 
+                    className={`text-xl font-black tracking-tight font-sans lowercase navbar-logo-text ${
+                      resolvedTheme === 'light' 
+                        ? 'text-[#0F172A]' 
+                        : 'text-white'
+                    }`}
+                  >
+                    irecharge
+                  </span>
+                </Link>
+                
+                {/* Empty Center */}
+                <div className="flex-1"></div>
+                
+                {/* Right Area: Theme Switcher & Close Button */}
+                <div className="flex items-center gap-4">
+                  <ThemeSelector position="bottom" align="right" />
+                  <button 
+                    onClick={() => setIsOpen(false)}
+                    aria-label="Close mobile menu"
+                    className="drawer-close-btn flex items-center justify-center rounded-full border transition-all cursor-pointer hover:scale-105 active:scale-95 animate-none"
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      background: resolvedTheme === 'light' ? 'rgba(15, 23, 42, 0.04)' : 'rgba(255, 255, 255, 0.08)',
+                      borderColor: resolvedTheme === 'light' ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.1)',
+                      color: resolvedTheme === 'light' ? '#0F172A' : '#FFFFFF',
+                      backdropFilter: 'blur(8px)',
+                      WebkitBackdropFilter: 'blur(8px)'
+                    }}
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+
+              {/* NAVIGATION LINKS */}
+              <div 
+                className="flex-grow flex flex-col items-center justify-center"
+                style={{ gap: '32px' }}
+              >
+                {navLinks.map((link) => (
+                  <button 
+                    key={link.name} 
+                    onClick={() => {
+                      setIsOpen(false);
+                      scrollToSection(link.id);
+                    }} 
+                    className="transition-colors cursor-pointer bg-transparent border-none font-bold uppercase tracking-wider"
+                    style={{
+                      fontSize: '22px',
+                      color: resolvedTheme === 'light' ? '#0F172A' : '#FFFFFF'
+                    }}
+                  >
+                    {link.name}
+                  </button>
+                ))}
+              </div>
+
+              {/* ACTION AREA */}
+              <div 
+                className="flex flex-col px-6 w-full shrink-0"
+                style={{ gap: '16px' }}
+              >
+                <Link 
+                  to="/login" 
+                  onClick={() => setIsOpen(false)}
+                  className="w-full text-xs font-bold uppercase tracking-wider flex items-center justify-center transition-all duration-200 active:scale-95"
+                  style={{
+                    height: '56px',
+                    borderRadius: '18px',
+                    background: resolvedTheme === 'light' ? '#FFFFFF' : 'rgba(255, 255, 255, 0.08)',
+                    border: resolvedTheme === 'light' ? '1px solid rgba(15, 23, 42, .08)' : 'none',
+                    color: resolvedTheme === 'light' ? '#0F172A' : '#FFFFFF'
+                  }}
+                >
+                  Login
+                </Link>
+                <Link 
+                  to="/register" 
+                  onClick={() => setIsOpen(false)}
+                  className="w-full text-xs font-bold uppercase tracking-wider flex items-center justify-center transition-all duration-300 hover:scale-[1.02] active:scale-95"
+                  style={{
+                    height: '56px',
+                    borderRadius: '18px',
+                    color: '#FFFFFF',
+                    background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+                    boxShadow: resolvedTheme === 'light' ? '0 10px 25px rgba(139, 92, 246, 0.25)' : '0 10px 30px rgba(139, 92, 246, 0.35)',
+                  }}
+                >
+                  Start Recharging
+                </Link>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
 import { useWallet } from '../context/WalletContext';
+import { APP_MESSAGES } from '../constants/messages';
 
 export default function Profile() {
   const [user, setUser] = useState(JSON.parse(sessionStorage.getItem('dizipay_user_data')) || { name: 'User Account', phone: '+91 9876543210' });
@@ -58,7 +59,7 @@ export default function Profile() {
           document.body.removeChild(link);
         } catch (error) {
           toast.error("Failed to download API documentation");
-          console.error(error);
+          if (import.meta.env.DEV) console.error(error);
         }
       }
     };
@@ -80,7 +81,7 @@ export default function Profile() {
       setUser(updated);
       sessionStorage.setItem('dizipay_user_data', JSON.stringify(updated));
       setIsEditing(false);
-      toast.success("Name updated successfully");
+      toast.success(APP_MESSAGES.PROFILE_UPDATED);
     } catch {
       toast.error("Failed to update name");
     }
@@ -102,10 +103,10 @@ export default function Profile() {
       const updated = { ...user, ...res.data.data };
       setUser(updated);
       sessionStorage.setItem('dizipay_user_data', JSON.stringify(updated));
-      toast.success("Profile image updated");
+      toast.success(APP_MESSAGES.PROFILE_UPDATED);
     } catch (e) {
       if (import.meta.env.DEV) {
-        if (import.meta.env.DEV) console.error(e);
+        if (import.meta.env.DEV) if (import.meta.env.DEV) console.error(e);
       }
       toast.error("Image upload failed");
     } finally {
@@ -124,24 +125,24 @@ export default function Profile() {
       <div className="glass-card border border-[var(--glass-border)] rounded-2xl md:rounded-3xl overflow-hidden shadow-xl">
         <div className="bg-gradient-to-r from-[var(--bg-tertiary)]/20 via-[var(--bg-secondary)]/40 to-[var(--bg-tertiary)]/20 p-6 md:p-8 flex flex-col items-center border-b border-[var(--glass-border)] relative overflow-hidden">
           {/* Animated Background Orbs */}
-          <div className="absolute -top-10 -left-10 w-40 h-40 bg-cyan-500/5 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute -top-10 -left-10 w-40 h-40 bg-[var(--color-accent)]/5 rounded-full blur-3xl animate-pulse"></div>
           <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-purple-500/5 rounded-full blur-3xl animate-pulse delay-1000"></div>
 
           <div className="relative group mb-6">
             <div className="w-32 h-32 bg-[var(--bg-secondary)]/60 rounded-full flex items-center justify-center border-2 border-[var(--glass-border)] shadow-sm overflow-hidden group-hover:shadow-md transition-all duration-500">
               {uploading ? (
-                <div className="animate-spin h-8 w-8 border-3 border-cyan-500 border-t-transparent rounded-full"></div>
+                <div className="animate-spin h-8 w-8 border-3 border-[var(--color-accent)] border-t-transparent rounded-full"></div>
               ) : user.profileImage ? (
                 <img src={user.profileImage} alt="Profile" className="w-full h-full object-cover" />
               ) : (
-                <span className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 to-purple-400">
+                <span className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-purple-400 to-indigo-400">
                   {(user.name || 'U').charAt(0).toUpperCase()}
                 </span>
               )}
             </div>
             <button 
               onClick={() => fileInputRef.current?.click()}
-              className="absolute bottom-1 right-1 bg-gradient-to-br from-cyan-500 to-purple-600 p-2.5 rounded-full shadow-lg hover:scale-110 transition-all border border-white/20 cursor-pointer"
+              className="absolute bottom-1 right-1 bg-gradient-to-br from-purple-500 to-indigo-600 p-2.5 rounded-full shadow-lg hover:scale-110 transition-all border border-white/20 cursor-pointer"
             >
               <Camera className="w-4 h-4 text-white" />
             </button>
@@ -158,12 +159,12 @@ export default function Profile() {
                   className="bg-transparent text-[var(--text-color)] px-4 py-2 outline-none w-32 md:w-48 font-bold text-sm md:text-base"
                   autoFocus
                 />
-                <button onClick={handleNameSave} className="bg-cyan-50 hover:bg-cyan-400 text-slate-950 text-[10px] font-black uppercase px-3 md:px-4 py-2 rounded-lg transition-all cursor-pointer">Save</button>
+                <button onClick={handleNameSave} className="bg-[var(--color-accent)] hover:opacity-90 text-white text-[10px] font-black uppercase px-3 md:px-4 py-2 rounded-lg transition-all cursor-pointer">Save</button>
               </div>
             ) : (
               <div className="flex items-center justify-center gap-3">
                 <h2 className="text-xl md:text-3xl font-black text-[var(--text-color)] tracking-tight">{user.name || 'User Account'}</h2>
-                <button onClick={() => { setIsEditing(true); setNewName(user.name || ''); }} className="text-[var(--text-secondary)] hover:text-cyan-400 transition-colors cursor-pointer">
+                <button onClick={() => { setIsEditing(true); setNewName(user.name || ''); }} className="text-[var(--text-secondary)] hover:text-[var(--color-accent)] transition-colors cursor-pointer">
                   <Edit2 className="w-4 h-4 md:w-5 md:h-5" />
                 </button>
               </div>
@@ -188,7 +189,7 @@ export default function Profile() {
                 }`}
               >
                 <div className="flex items-center gap-4">
-                  <div className={`p-3 rounded-xl ${item.textDanger ? 'bg-rose-500/10 text-rose-400 border border-rose-500/10' : 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/10'}`}>
+                  <div className={`p-3 rounded-xl ${item.textDanger ? 'bg-rose-500/10 text-rose-400 border border-rose-500/10' : 'bg-[var(--color-accent-glow)] text-[var(--color-accent)] border border-[var(--color-accent)]/10'}`}>
                     <item.icon className="w-5 h-5" />
                   </div>
                   <span className={`font-bold text-sm ${item.textDanger ? 'text-rose-400' : 'text-[var(--text-secondary)] group-hover:text-[var(--text-color)]'}`}>{item.label}</span>

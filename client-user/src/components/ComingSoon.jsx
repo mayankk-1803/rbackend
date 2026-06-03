@@ -10,7 +10,7 @@ export default function ComingSoon({ serviceName }) {
     >
       <div className="w-full max-w-lg glass-card border border-white/5 rounded-2xl md:rounded-3xl shadow-xl overflow-hidden relative">
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
-            <div className="absolute -top-10 -left-10 w-40 h-40 bg-cyan-500/10 rounded-full blur-[60px]"></div>
+            <div className="absolute -top-10 -left-10 w-40 h-40 bg-purple-500/10 rounded-full blur-[60px]"></div>
             <div className="absolute bottom-0 right-0 w-40 h-40 bg-purple-500/10 rounded-full blur-[60px]"></div>
         </div>
         
@@ -25,7 +25,7 @@ export default function ComingSoon({ serviceName }) {
             }}
             className="w-20 h-20 md:w-24 md:h-24 mx-auto bg-slate-950/60 rounded-2xl md:rounded-3xl flex items-center justify-center border border-white/10 shadow-sm"
           >
-            <div className="w-10 h-10 md:w-12 md:h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-10 h-10 md:w-12 md:h-12 border-4 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
           </motion.div>
           
           <div className="space-y-2">
@@ -47,7 +47,7 @@ export default function ComingSoon({ serviceName }) {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => window.history.back()}
-              className="px-8 py-3 bg-purple-500 hover:bg-purple-400 text-slate-950 font-black rounded-xl transition-all text-xs uppercase tracking-widest shadow-lg shadow-purple-600/10 cursor-pointer"
+              className="px-8 py-3 bg-purple-500 hover:bg-purple-400 text-white font-black rounded-xl transition-all text-xs uppercase tracking-widest shadow-lg shadow-purple-600/10 cursor-pointer"
             >
               Go Back
             </motion.button>

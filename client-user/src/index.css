@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 @import "./styles/theme-tokens.css";
 
 /* Typography Configuration */
@@ -114,6 +115,10 @@ h1, h2, h3, h4, h5, h6, .font-tech-heading {
 
 .purple-glow {
   text-shadow: 0 0 10px color-mix(in srgb, var(--color-primary), transparent 68%), 0 0 20px var(--color-primary-glow);
+}
+
+.purple-glow-filter {
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-primary), transparent 50%)) drop-shadow(0 0 15px var(--color-primary-glow));
 }
 
 .emerald-glow {
@@ -641,21 +646,21 @@ h1, h2, h3, h4, h5, h6, .font-tech-heading {
 
 /* ACTIVE TAB HIGHLIGHT */
 :root.light .client-shell nav.glass-navbar a.text-\[var\(--color-accent\)\] {
-  color: #1d4ed8 !important;
+  color: #8B5CF6 !important;
 }
 :root.light .client-shell nav.glass-navbar a.text-\[var\(--color-accent\)\] svg {
-  color: #1d4ed8 !important;
+  color: #8B5CF6 !important;
 }
 :root.light .client-shell nav.glass-navbar a.text-\[var\(--color-accent\)\] div {
-  background-color: rgba(29, 78, 216, 0.10) !important;
-  border: 1px solid rgba(29, 78, 216, 0.18) !important;
+  background-color: rgba(139, 92, 246, 0.10) !important;
+  border: 1px solid rgba(139, 92, 246, 0.18) !important;
   box-shadow: none !important;
 }
 
 :root.light .client-shell .md\:hidden.fixed > div {
   background: var(--client-dock-bg) !important;
   border-color: rgba(15, 23, 42, 0.08) !important;
-  box-shadow: 0 18px 42px rgba(29, 43, 70, 0.16), 0 1px 0 rgba(255, 255, 255, 0.78) inset !important;
+  box-shadow: 0 18px 42px rgba(139, 92, 246, 0.08), 0 1px 0 rgba(255, 255, 255, 0.78) inset !important;
 }
 
 :root.light .client-shell input,
@@ -665,12 +670,12 @@ h1, h2, h3, h4, h5, h6, .font-tech-heading {
   background-color: var(--client-input-bg) !important;
   border-color: rgba(15, 23, 42, 0.12) !important;
   color: var(--text-primary) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), 0 1px 2px rgba(31, 45, 71, 0.04);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), 0 1px 2px rgba(139, 92, 246, 0.02);
 }
 
 :root.light .client-shell input::placeholder,
 :root.light .client-shell textarea::placeholder {
-  color: rgba(64, 83, 111, 0.72) !important;
+  color: rgba(107, 114, 128, 0.72) !important;
 }
 
 :root.light .client-shell input:focus,
@@ -689,10 +694,10 @@ h1, h2, h3, h4, h5, h6, .font-tech-heading {
 :root.light .client-shell .bg-\[var\(--color-accent\)\],
 :root.light .client-shell .bg-\[var\(--color-primary\)\],
 :root.light .client-shell a.bg-\[var\(--color-primary\)\] {
-  background: linear-gradient(135deg, #1d4ed8 0%, #0f2547 100%) !important;
+  background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%) !important;
   color: #ffffff !important;
   border: none !important;
-  box-shadow: 0 10px 20px rgba(29, 78, 216, 0.12) !important;
+  box-shadow: 0 10px 20px rgba(139, 92, 246, 0.12) !important;
 }
 
 :root.light .client-shell button.bg-cyan-400:hover,
@@ -702,9 +707,9 @@ h1, h2, h3, h4, h5, h6, .font-tech-heading {
 :root.light .client-shell .bg-\[var\(--color-accent\)\]:hover,
 :root.light .client-shell .bg-\[var\(--color-primary\)\]:hover,
 :root.light .client-shell a.bg-\[var\(--color-primary\)\]:hover {
-  background: linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%) !important;
+  background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%) !important;
   color: #ffffff !important;
-  box-shadow: 0 12px 24px rgba(29, 78, 216, 0.18) !important;
+  box-shadow: 0 12px 24px rgba(139, 92, 246, 0.18) !important;
 }
 
 :root.light .client-shell .glass-button {
@@ -1240,5 +1245,597 @@ h1, h2, h3, h4, h5, h6, .font-tech-heading {
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
 }
+
+/* ==========================================================================
+   CLIENT PORTAL REBUILD SYSTEM
+   Fintech shell, reusable surfaces, tables, forms, modals and page polish.
+   ========================================================================== */
+
+:root {
+  --ui-radius: 18px;
+  --ui-radius-sm: 12px;
+  --ui-shadow: 0 18px 45px rgba(17, 17, 17, 0.08);
+  --ui-shadow-soft: 0 10px 24px rgba(17, 17, 17, 0.06);
+  --ui-teal: #14B8A6;
+  --ui-blue: #2563EB;
+  --ui-amber: #F59E0B;
+  --ui-rose: #F43F5E;
+}
+
+:root.dark {
+  --ui-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+  --ui-shadow-soft: 0 14px 36px rgba(0, 0, 0, 0.35);
+  --accent-soft: rgba(124, 58, 237, 0.16);
+}
+
+html,
+body,
+#root {
+  min-width: 320px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.font-tech-heading,
+[class*="tracking-"] {
+  letter-spacing: 0 !important;
+}
+
+.client-shell {
+  background:
+    linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-surface) 100%);
+}
+
+:root.dark .client-shell {
+  background:
+    linear-gradient(135deg, rgba(124, 58, 237, 0.08) 0%, transparent 30%),
+    linear-gradient(180deg, #050510 0%, #0B0B16 100%);
+}
+
+.app-shell-grid {
+  background-image:
+    linear-gradient(var(--neural-grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--neural-grid-color) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent 65%);
+}
+
+.ui-sidebar,
+.glass-navbar {
+  background: color-mix(in srgb, var(--navbar-bg), transparent 5%);
+  backdrop-filter: blur(22px) saturate(130%);
+  -webkit-backdrop-filter: blur(22px) saturate(130%);
+}
+
+.ui-card,
+.glass-card,
+.glass-panel,
+.gradient-border-card,
+.product-card {
+  background: var(--card-bg) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--ui-radius) !important;
+  box-shadow: var(--ui-shadow-soft) !important;
+}
+
+.glass-card:hover,
+.glass-panel:hover,
+.gradient-border-card:hover,
+.product-card:hover {
+  border-color: color-mix(in srgb, var(--color-accent), var(--border) 70%) !important;
+  box-shadow: var(--ui-shadow) !important;
+}
+
+.gradient-border-card::before {
+  display: none !important;
+}
+
+.glass-button,
+button:not(:disabled),
+a {
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 180ms ease, transform 180ms ease, opacity 180ms ease;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  outline-color: var(--color-accent);
+}
+
+input,
+select,
+textarea,
+.glass-input {
+  min-height: 46px;
+  border-radius: 14px !important;
+  background: var(--glass-input-bg) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+.glass-input:focus {
+  border-color: var(--color-accent) !important;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent), transparent 82%) !important;
+}
+
+button[class*="bg-cyan"],
+button[class*="bg-purple"],
+button[class*="bg-indigo"],
+button[class*="bg-emerald"],
+.bg-\[var\(--color-accent\)\],
+.bg-\[var\(--color-primary\)\] {
+  background: linear-gradient(135deg, #8B5CF6 0%, #2563EB 100%) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+}
+
+:root.dark button[class*="bg-cyan"],
+:root.dark button[class*="bg-purple"],
+:root.dark button[class*="bg-indigo"],
+:root.dark button[class*="bg-emerald"],
+:root.dark .bg-\[var\(--color-accent\)\],
+:root.dark .bg-\[var\(--color-primary\)\] {
+  background: linear-gradient(135deg, #7C3AED 0%, #A855F7 100%) !important;
+  box-shadow: 0 16px 36px rgba(168, 85, 247, 0.18) !important;
+}
+
+.client-shell main > div,
+.client-shell main > section {
+  max-width: 100%;
+}
+
+.client-shell table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.client-shell thead {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.client-shell thead tr {
+  background: var(--bg-surface) !important;
+}
+
+.client-shell th {
+  font-size: 11px !important;
+  text-transform: uppercase;
+  color: var(--text-secondary) !important;
+  font-weight: 800 !important;
+}
+
+.client-shell td {
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border) !important;
+}
+
+.client-shell tbody tr:hover {
+  background: color-mix(in srgb, var(--accent-soft), transparent 45%) !important;
+}
+
+.client-shell [class*="rounded-3xl"] {
+  border-radius: var(--ui-radius) !important;
+}
+
+.client-shell [class*="rounded-2xl"] {
+  border-radius: var(--ui-radius-sm) !important;
+}
+
+.client-shell [class*="shadow-[0_0"],
+.client-shell .cyan-glow,
+.client-shell .purple-glow,
+.client-shell .emerald-glow {
+  text-shadow: none !important;
+  filter: none !important;
+}
+
+.client-shell .bg-\[var\(--bg-tertiary\)\]\/20,
+.client-shell .bg-\[var\(--bg-tertiary\)\]\/30,
+.client-shell .bg-white\/5,
+.client-shell .bg-white\/10 {
+  background-color: color-mix(in srgb, var(--bg-surface), var(--card-bg) 44%) !important;
+}
+
+.client-shell [class*="border-white/"] {
+  border-color: var(--border) !important;
+}
+
+.client-shell [class*="text-slate-400"],
+.client-shell [class*="text-slate-500"],
+.client-shell [class*="text-gray-"] {
+  color: var(--text-secondary) !important;
+}
+
+.client-shell [class*="text-white"] {
+  color: var(--text-primary);
+}
+
+.client-shell [class*="bg-slate-950"],
+.client-shell [class*="bg-slate-900"] {
+  background: var(--card-bg) !important;
+}
+
+:root.dark .client-shell [class*="bg-slate-950"],
+:root.dark .client-shell [class*="bg-slate-900"] {
+  background: #111122 !important;
+}
+
+.client-shell [class*="blur-["],
+.client-shell .blur-3xl,
+.client-shell .blur-2xl,
+.client-shell .ambient-blob {
+  display: none !important;
+}
+
+.client-shell .fixed.inset-0.bg-black\/60,
+.client-shell .fixed.inset-0.bg-black\/50,
+.client-shell .fixed.inset-0.dark\:bg-black\/80 {
+  background: rgba(5, 5, 16, 0.62) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.client-shell .service-card-item .glass-card,
+.client-shell .product-card {
+  min-height: 100%;
+}
+
+.client-shell .product-card img {
+  background: var(--bg-surface);
+  border-radius: 14px;
+}
+
+.client-shell .grid {
+  min-width: 0;
+}
+
+.client-shell .grid > *,
+.client-shell .flex > * {
+  min-width: 0;
+}
+
+.client-shell .overflow-x-auto {
+  border-radius: var(--ui-radius-sm);
+}
+
+.client-shell ::selection {
+  background: color-mix(in srgb, var(--color-accent), transparent 72%);
+}
+
+.client-shell .recharts-wrapper,
+.client-shell .recharts-surface {
+  max-width: 100%;
+}
+
+.client-shell .animate-blob-left,
+.client-shell .animate-blob-right,
+.client-shell .animate-blob-bottom {
+  animation: none !important;
+}
+
+@media (max-width: 767px) {
+  .app-main {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  .client-shell h1 {
+    font-size: clamp(1.75rem, 9vw, 2.4rem) !important;
+    line-height: 1.05 !important;
+  }
+
+  .client-shell h2 {
+    font-size: clamp(1.25rem, 6vw, 1.75rem) !important;
+  }
+
+  .client-shell [class*="grid-cols-"] {
+    min-width: 0;
+  }
+}
+
+@media (min-width: 1440px) {
+  .app-main {
+    padding-left: 20rem !important;
+  }
+}
+
+.ui-command-bar {
+  background: color-mix(in srgb, var(--card-bg), transparent 6%);
+  backdrop-filter: blur(18px) saturate(130%);
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+  box-shadow: var(--shadow-card);
+}
+
+.fin-page {
+  width: 100%;
+  max-width: 1440px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1rem, 2vw, 1.75rem);
+}
+
+.fin-hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent-soft), transparent 20%) 0%, transparent 45%),
+    var(--card-bg);
+  box-shadow: var(--shadow-card);
+}
+
+:root.dark .fin-hero {
+  background:
+    linear-gradient(135deg, rgba(124, 58, 237, 0.22) 0%, rgba(17, 17, 34, 0.9) 48%),
+    var(--card-bg);
+}
+
+.fin-section {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+}
+
+.fin-kpi {
+  background: color-mix(in srgb, var(--bg-surface), var(--card-bg) 52%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+}
+
+.fin-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-accent), var(--border) 72%);
+  background: color-mix(in srgb, var(--accent-soft), transparent 25%);
+  color: var(--color-accent);
+  font-size: 0.6875rem;
+  font-weight: 800;
+}
+
+.auth-shell {
+  min-height: 100vh;
+  min-height: 100svh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  place-items: center;
+  padding: clamp(1rem, 3vw, 2rem);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent-soft), transparent 38%) 0%, transparent 36%),
+    linear-gradient(180deg, var(--bg-primary), var(--bg-surface));
+}
+
+:root.dark .auth-shell {
+  background:
+    linear-gradient(135deg, rgba(124, 58, 237, 0.18) 0%, transparent 42%),
+    linear-gradient(180deg, #050510, #0B0B16);
+}
+
+.auth-stage {
+  width: min(1040px, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 440px);
+  gap: clamp(1rem, 3vw, 2rem);
+  align-items: stretch;
+}
+
+.auth-brand-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 620px;
+  padding: clamp(1.5rem, 4vw, 3rem);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border);
+  background:
+    linear-gradient(135deg, #111111 0%, #2a145d 56%, #8B5CF6 100%);
+  color: #fff;
+  overflow: hidden;
+  position: relative;
+  box-shadow: var(--shadow-float);
+}
+
+.auth-brand-panel * {
+  color: inherit;
+}
+
+.auth-card {
+  align-self: center;
+  width: 100%;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  box-shadow: var(--shadow-float);
+}
+
+@media (max-width: 900px) {
+  .auth-stage {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-brand-panel {
+    min-height: 260px;
+  }
+}
+
+@media (max-width: 767px) {
+  .ui-command-bar {
+    display: none !important;
+  }
+}
+
+/* Homepage Hero Video Integration & Premium Rebuild */
+@keyframes heroVideoFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.hero-video-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  opacity: 0;
+  animation: heroVideoFade 1s ease forwards;
+}
+
+/* Scroll-Activated Premium Sticky Glassmorphism Navbar */
+.landing-nav {
+  width: calc(100% - 64px) !important;
+  max-width: 1700px !important;
+  border-radius: 28px !important;
+  transition: all 0.3s ease-out;
+  
+  /* Scoped contrast variables for inner components like ThemeSelector to match dark glass container */
+  --glass-border: rgba(255, 255, 255, 0.08) !important;
+  --glass-button-bg: rgba(255, 255, 255, 0.06) !important;
+  --glass-border-hover: rgba(255, 255, 255, 0.15) !important;
+  --text-color: #ffffff !important;
+  --text-secondary: rgba(255, 255, 255, 0.6) !important;
+  --glass-modal-bg: #0B0B16 !important;
+  --color-primary-glow: rgba(124, 92, 237, 0.12) !important;
+  --color-primary: #C084FC !important;
+}
+
+/* Trust Metric Cards */
+.trust-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-radius: 1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: transform 300ms ease, box-shadow 300ms ease, border-color 300ms ease;
+  cursor: default;
+}
+
+.trust-card:hover {
+  transform: translateY(-4px) scale(1.02);
+}
+
+:root.light .trust-card {
+  background: #FFFFFF !important;
+  border: 1px solid rgba(15,23,42,0.08) !important;
+  color: #111827 !important;
+  box-shadow:
+    0 8px 25px rgba(15,23,42,0.06),
+    0 1px 0 rgba(255,255,255,0.8) inset !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
+:root.light .trust-card svg {
+  color: #8B5CF6 !important;
+}
+
+:root.dark .trust-card {
+  background: #111122;
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  box-shadow: 0 0 15px rgba(139, 92, 246, 0.15);
+  color: #ffffff;
+}
+
+.trust-card:hover svg {
+  filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.8));
+}
+
+/* Light Mode Readability Fixes */
+:root.light .hero-headline span:first-child {
+  color: #1E293B !important;
+  text-shadow: 0 4px 20px rgba(0,0,0,0.08) !important;
+}
+
+:root.light .hero-subtitle {
+  color: #334155 !important;
+  font-weight: 500 !important;
+  line-height: 1.8 !important;
+  max-width: 700px !important;
+  opacity: 1 !important;
+  text-shadow: 0 2px 8px rgba(255,255,255,0.5) !important;
+}
+
+:root.light .hero-badge {
+  background-color: rgba(139,92,246,0.12) !important;
+  border-color: rgba(139,92,246,0.25) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  box-shadow: none !important;
+}
+
+:root.light .hero-badge span {
+  color: #7C3AED !important;
+  font-weight: 700 !important;
+  text-shadow: none !important;
+}
+
+:root.light .hero-badge div {
+  background-color: #7C3AED !important;
+}
+
+:root.light .hero-secondary-btn {
+  background: #FFFFFF !important;
+  border: 1px solid rgba(15,23,42,0.12) !important;
+  color: #111111 !important;
+}
+
+:root.light .hero-secondary-btn:hover {
+  border-color: #8B5CF6 !important;
+  background: #FFFFFF !important;
+}
+
+:root.light .landing-navbar {
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
+/* Light / Dark Mode Page Backgrounds & Colors */
+:root.light .landing-page {
+  background-color: #F8F7FC !important;
+  color: #111111 !important;
+}
+
+:root.dark .landing-page {
+  background-color: #050510 !important;
+  color: #FFFFFF !important;
+}
+
+@keyframes floatGlow {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(40px, -40px) scale(1.1);
+  }
+}
+
+
 
 

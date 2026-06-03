@@ -38,14 +38,18 @@ const CustomAreaTooltip = ({ active, payload, label }) => {
 export default function ApiAnalytics() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState(null);
 
   useEffect(() => {
     const fetchAnalytics = async () => {
+      const endpoint = '/admin/developer/analytics';
+      console.log("[ADMIN ANALYTICS] endpoint:", endpoint);
       try {
-        const res = await api.get('/developer/analytics');
+        const res = await api.get(endpoint);
         setData(res.data.data);
       } catch (err) {
-        console.error("Failed to fetch analytics");
+        console.error("Failed to fetch analytics", err);
+        setErrorMsg("Analytics unavailable");
       } finally {
         setLoading(false);
       }
@@ -60,10 +64,10 @@ export default function ApiAnalytics() {
   );
 
   const stats = [
-    { name: 'Total Requests', value: data?.totalRequests || 0, icon: Activity, color: 'text-[var(--color-primary)]', bg: 'bg-[var(--color-primary-glow)]' },
-    { name: 'Success Rate', value: `${(data?.successRate || 100).toFixed(1)}%`, icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-    { name: 'Avg Latency', value: '124ms', icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10' },
-    { name: 'Status: 2xx', value: data?.totalRequests || 0, icon: TrendingUp, color: 'text-[var(--color-primary)]', bg: 'bg-[var(--color-primary-glow)]' }
+    { name: 'Total Requests', value: errorMsg || data?.totalRequests || 0, icon: Activity, color: 'text-[var(--color-primary)]', bg: 'bg-[var(--color-primary-glow)]' },
+    { name: 'Success Rate', value: errorMsg || `${(data?.successRate || 100).toFixed(1)}%`, icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+    { name: 'Avg Latency', value: errorMsg || '124ms', icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+    { name: 'Status: 2xx', value: errorMsg || data?.totalRequests || 0, icon: TrendingUp, color: 'text-[var(--color-primary)]', bg: 'bg-[var(--color-primary-glow)]' }
   ];
 
   return (
@@ -108,7 +112,13 @@ export default function ApiAnalytics() {
            </div>
         </div>
 
-        <div className="w-full h-[300px]">
+        <div className="w-full h-[300px] relative">
+          {errorMsg && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-[var(--card-bg)]/80 rounded-xl backdrop-blur-[1px] z-10 border border-[var(--border-soft)]">
+              <AlertTriangle className="w-6 h-6 text-amber-500 mb-2" />
+              <p className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">{errorMsg}</p>
+            </div>
+          )}
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data?.activity || []}>
               <defs>
@@ -148,7 +158,13 @@ export default function ApiAnalytics() {
          {/* Success Rate Chart */}
          <div className="bg-[var(--card-bg)] p-6 rounded-xl border border-[var(--border-soft)] shadow-soft">
             <h3 className="text-base font-bold text-[var(--text-primary)] mb-6">Performance Index</h3>
-            <div className="w-full h-[200px]">
+            <div className="w-full h-[200px] relative">
+              {errorMsg && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-[var(--card-bg)]/80 rounded-xl backdrop-blur-[1px] z-10 border border-[var(--border-soft)]">
+                  <AlertTriangle className="w-6 h-6 text-amber-500 mb-2" />
+                  <p className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">{errorMsg}</p>
+                </div>
+              )}
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data?.activity || []}>
                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-soft)" />

@@ -52,7 +52,7 @@ export async function seedSuperAdminAndRbac() {
 
     // 2. Seed Default Role Permissions
     const roles = ["SUPER_ADMIN", "ADMIN", "USER", "API_USER"];
-    const modules = ["users", "wallets", "outlets", "employees", "audit"];
+    const modules = ["users", "wallets", "outlets", "employees", "audit", "operations"];
 
     const rbacDefaults = {
       SUPER_ADMIN: { read: true, write: true, delete: true, approve: true, adjust: true },
@@ -96,6 +96,22 @@ export async function seedSuperAdminAndRbac() {
     } else {
       console.log("[SEEDING] RBAC permissions matrix check completed successfully.");
     }
+
+    // 3. Ensure default RoutingConfig exists
+    const existingRoutingConfig = await prisma.routingConfig.findUnique({
+      where: { id: 1 }
+    });
+    if (!existingRoutingConfig) {
+      await prisma.routingConfig.create({
+        data: {
+          id: 1,
+          currentVersion: 1,
+          lastModifiedBy: "SYSTEM"
+        }
+      });
+      console.log("[SEEDING] Seeded default RoutingConfig successfully.");
+    }
+
   } catch (err) {
     console.error("[SEEDING ERROR]:", err.message);
   }

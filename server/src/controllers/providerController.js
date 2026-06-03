@@ -4,6 +4,7 @@ import { logAction, AUDIT_ACTIONS } from "../services/auditService.js";
 import logger from "../services/logging/logger.js";
 import { enterpriseFeatures } from "../services/routingEngine/routingEngine.js";
 import { mapProviderToAlias, mapAliasToReal } from "../config/providerAliases.js";
+import { getProvider } from "../services/providers/providerFactory.js";
 import axios from "axios";
 
 /**
@@ -15,7 +16,8 @@ export const getProvidersList = async (req, res) => {
     return res.status(403).json({ success: false, message: "Enterprise Provider Manager feature is disabled" });
   }
   try {
-    const providers = await providerService.getAllProviders();
+    const allProviders = await providerService.getAllProviders();
+    const providers = allProviders.filter(p => p.providerType !== "PAYMENT" && p.code !== "NEXGATE");
     const queueStatus = await telemetryService.getLiveQueueStatus();
 
     // Map dynamic health classifications to each provider
@@ -198,66 +200,88 @@ export const testProviderApi = async (req, res) => {
       return res.status(404).json({ success: false, message: "Provider not found" });
     }
 
+    const adapter = getProvider(provider.code);
     let responseData = {};
     const startTime = Date.now();
 
     if (testType === "ping") {
-      const targetUrl = provider.apiUrl || provider.baseUrl;
-      if (!targetUrl) {
-        return res.status(400).json({ success: false, message: "No API URL or Base URL configured for this provider." });
-      }
-      try {
-        const response = await axios.get(targetUrl, { timeout: 4000 });
-        responseData = {
-          statusCode: response.status,
-          latency: Date.now() - startTime,
-          statusText: response.statusText,
-          message: "Ping Check Successful"
-        };
-      } catch (axiosErr) {
-        responseData = {
-          statusCode: axiosErr.response?.status || 500,
-          latency: Date.now() - startTime,
-          error: axiosErr.message,
-          message: "Ping Check Failed: Destination unreachable"
-        };
+      if (typeof adapter.ping === "function") {
+        responseData = await adapter.ping();
+      } else {
+        const targetUrl = provider.apiUrl || provider.baseUrl;
+        if (!targetUrl) {
+          return res.status(400).json({ success: false, message: "No API URL or Base URL configured for this provider." });
+        }
+        try {
+          const response = await axios.get(targetUrl, { timeout: 4000 });
+          responseData = {
+            statusCode: response.status,
+            latency: Date.now() - startTime,
+            statusText: response.statusText,
+            message: "Ping Check Successful"
+          };
+        } catch (axiosErr) {
+          responseData = {
+            statusCode: axiosErr.response?.status || 500,
+            latency: Date.now() - startTime,
+            error: axiosErr.message,
+            message: "Ping Check Failed: Destination unreachable"
+          };
+        }
       }
     } else if (testType === "balance") {
-      const targetUrl = provider.balanceUrl;
-      if (!targetUrl) {
-        return res.status(400).json({ success: false, message: "No Balance URL configured for this provider." });
-      }
-      try {
-        const response = await axios.get(targetUrl, {
-          headers: { Authorization: `Bearer ${provider.apiKey}` },
-          timeout: 4000
-        });
-        responseData = {
-          statusCode: response.status,
-          latency: Date.now() - startTime,
-          data: response.data,
-          message: "Balance Check query completed successfully."
-        };
-      } catch (axiosErr) {
-        responseData = {
-          statusCode: axiosErr.response?.status || 500,
-          latency: Date.now() - startTime,
-          error: axiosErr.message,
-          message: "Balance query failed: Destination returned an error response."
-        };
+      if (typeof adapter.balance === "function") {
+        responseData = await adapter.balance();
+      } else {
+        const targetUrl = provider.balanceUrl;
+        if (!targetUrl) {
+          return res.status(400).json({ success: false, message: "No Balance URL configured for this provider." });
+        }
+        try {
+          const response = await axios.get(targetUrl, {
+            headers: { Authorization: `Bearer ${provider.apiKey}` },
+            timeout: 4000
+          });
+          responseData = {
+            statusCode: response.status,
+            latency: Date.now() - startTime,
+            data: response.data,
+            message: "Balance Check query completed successfully."
+          };
+        } catch (axiosErr) {
+          responseData = {
+            statusCode: axiosErr.response?.status || 500,
+            latency: Date.now() - startTime,
+            error: axiosErr.message,
+            message: "Balance query failed: Destination returned an error response."
+          };
+        }
       }
     } else if (testType === "status_check") {
-      const targetUrl = provider.statusCheckUrl;
-      if (!targetUrl) {
-        return res.status(400).json({ success: false, message: "No Status Check URL configured for this provider." });
+      if (typeof adapter.status === "function") {
+        responseData = await adapter.status("MOCK_TXN_123", "MOCK_PROV_123");
+      } else {
+        const targetUrl = provider.statusCheckUrl;
+        if (!targetUrl) {
+          return res.status(400).json({ success: false, message: "No Status Check URL configured for this provider." });
+        }
+        responseData = {
+          message: "Status check endpoint format validated.",
+          targetUrl,
+          headers: { Authorization: "Bearer [MASKED_TOKEN]" }
+        };
       }
-      responseData = {
-        message: "Status check endpoint format validated.",
-        targetUrl,
-        headers: { Authorization: "Bearer [MASKED_TOKEN]" }
-      };
     } else {
       return res.status(400).json({ success: false, message: "Invalid testType action specified. Allowed: ping, balance, status_check" });
+    }
+
+    if (responseData.success === false) {
+      return res.json({
+        success: false,
+        testType,
+        message: responseData.message || "Diagnostics check failed",
+        error: responseData.error
+      });
     }
 
     return res.json({

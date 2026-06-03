@@ -15,7 +15,9 @@ export const Operators = () => {
     try {
       setLoading(true);
       const { data } = await api.get('/admin/providers');
-      const fetchedOperators = Array.isArray(data?.data) ? data.data : [];
+      const fetchedOperators = Array.isArray(data?.data)
+        ? data.data.filter(p => p.providerType !== 'PAYMENT')
+        : [];
       setOperators(fetchedOperators);
       
       const active = fetchedOperators.filter(p => p.isActive).sort((a, b) => a.priority - b.priority);
@@ -182,6 +184,26 @@ export const Operators = () => {
                     <span className="px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">Secure</span>
                     <span className="px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-[var(--bg-secondary)] text-[var(--text-secondary)] border border-[var(--border-soft)]">Global</span>
                   </div>
+
+                  {prov.providerType === 'PAYMENT' && (
+                    <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-[var(--border-soft)]">
+                      <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${
+                        prov.gatewayStatus === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
+                      }`}>
+                        {prov.gatewayStatus}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${
+                        prov.authenticationStatus === 'AUTHENTICATED' ? 'bg-indigo-500/10 text-indigo-500 border border-indigo-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                      }`}>
+                        {prov.authenticationStatus}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${
+                        prov.merchantStatus === 'MERCHANT LINKED' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
+                      }`}>
+                        {prov.merchantStatus}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className={`px-6 py-4 border-t border-[var(--border-soft)] flex justify-between items-center transition-all ${

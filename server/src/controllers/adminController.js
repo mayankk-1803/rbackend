@@ -13,6 +13,8 @@ import bcrypt from "bcryptjs";
 import { sendTempPasswordWhatsApp } from "../services/otp/nxtbyteOtpService.js";
 import { sendTempPasswordEmail } from "../services/emailService.js";
 import { mapProviderToAlias, ALIAS_TO_REAL } from "../config/providerAliases.js";
+import fs from "fs";
+import path from "path";
 
 export const getDashboard = async (req, res) => {
   try {
@@ -726,11 +728,32 @@ export const getProviders = async (req, res) => {
          where: { provider: p.code, status: "FAILED" }
        });
        
+       const isPayment = p.providerType === "PAYMENT";
+       let gatewayStatus = p.isActive ? "ACTIVE" : "INACTIVE";
+       let authenticationStatus = (p.apiKey && p.baseUrl) ? "AUTHENTICATED" : "NOT AUTHENTICATED";
+       let merchantStatus = "MERCHANT LINKED";
+
+       if (isPayment) {
+         const hasFailure = await prisma.payment.findFirst({
+           where: {
+             status: "FAILED",
+             errorMessage: { contains: "No Active Merchant Integration Found" }
+           }
+         });
+         if (hasFailure) {
+           merchantStatus = "MERCHANT NOT LINKED";
+         }
+       }
+
        const aliased = mapProviderToAlias(p);
        return {
          ...aliased,
          failureCount,
-         balance: p.balance || 0 // Use DB balance or fetch via service
+         balance: p.balance || 0, // Use DB balance or fetch via service
+         providerType: p.providerType,
+         gatewayStatus,
+         authenticationStatus,
+         merchantStatus
        };
     }));
 
@@ -1352,12 +1375,31 @@ export const getApiPartnersSummary = async (req, res) => {
     const activeKeysCount = await prisma.apiAccess.count({ where: { isActive: true } });
     const sandboxUsageCount = await prisma.apiUsage.count();
 
+    // Query ApiUsageRecord for real B2B marketplace billing aggregates
+    const usageStats = await prisma.apiUsageRecord.aggregate({
+      _sum: {
+        requests: true,
+        revenue: true,
+        errors: true,
+        success: true
+      }
+    });
+
+    const totalRevenue = Number(usageStats._sum.revenue || 0);
+    const totalRequests = Number(usageStats._sum.requests || 0);
+    const totalErrors = Number(usageStats._sum.errors || 0);
+    const errorRate = totalRequests > 0 ? (totalErrors / totalRequests) * 100 : 0;
+
     const analytics = {
       totalApiUsers,
       pendingRequests: pendingCount,
       approvedToday,
       activeKeys: activeKeysCount,
-      sandboxUsage: sandboxUsageCount
+      sandboxUsage: sandboxUsageCount,
+      totalRevenue,
+      totalRequests,
+      totalErrors,
+      errorRate
     };
 
     res.json({
@@ -1564,6 +1606,235 @@ export const getPartnerUsageLogs = async (req, res) => {
     });
 
     res.json({ success: true, data: usages });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const getApiMarketplaceProducts = async (req, res) => {
+  try {
+    let products = await prisma.apiProduct.findMany({
+      orderBy: { code: "asc" }
+    });
+    if (products.length === 0) {
+      // Auto-seed default products to satisfy Real Data Only policy
+      await Promise.all([
+        prisma.apiProduct.upsert({
+          where: { code: "RECHARGE_API" },
+          update: {},
+          create: { name: "Telecom Recharge Sync API", code: "RECHARGE_API", description: "High-throughput mobile, DTH, and data card recharge synchronization interface with auto-failover protection." }
+        }),
+        prisma.apiProduct.upsert({
+          where: { code: "OPERATORS_API" },
+          update: {},
+          create: { name: "Operators & Circles API", code: "OPERATORS_API", description: "Real-time active operator code mapping and telecom circle routing parameter lookup engine." }
+        }),
+        prisma.apiProduct.upsert({
+          where: { code: "BILLING_API" },
+          update: {},
+          create: { name: "Fintech Wallets Billing API", code: "BILLING_API", description: "Administrative API marketplace credit wallet funding, ledger consumption audits, and balance checks." }
+        })
+      ]);
+      products = await prisma.apiProduct.findMany({
+        orderBy: { code: "asc" }
+      });
+    }
+    res.json({ success: true, data: products });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const getApiMarketplacePlans = async (req, res) => {
+  try {
+    let plans = await prisma.apiPlan.findMany({
+      include: { product: true },
+      orderBy: { price: "asc" }
+    });
+    if (plans.length === 0) {
+      // Verify products exist or seed them
+      let products = await prisma.apiProduct.findMany();
+      if (products.length === 0) {
+        await Promise.all([
+          prisma.apiProduct.upsert({
+            where: { code: "RECHARGE_API" },
+            update: {},
+            create: { name: "Telecom Recharge Sync API", code: "RECHARGE_API", description: "High-throughput mobile, DTH, and data card recharge synchronization interface with auto-failover protection." }
+          }),
+          prisma.apiProduct.upsert({
+            where: { code: "OPERATORS_API" },
+            update: {},
+            create: { name: "Operators & Circles API", code: "OPERATORS_API", description: "Real-time active operator code mapping and telecom circle routing parameter lookup engine." }
+          }),
+          prisma.apiProduct.upsert({
+            where: { code: "BILLING_API" },
+            update: {},
+            create: { name: "Fintech Wallets Billing API", code: "BILLING_API", description: "Administrative API marketplace credit wallet funding, ledger consumption audits, and balance checks." }
+          })
+        ]);
+        products = await prisma.apiProduct.findMany();
+      }
+      
+      const rechargeProduct = products.find(p => p.code === "RECHARGE_API");
+      const operatorsProduct = products.find(p => p.code === "OPERATORS_API");
+      
+      if (rechargeProduct) {
+        await prisma.apiPlan.create({
+          data: {
+            productId: rechargeProduct.id,
+            name: "Starter Bundle",
+            description: "Ideal for small-scale developers testing sandbox integrations.",
+            price: 2500.00,
+            requestsPerMinute: 60,
+            requestsPerHour: 1000,
+            requestsPerDay: 10000,
+            costPerRequest: 0.0500
+          }
+        });
+        await prisma.apiPlan.create({
+          data: {
+            productId: rechargeProduct.id,
+            name: "Pro Shard",
+            description: "Optimized for high-volume commercial aggregators requiring dedicated throughput.",
+            price: 9500.00,
+            requestsPerMinute: 300,
+            requestsPerHour: 10000,
+            requestsPerDay: 100000,
+            costPerRequest: 0.0200
+          }
+        });
+      }
+      if (operatorsProduct) {
+        await prisma.apiPlan.create({
+          data: {
+            productId: operatorsProduct.id,
+            name: "Standard Lookup",
+            description: "Access active operator code mapping and telecom circle routing.",
+            price: 1500.00,
+            requestsPerMinute: 120,
+            requestsPerHour: 2000,
+            requestsPerDay: 20000,
+            costPerRequest: 0.0100
+          }
+        });
+      }
+      
+      plans = await prisma.apiPlan.findMany({
+        include: { product: true },
+        orderBy: { price: "asc" }
+      });
+    }
+    res.json({ success: true, data: plans });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const getApiMarketplaceBilling = async (req, res) => {
+  try {
+    const wallets = await prisma.apiCreditWallet.findMany();
+    const invoices = await prisma.apiInvoice.findMany({
+      include: { subscription: { include: { plan: true } } },
+      orderBy: { createdAt: "desc" }
+    });
+    const subscriptions = await prisma.apiSubscription.findMany({
+      include: { plan: { include: { product: true } } },
+      orderBy: { createdAt: "desc" }
+    });
+    
+    res.json({
+      success: true,
+      data: {
+        wallets,
+        invoices,
+        subscriptions
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const getApiMarketplaceThreats = async (req, res) => {
+  try {
+    const threats = await prisma.apiThreatLog.findMany({
+      take: 50,
+      orderBy: { createdAt: "desc" }
+    });
+    res.json({ success: true, data: threats });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const getApiDocsMetadata = async (req, res) => {
+  try {
+    const pdfPath = path.join(process.cwd(), "..", "client-user", "public", "api-docs", "IRECHARGE_API_DOCUMENTATION.pdf");
+    
+    let version = "1.0.0";
+    try {
+      const manifestPath = path.join(process.cwd(), "src", "config", "apiManifest.json");
+      const manifestData = fs.readFileSync(manifestPath, "utf8");
+      const manifest = JSON.parse(manifestData);
+      if (manifest.version) {
+        version = manifest.version;
+      }
+    } catch (err) {
+      console.error("[Metadata Error]: Failed to read version from apiManifest.json:", err.message);
+    }
+
+    if (!fs.existsSync(pdfPath)) {
+      return res.json({
+        success: false,
+        message: "API Documentation PDF not found on server",
+        data: {
+          version,
+          filename: "IRECHARGE_API_DOCUMENTATION.pdf",
+          lastUpdated: null,
+          size: null,
+          available: false
+        }
+      });
+    }
+
+    const stats = fs.statSync(pdfPath);
+    res.json({
+      success: true,
+      data: {
+        version,
+        filename: "IRECHARGE_API_DOCUMENTATION.pdf",
+        lastUpdated: stats.mtime,
+        size: stats.size,
+        available: true
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const downloadApiDocs = async (req, res) => {
+  try {
+    const pdfPath = path.join(process.cwd(), "..", "client-user", "public", "api-docs", "IRECHARGE_API_DOCUMENTATION.pdf");
+    
+    if (!fs.existsSync(pdfPath)) {
+      return res.status(404).json({
+        success: false,
+        message: "API Documentation PDF not found on server"
+      });
+    }
+
+    const { download } = req.query;
+    res.setHeader("Content-Type", "application/pdf");
+    
+    if (download === "true") {
+      res.setHeader("Content-Disposition", "attachment; filename=IRECHARGE_API_DOCUMENTATION.pdf");
+    } else {
+      res.setHeader("Content-Disposition", "inline; filename=IRECHARGE_API_DOCUMENTATION.pdf");
+    }
+    
+    const fileStream = fs.createReadStream(pdfPath);
+    fileStream.pipe(res);
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

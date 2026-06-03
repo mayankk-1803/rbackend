@@ -4,6 +4,7 @@ import { Shield, Smartphone, FileText, CheckCircle, Clock, Lock, ArrowLeft, Key,
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
+import { APP_MESSAGES } from '../constants/messages';
 
 export default function Security() {
   const navigate = useNavigate();
@@ -44,7 +45,7 @@ export default function Security() {
       });
 
       if (res.data?.success) {
-        toast.success("Password changed successfully");
+        toast.success(APP_MESSAGES.PASSWORD_CHANGED);
         
         // Update local storage user data to clear mustChangePassword
         const updatedUser = { ...user, mustChangePassword: false };
@@ -61,7 +62,7 @@ export default function Security() {
         }, 1000);
       }
     } catch (err) {
-      toast.error(err.safeMessage || "Failed to update password");
+      toast.error(err?.safeMessage || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -77,7 +78,7 @@ export default function Security() {
         <div className="px-6 py-5 border-b border-[var(--glass-border)] bg-[var(--bg-secondary)]/20 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-black text-[var(--text-color)] uppercase tracking-tight flex items-center gap-2">
-              <Shield className="w-5 h-5 text-[var(--color-primary)] cyan-glow" /> Security & Privacy
+              <Shield className="w-5 h-5 text-[var(--color-primary)] purple-glow" /> Security & Privacy
             </h2>
             <p className="text-xs text-[var(--text-secondary)] mt-1 font-medium tracking-wide">Manage your account protection</p>
           </div>
@@ -114,17 +115,17 @@ export default function Security() {
             </div>
           </div>
 
-          <div className="bg-cyan-500/5 border border-cyan-500/20 p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="bg-[var(--color-primary-glow)] border border-[var(--color-primary)]/20 p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-[var(--bg-secondary)]/60 border border-cyan-500/20 rounded-xl">
-                <Clock className="w-6 h-6 text-[var(--color-primary)] cyan-glow" />
+              <div className="p-3 bg-[var(--bg-secondary)]/60 border border-[var(--color-primary)]/20 rounded-xl">
+                <Clock className="w-6 h-6 text-[var(--color-primary)] purple-glow" />
               </div>
               <div>
                 <p className="text-sm font-black text-[var(--text-color)] uppercase tracking-tight">Current Active Secure Session</p>
                 <p className="text-xs text-[var(--text-secondary)] mt-1">You are currently logged in securely</p>
               </div>
             </div>
-            <div className="px-4 py-2 bg-[var(--bg-secondary)]/60 border border-cyan-500/20 rounded-xl shadow-sm flex items-center gap-2">
+            <div className="px-4 py-2 bg-[var(--bg-secondary)]/60 border border-[var(--color-primary)]/20 rounded-xl shadow-sm flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
               <span className="text-[10px] font-black text-[var(--text-color)]/80 uppercase tracking-widest">Active</span>
             </div>
@@ -133,7 +134,7 @@ export default function Security() {
           {/* Premium Change Password Section */}
           <div className="space-y-4 pt-6 border-t border-[var(--glass-border)]">
             <h3 className="text-sm font-black text-[var(--text-color)] uppercase tracking-tight flex items-center gap-2">
-              <Key className="w-4 h-4 text-cyan-400" /> Update Account Credentials
+              <Key className="w-4 h-4 text-[var(--color-accent)]" /> Update Account Credentials
             </h3>
             
             <form onSubmit={handlePasswordChange} className="max-w-xl space-y-4">
@@ -145,7 +146,7 @@ export default function Security() {
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     placeholder="Enter current password"
-                    className="w-full pl-10 pr-10 py-3 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl text-[var(--text-color)] font-medium outline-none focus:ring-2 focus:ring-cyan-500/10 focus:border-cyan-400 transition-all placeholder:text-[var(--text-muted)] text-sm"
+                    className="w-full pl-10 pr-10 py-3 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl text-[var(--text-color)] font-medium outline-none focus:ring-2 focus:ring-[var(--color-accent)]/10 focus:border-[var(--color-accent)] transition-all placeholder:text-[var(--text-muted)] text-sm"
                   />
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
                   <button
@@ -166,7 +167,7 @@ export default function Security() {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Enter new password (min. 8 characters)"
-                    className="w-full pl-10 pr-10 py-3 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl text-[var(--text-color)] font-medium outline-none focus:ring-2 focus:ring-cyan-500/10 focus:border-cyan-400 transition-all placeholder:text-[var(--text-muted)] text-sm"
+                    className="w-full pl-10 pr-10 py-3 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl text-[var(--text-color)] font-medium outline-none focus:ring-2 focus:ring-[var(--color-accent)]/10 focus:border-[var(--color-accent)] transition-all placeholder:text-[var(--text-muted)] text-sm"
                   />
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
                   <button
@@ -187,7 +188,7 @@ export default function Security() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Confirm your new password"
-                    className="w-full pl-10 pr-10 py-3 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl text-[var(--text-color)] font-medium outline-none focus:ring-2 focus:ring-cyan-500/10 focus:border-cyan-400 transition-all placeholder:text-[var(--text-muted)] text-sm"
+                    className="w-full pl-10 pr-10 py-3 bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-2xl text-[var(--text-color)] font-medium outline-none focus:ring-2 focus:ring-[var(--color-accent)]/10 focus:border-[var(--color-accent)] transition-all placeholder:text-[var(--text-muted)] text-sm"
                   />
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
                   <button
@@ -203,7 +204,7 @@ export default function Security() {
               <button
                 type="submit"
                 disabled={loading || !currentPassword || !newPassword || !confirmPassword}
-                className="py-3 px-6 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-555 hover:shadow-cyan-500/15 text-white rounded-2xl text-xs font-black tracking-widest shadow-lg shadow-cyan-500/10 transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer uppercase"
+                className="py-3 px-6 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 hover:shadow-purple-500/15 text-white rounded-2xl text-xs font-black tracking-widest shadow-lg shadow-purple-500/10 transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer uppercase"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save New Password"}
               </button>
@@ -215,7 +216,7 @@ export default function Security() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="p-4 rounded-2xl border border-[var(--glass-border)] hover:border-[var(--glass-border-hover)] bg-[var(--bg-secondary)]/20 transition-colors flex gap-4">
-                <Key className="w-5 h-5 text-[var(--color-primary)] cyan-glow shrink-0" />
+                <Key className="w-5 h-5 text-[var(--color-primary)] purple-glow shrink-0" />
                 <div>
                   <p className="text-xs font-black text-[var(--text-color)] uppercase mb-1">JWT Session Security</p>
                   <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">Your session is protected by industry-standard JSON Web Tokens with automatic expiry for enhanced security.</p>
@@ -223,7 +224,7 @@ export default function Security() {
               </div>
 
               <div className="p-4 rounded-2xl border border-[var(--glass-border)] hover:border-[var(--glass-border-hover)] bg-[var(--bg-secondary)]/20 transition-colors flex gap-4">
-                <Lock className="w-5 h-5 text-[var(--color-primary)] cyan-glow shrink-0" />
+                <Lock className="w-5 h-5 text-[var(--color-primary)] purple-glow shrink-0" />
                 <div>
                   <p className="text-xs font-black text-[var(--text-color)] uppercase mb-1">Secure Recharge Protection</p>
                   <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">All transactions are processed through an encrypted gateway ensuring your financial data remains private.</p>
@@ -231,7 +232,7 @@ export default function Security() {
               </div>
 
               <div className="p-4 rounded-2xl border border-[var(--glass-border)] hover:border-[var(--glass-border-hover)] bg-[var(--bg-secondary)]/20 transition-colors flex gap-4 md:col-span-2">
-                <FileText className="w-5 h-5 text-[var(--color-primary)] cyan-glow shrink-0" />
+                <FileText className="w-5 h-5 text-[var(--color-primary)] purple-glow shrink-0" />
                 <div>
                   <p className="text-xs font-black text-[var(--text-color)] uppercase mb-1">Data Privacy Notice</p>
                   <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">We employ strict data minimization principles. Your personal information is never shared with unauthorized third parties and is used solely for service provision.</p>

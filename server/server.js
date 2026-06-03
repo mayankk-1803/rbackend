@@ -7,6 +7,7 @@ import { seedProviders } from "./src/utils/seedProviders.js";
 import prisma from "./src/config/prisma.js";
 import { seedSuperAdminAndRbac } from "./src/utils/seedSuperAdmin.js";
 import { validateEnv } from "./src/utils/validateEnv.js";
+import { seedInitialFlags } from "./src/services/featureFlagsService.js";
 
 dotenv.config();
 validateEnv();
@@ -38,7 +39,11 @@ async function startServer() {
     }
 
     await seedProviders();
+    const { refreshProviderFactoryCache } = await import("./src/services/providers/providerFactory.js");
+    await refreshProviderFactoryCache();
     await seedSuperAdminAndRbac();
+    await seedInitialFlags();
+    console.log("[STARTUP] Feature flags seeded successfully");
     
     const server = http.createServer(app);
     initSocket(server);

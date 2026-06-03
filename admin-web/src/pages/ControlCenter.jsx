@@ -14,10 +14,34 @@ import {
   Sliders,
   Plus,
   Shield,
-  Smartphone
+  Smartphone,
+  Edit,
+  Trash2,
+  Download,
+  Upload,
+  X
 } from "lucide-react";
 
 export const ControlCenter = () => {
+  // Forms state
+  const [newRule, setNewRule] = useState({ name: "", ruleType: "operator", targetValue: "", providerCode: "Primary Gateway", priority: 1, minAmount: 0, maxAmount: 9999 });
+  const [newMapping, setNewMapping] = useState({ operatorName: "", circleName: "ALL", providerCode: "Primary Gateway", providerOperatorCode: "", minAmount: 0, maxAmount: 9999 });
+  const [newTemplate, setNewTemplate] = useState({ name: "", templateId: "", body: "" });
+
+  // Operator Registry state (Phase 6)
+  const [operators, setOperators] = useState([]);
+  const [editingOperator, setEditingOperator] = useState(null);
+  const [operatorForm, setOperatorForm] = useState({
+    name: "",
+    code: "",
+    category: "Mobile",
+    active: true,
+    circleRequired: false,
+    description: ""
+  });
+  const [csvText, setCsvText] = useState("");
+  const [showCsvImport, setShowCsvImport] = useState(false);
+
   const [activeTab, setActiveTab] = useState("providers");
   const [providers, setProviders] = useState([]);
   const [operatorMappings, setOperatorMappings] = useState([]);
@@ -28,22 +52,18 @@ export const ControlCenter = () => {
   const [telemetry, setTelemetry] = useState({ healthLogs: [], decisionLogs: [], queueStatus: {}, featureFlags: {} });
   const [loading, setLoading] = useState(true);
 
-  // Forms state
-  const [newRule, setNewRule] = useState({ name: "", ruleType: "operator", targetValue: "", providerCode: "Primary Gateway", priority: 1, minAmount: 0, maxAmount: 9999 });
-  const [newMapping, setNewMapping] = useState({ operatorName: "", circleName: "ALL", providerCode: "Primary Gateway", providerOperatorCode: "", minAmount: 0, maxAmount: 9999 });
-  const [newTemplate, setNewTemplate] = useState({ name: "", templateId: "", body: "" });
-
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [provRes, mapRes, ruleRes, tempRes, logsRes, telRes, decLogsRes] = await Promise.all([
+      const [provRes, mapRes, ruleRes, tempRes, logsRes, telRes, decLogsRes, opsRes] = await Promise.all([
         api.get("/admin/enterprise/providers").catch(() => ({ data: { data: [] } })),
         api.get("/admin/enterprise/operators/mappings").catch(() => ({ data: { data: [] } })),
         api.get("/admin/enterprise/routing/rules").catch(() => ({ data: { data: [] } })),
         api.get("/admin/enterprise/whatsapp/templates").catch(() => ({ data: { data: [] } })),
         api.get("/admin/enterprise/whatsapp/logs").catch(() => ({ data: { data: [] } })),
         api.get("/admin/enterprise/telemetry").catch(() => ({ data: { data: { healthLogs: [], decisionLogs: [], queueStatus: {}, featureFlags: {} } } })),
-        api.get("/admin/enterprise/routing/logs").catch(() => ({ data: { data: [] } }))
+        api.get("/admin/enterprise/routing/logs").catch(() => ({ data: { data: [] } })),
+        api.get("/admin/enterprise/operators").catch(() => ({ data: { data: [] } }))
       ]);
 
       setProviders(provRes.data?.data || []);
@@ -53,6 +73,7 @@ export const ControlCenter = () => {
       setNotificationLogs(logsRes.data?.data || []);
       setTelemetry(telRes.data?.data || { healthLogs: [], decisionLogs: [], queueStatus: {}, featureFlags: {} });
       setRoutingDecisionLogs(decLogsRes.data?.data || []);
+      setOperators(opsRes.data?.data || []);
     } catch (err) {
       console.error(err);
       toast.error("Failed to load control center configurations");
@@ -151,6 +172,90 @@ export const ControlCenter = () => {
     }
   };
 
+  // Operator Registry actions (Phase 6)
+  const handleOperatorSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingOperator) {
+        await api.put(`/admin/enterprise/operators/${editingOperator.id}`, operatorForm);
+        toast.success("Operator updated successfully!");
+      } else {
+        await api.post("/admin/enterprise/operators", operatorForm);
+        toast.success("Operator registered successfully!");
+      }
+      setOperatorForm({ name: "", code: "", category: "Mobile", active: true, circleRequired: false, description: "" });
+      setEditingOperator(null);
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to save operator");
+    }
+  };
+
+  const handleEditOperator = (op) => {
+    setEditingOperator(op);
+    setOperatorForm({
+      name: op.name,
+      code: op.code,
+      category: op.category,
+      active: op.active,
+      circleRequired: op.circleRequired,
+      description: op.description
+    });
+  };
+
+  const handleToggleOperatorStatus = async (op) => {
+    try {
+      await api.put(`/admin/enterprise/operators/${op.id}`, {
+        active: !op.active
+      });
+      toast.success(`Operator ${!op.active ? "enabled" : "disabled"} successfully!`);
+      fetchData();
+    } catch (err) {
+      toast.error("Failed to toggle operator status");
+    }
+  };
+
+  const handleDeleteOperator = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this operator?")) return;
+    try {
+      await api.delete(`/admin/enterprise/operators/${id}`);
+      toast.success("Operator deleted successfully!");
+      fetchData();
+    } catch (err) {
+      toast.error("Failed to delete operator");
+    }
+  };
+
+  const handleCsvImport = async (e) => {
+    e.preventDefault();
+    if (!csvText.trim()) return toast.error("CSV data text is required");
+    try {
+      await api.post("/admin/enterprise/operators/import", { csvData: csvText });
+      toast.success("Operators imported successfully!");
+      setCsvText("");
+      setShowCsvImport(false);
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to import CSV");
+    }
+  };
+
+  const handleExportCSV = async () => {
+    try {
+      const response = await api.get("/admin/enterprise/operators/export", { responseType: "blob" });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "operators_registry.csv");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success("Operators exported successfully!");
+    } catch (err) {
+      toast.error("Failed to export operators CSV");
+    }
+  };
+
   // Enterprise Telemetry Classification Thresholds
   const classifyHealthStatus = (successRate, latency) => {
     const rate = Number(successRate || 100);
@@ -180,7 +285,214 @@ export const ControlCenter = () => {
   );
 
   const renderOperators = () => (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* Operator Registry Section (Phase 6) */}
+      <div className="bg-[var(--card-bg)] p-6 rounded-xl border border-[var(--border-soft)] shadow-soft">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b border-[var(--border-soft)] pb-4">
+          <div>
+            <h3 className="text-base font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+              <Smartphone className="w-5 h-5 text-[var(--color-primary)]" /> Operator Registry
+            </h3>
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5">Manage standard operator entities, categories, and circles</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowCsvImport(!showCsvImport)}
+              className="flex items-center gap-1 px-3 py-1.5 bg-[var(--bg-secondary)] hover:bg-[var(--border-soft)] text-[var(--text-primary)] rounded-lg text-xs font-bold transition-all border border-[var(--border-soft)]"
+            >
+              <Upload className="w-3.5 h-3.5" /> Export CSV
+            </button>
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-1 px-3 py-1.5 bg-[var(--bg-secondary)] hover:bg-[var(--border-soft)] text-[var(--text-primary)] rounded-lg text-xs font-bold transition-all border border-[var(--border-soft)]"
+            >
+              <Download className="w-3.5 h-3.5" /> Import CSV
+            </button>
+          </div>
+        </div>
+
+        {showCsvImport && (
+          <form onSubmit={handleCsvImport} className="mb-6 p-4 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-soft)] space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-bold text-[var(--text-primary)]">Paste CSV Content (Format: name,code,category,status)</span>
+              <button type="button" onClick={() => setShowCsvImport(false)} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <textarea
+              value={csvText}
+              onChange={(e) => setCsvText(e.target.value)}
+              placeholder="Jio Prepaid,JIO_PRE,MOBILE,ACTIVE&#10;Airtel Prepaid,AIRTEL_PRE,MOBILE,ACTIVE"
+              className="w-full h-32 text-xs bg-[var(--card-bg)] border border-[var(--border-soft)] rounded-lg p-2.5 text-[var(--text-primary)] font-mono"
+            />
+            <button type="submit" className="px-4 py-2 bg-[var(--color-primary)] text-[var(--bg-primary)] rounded-lg text-xs font-bold uppercase">
+              Submit Bulk Import
+            </button>
+          </form>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Operator Register/Edit Form */}
+          <div className="bg-[var(--bg-secondary)]/50 p-5 rounded-xl border border-[var(--border-soft)] h-fit">
+            <h4 className="text-xs font-bold text-[var(--text-primary)] mb-4 uppercase tracking-wider">
+              {editingOperator ? "Edit Operator Registry" : "Create Operator Registry"}
+            </h4>
+            <form onSubmit={handleOperatorSubmit} className="space-y-4">
+              <div>
+                <label className="text-[10px] text-[var(--text-secondary)] font-bold uppercase block mb-1">Operator Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Jio Test"
+                  value={operatorForm.name}
+                  onChange={(e) => setOperatorForm({ ...operatorForm, name: e.target.value })}
+                  className="w-full text-xs bg-[var(--card-bg)] border border-[var(--border-soft)] rounded-lg p-2.5 text-[var(--text-primary)] outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-[var(--text-secondary)] font-bold uppercase block mb-1">Operator Code</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. JIO_TEST"
+                  value={operatorForm.code}
+                  onChange={(e) => setOperatorForm({ ...operatorForm, code: e.target.value })}
+                  className="w-full text-xs bg-[var(--card-bg)] border border-[var(--border-soft)] rounded-lg p-2.5 text-[var(--text-primary)] outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-[var(--text-secondary)] font-bold uppercase block mb-1">Category</label>
+                <select
+                  value={operatorForm.category}
+                  onChange={(e) => setOperatorForm({ ...operatorForm, category: e.target.value })}
+                  className="w-full text-xs bg-[var(--card-bg)] border border-[var(--border-soft)] rounded-lg p-2.5 text-[var(--text-primary)] outline-none"
+                >
+                  <option value="Mobile">Mobile</option>
+                  <option value="DTH">DTH</option>
+                  <option value="Broadband">Broadband</option>
+                  <option value="Electricity">Electricity</option>
+                  <option value="Gas">Gas</option>
+                  <option value="Water">Water</option>
+                  <option value="FASTag">FASTag</option>
+                  <option value="Landline">Landline</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] text-[var(--text-secondary)] font-bold uppercase block mb-1">Description</label>
+                <input
+                  type="text"
+                  placeholder="Registry Description"
+                  value={operatorForm.description}
+                  onChange={(e) => setOperatorForm({ ...operatorForm, description: e.target.value })}
+                  className="w-full text-xs bg-[var(--card-bg)] border border-[var(--border-soft)] rounded-lg p-2.5 text-[var(--text-primary)] outline-none"
+                />
+              </div>
+              <div className="flex items-center gap-6 py-2">
+                <label className="flex items-center gap-2 text-xs text-[var(--text-primary)] font-semibold cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={operatorForm.circleRequired}
+                    onChange={(e) => setOperatorForm({ ...operatorForm, circleRequired: e.checked })}
+                    className="rounded border-[var(--border-soft)] bg-[var(--bg-secondary)]"
+                  />
+                  Circle Required
+                </label>
+                <label className="flex items-center gap-2 text-xs text-[var(--text-primary)] font-semibold cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={operatorForm.active}
+                    onChange={(e) => setOperatorForm({ ...operatorForm, active: e.checked })}
+                    className="rounded border-[var(--border-soft)] bg-[var(--bg-secondary)]"
+                  />
+                  Active Status
+                </label>
+              </div>
+              <div className="flex gap-2">
+                <button type="submit" className="flex-1 bg-[var(--color-primary)] text-[var(--bg-primary)] py-2 rounded-lg text-xs font-bold uppercase tracking-wider">
+                  {editingOperator ? "Update" : "Create"}
+                </button>
+                {editingOperator && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingOperator(null);
+                      setOperatorForm({ name: "", code: "", category: "Mobile", active: true, circleRequired: false, description: "" });
+                    }}
+                    className="px-3 bg-[var(--bg-secondary)] hover:bg-[var(--border-soft)] text-[var(--text-primary)] py-2 rounded-lg text-xs font-bold uppercase"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+
+          {/* Operator List Table */}
+          <div className="lg:col-span-2 overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-[var(--border-soft)] text-[10px] text-[var(--text-secondary)] font-extrabold uppercase">
+                  <th className="py-2.5">Name / Code</th>
+                  <th className="py-2.5">Category</th>
+                  <th className="py-2.5">Circle Req</th>
+                  <th className="py-2.5">Status</th>
+                  <th className="py-2.5 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {operators.map((op) => (
+                  <tr key={op.id} className="border-b border-[var(--border-soft)] text-[var(--text-primary)]">
+                    <td className="py-3">
+                      <div className="font-bold">{op.name}</div>
+                      <div className="text-[9px] text-[var(--text-secondary)] font-mono">{op.code}</div>
+                    </td>
+                    <td className="py-3">
+                      <span className="px-2 py-0.5 bg-[var(--bg-secondary)] border border-[var(--border-soft)] rounded text-[9px] font-bold">
+                        {op.category}
+                      </span>
+                    </td>
+                    <td className="py-3 text-[var(--text-secondary)] font-bold">{op.circleRequired ? "Yes" : "No"}</td>
+                    <td className="py-3">
+                      <button
+                        onClick={() => handleToggleOperatorStatus(op)}
+                        className={`px-2 py-0.5 rounded text-[8px] font-extrabold uppercase ${op.active ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border border-rose-500/20"
+                          }`}
+                      >
+                        {op.active ? "Active" : "Inactive"}
+                      </button>
+                    </td>
+                    <td className="py-3 text-right space-x-1.5">
+                      <button
+                        onClick={() => handleEditOperator(op)}
+                        className="p-1 hover:bg-[var(--bg-secondary)] rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all inline-block"
+                        title="Edit Operator"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteOperator(op.id)}
+                        className="p-1 hover:bg-rose-500/10 rounded text-rose-400 hover:text-rose-500 transition-all inline-block"
+                        title="Soft Delete Operator"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {operators.length === 0 && (
+                  <tr>
+                    <td colSpan="5" className="py-8 text-center text-[var(--text-muted)] uppercase text-[10px] tracking-widest">
+                      No operator registry entries found
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Legacy Mappings Section (Untouched) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Mapping Form */}
         <div className="bg-[var(--card-bg)] p-6 rounded-xl border border-[var(--border-soft)] h-fit shadow-soft">
@@ -260,9 +572,8 @@ export const ControlCenter = () => {
                     <td className="py-3.5 text-right">
                       <button
                         onClick={() => handleToggleMapping(m.id, m.isActive)}
-                        className={`px-2 py-1 rounded text-[8px] font-extrabold uppercase ${
-                          m.isActive ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border border-rose-500/20"
-                        }`}
+                        className={`px-2 py-1 rounded text-[8px] font-extrabold uppercase ${m.isActive ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border border-rose-500/20"
+                          }`}
                       >
                         {m.isActive ? "Active" : "Disabled"}
                       </button>
@@ -412,9 +723,8 @@ export const ControlCenter = () => {
                     <td className="py-3.5 text-right">
                       <button
                         onClick={() => handleToggleRule(r.id, r.isActive)}
-                        className={`px-2.5 py-1 rounded text-[8px] font-extrabold uppercase ${
-                          r.isActive ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" : "bg-rose-500/10 text-rose-500 border border-rose-500/20"
-                        }`}
+                        className={`px-2.5 py-1 rounded text-[8px] font-extrabold uppercase ${r.isActive ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" : "bg-rose-500/10 text-rose-500 border border-rose-500/20"
+                          }`}
                       >
                         {r.isActive ? "Shadow Active" : "Disabled"}
                       </button>
@@ -586,9 +896,8 @@ export const ControlCenter = () => {
                   </div>
                   <button
                     onClick={() => handleToggleTemplate(t.id, t.isActive)}
-                    className={`px-2 py-1 rounded text-[8px] font-extrabold uppercase ${
-                      t.isActive ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border border-rose-500/20"
-                    }`}
+                    className={`px-2 py-1 rounded text-[8px] font-extrabold uppercase ${t.isActive ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border border-rose-500/20"
+                      }`}
                   >
                     {t.isActive ? "Active" : "Disabled"}
                   </button>
@@ -625,9 +934,8 @@ export const ControlCenter = () => {
                   <td className="py-3.5 font-bold">+{log.recipient}</td>
                   <td className="py-3.5"><span className="px-2 py-0.5 bg-[var(--bg-secondary)] text-[9px] font-semibold rounded uppercase">{log.templateName}</span></td>
                   <td className="py-3.5">
-                    <span className={`px-2 py-0.5 text-[8px] font-black uppercase rounded-full ${
-                      log.status === "DELIVERED" ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border border-rose-500/20"
-                    }`}>
+                    <span className={`px-2 py-0.5 text-[8px] font-black uppercase rounded-full ${log.status === "DELIVERED" ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border border-rose-500/20"
+                      }`}>
                       {log.status}
                     </span>
                   </td>
@@ -671,11 +979,10 @@ export const ControlCenter = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4.5 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-                isActive
+              className={`flex items-center gap-2 px-4.5 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${isActive
                   ? "bg-[var(--color-primary)] text-[var(--bg-primary)] shadow-sm"
                   : "bg-[var(--card-bg)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-soft)] hover:bg-[var(--accent-hover)]"
-              }`}
+                }`}
             >
               <Icon className="w-4 h-4" /> {tab.label}
             </button>

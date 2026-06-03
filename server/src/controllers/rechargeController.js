@@ -222,7 +222,10 @@ export const recharge = async (req, res) => {
 
   } catch (error) {
     console.error("[CRITICAL] RECHARGE CONTROLLER ERROR:", error);
-    return res.status(500).json({ success: false, message: "Internal server error" });
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || "Internal server error"
+    });
   }
 };
 
@@ -359,7 +362,10 @@ export const payPostpaidBill = async (req, res) => {
 
   } catch (error) {
     console.error("[Pay Postpaid Bill Error]:", error);
-    res.status(500).json({ success: false, message: "Internal server error" });
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || "Internal server error"
+    });
   }
 };
 
@@ -584,5 +590,55 @@ export const refreshStatus = async (req, res) => {
       message: error.message || "Failed to refresh transaction status",
       transaction: currentTxn
     });
+  }
+};
+
+/**
+ * GET /api/recharge/operators
+ * Returns all active (not soft deleted) operators for the customer selection UI (Phase 8)
+ */
+export const getActiveOperators = async (req, res) => {
+  try {
+    const operators = await prisma.operator.findMany({
+      where: { active: true },
+      orderBy: { name: "asc" }
+    });
+
+    const filtered = operators
+      .map(op => {
+        try {
+          const parsed = JSON.parse(op.codes);
+          if (parsed && typeof parsed === "object") {
+            return {
+              id: op.id,
+              name: op.name,
+              code: parsed.code || op.codes || op.name,
+              category: parsed.category || "Mobile",
+              circleRequired: parsed.circleRequired ?? false,
+              description: parsed.description || "",
+              active: op.active,
+              isDeleted: parsed.isDeleted ?? false
+            };
+          }
+        } catch {
+          // fallback
+        }
+        return {
+          id: op.id,
+          name: op.name,
+          code: op.codes || op.name,
+          category: "Mobile",
+          circleRequired: false,
+          description: "",
+          active: op.active,
+          isDeleted: false
+        };
+      })
+      .filter(op => !op.isDeleted);
+
+    return res.json({ success: true, data: filtered });
+  } catch (error) {
+    console.error("Failed to retrieve active operators:", error);
+    return res.status(500).json({ success: false, message: "Internal server error" });
   }
 };

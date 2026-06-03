@@ -3,7 +3,7 @@ import { useTheme } from "../context/ThemeContext";
 import { Sun, Moon, Monitor, ChevronDown } from "lucide-react";
 import gsap from "gsap";
 
-const ThemeSelector = () => {
+const ThemeSelector = ({ position = "bottom", align = "right" }) => {
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -25,44 +25,52 @@ const ThemeSelector = () => {
 
   // GSAP animation for opening/closing the dropdown menu
   useEffect(() => {
-    const ctx = gsap.context(() => {
-      if (isOpen) {
-        // Open animation
-        gsap.killTweensOf(menuRef.current);
-        gsap.set(menuRef.current, { display: "block", opacity: 0, scale: 0.95, y: -10 });
-        
-        gsap.to(menuRef.current, {
-          opacity: 1,
-          scale: 1,
-          y: 0,
-          duration: 0.3,
-          ease: "back.out(1.7)",
-        });
+    const slideY = position === "top" ? 10 : -10;
+    if (isOpen) {
+      // Open animation
+      gsap.killTweensOf(menuRef.current);
+      gsap.killTweensOf(menuRef.current.querySelectorAll(".theme-option"));
+      gsap.set(menuRef.current, { display: "block", opacity: 0, scale: 0.95, y: slideY });
+      
+      gsap.to(menuRef.current, {
+        opacity: 1,
+        scale: 1,
+        y: 0,
+        duration: 0.3,
+        ease: "back.out(1.7)",
+      });
 
-        // Stagger list items
-        gsap.fromTo(
-          menuRef.current.querySelectorAll(".theme-option"),
-          { opacity: 0, x: -10 },
-          { opacity: 1, x: 0, stagger: 0.05, duration: 0.25, ease: "power2.out", delay: 0.05 }
-        );
-      } else {
-        // Close animation
+      // Stagger list items
+      gsap.fromTo(
+        menuRef.current.querySelectorAll(".theme-option"),
+        { opacity: 0, x: -10 },
+        { opacity: 1, x: 0, stagger: 0.05, duration: 0.25, ease: "power2.out", delay: 0.05 }
+      );
+    } else {
+      // Close animation
+      gsap.killTweensOf(menuRef.current);
+      gsap.to(menuRef.current, {
+        opacity: 0,
+        scale: 0.95,
+        y: slideY,
+        duration: 0.2,
+        ease: "power2.in",
+        onComplete: () => {
+          if (menuRef.current) menuRef.current.style.display = "none";
+        },
+      });
+    }
+  }, [isOpen, position]);
+
+  // Clean up animation on unmount
+  useEffect(() => {
+    return () => {
+      if (menuRef.current) {
         gsap.killTweensOf(menuRef.current);
-        gsap.to(menuRef.current, {
-          opacity: 0,
-          scale: 0.95,
-          y: -10,
-          duration: 0.2,
-          ease: "power2.in",
-          onComplete: () => {
-            if (menuRef.current) menuRef.current.style.display = "none";
-          },
-        });
+        gsap.killTweensOf(menuRef.current.querySelectorAll(".theme-option"));
       }
-    }, dropdownRef);
-
-    return () => ctx.revert();
-  }, [isOpen]);
+    };
+  }, []);
 
   const handleThemeChange = (newTheme) => {
     setTheme(newTheme);
@@ -84,7 +92,7 @@ const ThemeSelector = () => {
       case "light":
         return <Sun className="w-4 h-4 theme-icon text-amber-500" />;
       case "dark":
-        return <Moon className="w-4 h-4 theme-icon text-cyan-400" />;
+        return <Moon className="w-4 h-4 theme-icon text-purple-400" />;
       default:
         return <Monitor className="w-4 h-4 theme-icon text-purple-400" />;
     }
@@ -96,7 +104,7 @@ const ThemeSelector = () => {
       <button
         ref={buttonRef}
         onClick={toggleDropdown}
-        className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-[var(--glass-border)] bg-[var(--glass-button-bg)] hover:bg-[var(--glass-border-hover)] hover:border-[var(--glass-border-hover)] text-[var(--text-color)] transition-all duration-300 shadow-[0_0_15px_rgba(0,0,0,0.05)] hover:shadow-[0_0_20px_var(--color-primary-glow)] cursor-pointer"
+        className="flex items-center gap-1.5 h-11 px-3.5 rounded-full border border-[var(--glass-border)] bg-[var(--glass-button-bg)] hover:bg-[var(--glass-border-hover)] hover:border-[var(--glass-border-hover)] text-[var(--text-color)] transition-all duration-300 cursor-pointer"
       >
         <span className="flex items-center justify-center">
           {getThemeIcon(theme === "system" ? resolvedTheme : theme)}
@@ -110,11 +118,15 @@ const ThemeSelector = () => {
       {/* Dropdown Menu */}
       <div
         ref={menuRef}
-        className="absolute right-0 mt-2 w-40 rounded-xl border border-[var(--glass-border)] bg-[var(--glass-modal-bg)] shadow-[var(--glass-shadow)] backdrop-blur-2xl z-50 py-1.5"
+        className={`absolute w-40 rounded-xl border border-[var(--glass-border)] bg-[var(--glass-modal-bg)] shadow-[var(--glass-shadow)] backdrop-blur-2xl z-50 py-1.5 ${
+          align === "left" ? "left-0" : "right-0"
+        } ${
+          position === "top" ? "bottom-full mb-2" : "top-full mt-2"
+        }`}
         style={{ display: "none" }}
       >
         {[
-          { key: "dark", label: "Dark", icon: <Moon className="w-4 h-4 text-cyan-400" /> },
+          { key: "dark", label: "Dark", icon: <Moon className="w-4 h-4 text-purple-400" /> },
           { key: "light", label: "Light", icon: <Sun className="w-4 h-4 text-amber-500" /> },
           { key: "system", label: "System", icon: <Monitor className="w-4 h-4 text-purple-400" /> },
         ].map((opt) => {

@@ -1,37 +1,28 @@
-import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
+import prisma from "../src/config/prisma.js";
 
-async function main() {
-  console.log("--- DATABASE INSPECTION START ---");
-
+async function inspect() {
   try {
-    // Check if coinTransaction table exists
-    const tables = await prisma.$queryRawUnsafe(`SHOW TABLES LIKE 'coinTransaction'`);
-    console.log("coinTransaction table existence:", tables.length > 0 ? "YES" : "NO");
+    console.log("=== Providers ===");
+    const providers = await prisma.provider.findMany();
+    console.log(JSON.stringify(providers, null, 2));
 
-    // Check if wallet.coinBalance column exists
-    const columns = await prisma.$queryRawUnsafe(`SHOW COLUMNS FROM wallet LIKE 'coinBalance'`);
-    console.log("wallet.coinBalance column existence:", columns.length > 0 ? "YES" : "NO");
+    console.log("=== Feature Flags ===");
+    const flags = await prisma.featureFlag.findMany();
+    console.log(JSON.stringify(flags, null, 2));
 
-    // Check migration history
-    try {
-        const migrations = await prisma.$queryRawUnsafe(`SELECT * FROM _prisma_migrations`);
-        console.table(migrations.map(m => ({
-            id: m.id,
-            migration_name: m.migration_name,
-            finished_at: m.finished_at ? m.finished_at.toISOString() : "NULL",
-            rolled_back_at: m.rolled_back_at ? m.rolled_back_at.toISOString() : "NULL"
-        })));
-    } catch (e) {
-        console.error("Could not fetch migration history:", e.message);
-    }
+    console.log("=== Raw Table List ===");
+    const tables = await prisma.$queryRawUnsafe("SHOW TABLES");
+    console.log(JSON.stringify(tables, null, 2));
+    
+    // Let's also check if there are users
+    const userCount = await prisma.user.count();
+    console.log("User count:", userCount);
 
-  } catch (error) {
-    console.error("Inspection failed:", error);
+  } catch (err) {
+    console.error("Error inspecting database:", err);
   } finally {
     await prisma.$disconnect();
   }
-  console.log("--- DATABASE INSPECTION END ---");
 }
 
-main();
+inspect();

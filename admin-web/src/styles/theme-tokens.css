@@ -39,6 +39,7 @@
   --text-color: var(--text-primary);
   
   --color-primary: var(--accent-primary);
+  --color-primary-hover: #15803D;
   --color-primary-glow: var(--accent-soft);
   --color-accent: var(--accent-primary);
   --color-accent-glow: var(--accent-soft);
@@ -116,6 +117,7 @@
   --text-color: var(--text-primary);
   
   --color-primary: var(--accent-primary);
+  --color-primary-hover: #16A34A;
   --color-primary-glow: var(--accent-soft);
   --color-accent: var(--accent-primary);
   --color-accent-glow: var(--accent-soft);

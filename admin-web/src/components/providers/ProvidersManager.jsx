@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import api from "../../services/api";
 import toast from "react-hot-toast";
 import ProviderTable from "./ProviderTable";
+import { useNavigate } from "react-router-dom";
 import {
   RefreshCw,
   Search,
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 
 export const ProvidersManager = () => {
+  const navigate = useNavigate();
   const [providers, setProviders] = useState([]);
   const [telemetry, setTelemetry] = useState({ healthLogs: [], decisionLogs: [], queueStatus: {} });
   const [loading, setLoading] = useState(true);
@@ -29,7 +31,6 @@ export const ProvidersManager = () => {
 
   // Modals & Active Records
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showTestModal, setShowTestModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
   
@@ -56,9 +57,6 @@ export const ProvidersManager = () => {
   });
 
   // Diagnostics State
-  const [testType, setTestType] = useState("ping");
-  const [testRunning, setTestRunning] = useState(false);
-  const [testResult, setTestResult] = useState(null);
   const [warningAction, setWarningAction] = useState(null); // Tracks toggle action requiring warning
 
   const fetchData = async () => {
@@ -152,16 +150,14 @@ export const ProvidersManager = () => {
         providerType: provider.providerType || "RECHARGE"
       });
       setShowEditModal(true);
-    } else if (action === "test") {
-      setTestResult(null);
-      setTestType("ping");
-      setShowTestModal(true);
     } else if (action === "maintenance") {
       handleToggleField(provider.id, "maintenanceMode", !provider.maintenanceMode, provider.version);
     } else if (action === "logs") {
-      toast.success(`Redirecting to telemetry health audits for ${provider.name}...`);
-    } else if (action === "diagnostics" || action === "rules") {
-      toast.success(`Loading active ${action} for ${provider.code}...`);
+      toast.error("Logs module not configured.");
+    } else if (action === "diagnostics") {
+      toast.error("Diagnostics module not configured.");
+    } else if (action === "rules") {
+      navigate("/operations/provider-rules");
     }
   };
 
@@ -215,29 +211,7 @@ export const ProvidersManager = () => {
     }
   };
 
-  const runApiTest = async () => {
-    if (!selectedProvider) return;
-    setTestRunning(true);
-    setTestResult(null);
 
-    try {
-      const res = await api.post(`/admin/enterprise/providers/${selectedProvider.id}/test`, {
-        testType
-      });
-      setTestResult(res.data?.data || {});
-      if (res.data?.success) {
-        toast.success("Diagnostics executed successfully!");
-      }
-    } catch (err) {
-      setTestResult({
-        error: err.response?.data?.message || "Diagnostics request timed out.",
-        message: "Diagnostics Failed"
-      });
-      toast.error("Diagnostics check failed.");
-    } finally {
-      setTestRunning(false);
-    }
-  };
 
   // Searching & Filter Calculations
   const filteredProviders = providers.filter((p) => {
@@ -522,6 +496,11 @@ export const ProvidersManager = () => {
                       onChange={(e) => setFormData({ ...formData, statusCheckUrl: e.target.value })}
                       className="w-full text-xs p-2.5 outline-none font-mono"
                     />
+                    {!formData.statusCheckUrl && (
+                      <span className="text-[9px] text-amber-500 font-semibold mt-1 block">
+                        ⚠ Status Check URL not configured for this provider.
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -534,6 +513,11 @@ export const ProvidersManager = () => {
                       onChange={(e) => setFormData({ ...formData, balanceUrl: e.target.value })}
                       className="w-full text-xs p-2.5 outline-none font-mono"
                     />
+                    {!formData.balanceUrl && (
+                      <span className="text-[9px] text-amber-500 font-semibold mt-1 block">
+                        ⚠ Balance URL not configured for this provider.
+                      </span>
+                    )}
                   </div>
                   <div>
                     <label className="text-[10px] text-[var(--text-secondary)] font-bold uppercase block mb-1">Dispute Reconciliation URL</label>
@@ -668,14 +652,75 @@ export const ProvidersManager = () => {
                     className="w-full text-xs p-2.5 outline-none"
                   />
                 </div>
-                <div>
+                 <div>
                   <label className="text-[10px] text-[var(--text-secondary)] font-bold uppercase block mb-1">Callback Route ID</label>
                   <input
                     type="text"
                     value={formData.callbackId}
                     onChange={(e) => setFormData({ ...formData, callbackId: e.target.value })}
                     className="w-full text-xs p-2.5 outline-none font-mono"
+                    placeholder="Auto falls back to code"
                   />
+                </div>
+              </div>
+
+              <div className="space-y-3.5 border-t border-[var(--border-soft)] pt-4">
+                <h4 className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">Enterprise Endpoint Mappings</h4>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] text-[var(--text-secondary)] font-bold uppercase block mb-1">API Execution URL</label>
+                    <input
+                      type="text"
+                      value={formData.apiUrl}
+                      onChange={(e) => setFormData({ ...formData, apiUrl: e.target.value })}
+                      className="w-full text-xs p-2.5 outline-none font-mono"
+                      placeholder="e.g. https://api.gateway.com/recharge"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-[var(--text-secondary)] font-bold uppercase block mb-1">Status Verification URL</label>
+                    <input
+                      type="text"
+                      value={formData.statusCheckUrl}
+                      onChange={(e) => setFormData({ ...formData, statusCheckUrl: e.target.value })}
+                      className="w-full text-xs p-2.5 outline-none font-mono"
+                      placeholder="e.g. https://api.gateway.com/status?tx={txnId}"
+                    />
+                    {!formData.statusCheckUrl && (
+                      <span className="text-[9px] text-amber-500 font-semibold mt-1 block">
+                        ⚠ Status Check URL not configured for this provider.
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] text-[var(--text-secondary)] font-bold uppercase block mb-1">Balance Query URL</label>
+                    <input
+                      type="text"
+                      value={formData.balanceUrl}
+                      onChange={(e) => setFormData({ ...formData, balanceUrl: e.target.value })}
+                      className="w-full text-xs p-2.5 outline-none font-mono"
+                      placeholder="e.g. https://api.gateway.com/balance"
+                    />
+                    {!formData.balanceUrl && (
+                      <span className="text-[9px] text-amber-500 font-semibold mt-1 block">
+                        ⚠ Balance URL not configured for this provider.
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-[var(--text-secondary)] font-bold uppercase block mb-1">Dispute Reconciliation URL</label>
+                    <input
+                      type="text"
+                      value={formData.disputeUrl}
+                      onChange={(e) => setFormData({ ...formData, disputeUrl: e.target.value })}
+                      className="w-full text-xs p-2.5 outline-none font-mono"
+                      placeholder="e.g. https://api.gateway.com/disputes"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -699,90 +744,7 @@ export const ProvidersManager = () => {
         </div>
       )}
 
-      {/* 6. Diagnostics / Test API Modal */}
-      {showTestModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[var(--card-bg)] border border-[var(--border-soft)] rounded-2xl w-full max-w-lg shadow-xl">
-            <div className="px-6 py-4 border-b border-[var(--border-soft)] flex justify-between items-center bg-[var(--bg-secondary)]/30">
-              <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-1.5">
-                <Activity className="w-4 h-4 text-emerald-500 animate-pulse" /> Diagnostics Console: {selectedProvider?.name}
-              </h3>
-              <button onClick={() => setShowTestModal(false)} className="text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-                ✕ Close
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="text-[10px] text-[var(--text-secondary)] font-bold uppercase block mb-2">Select Diagnostic Target</label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    onClick={() => setTestType("ping")}
-                    className={`p-2.5 rounded-lg text-xs font-bold transition-all border ${
-                      testType === "ping"
-                        ? "bg-[var(--color-primary-glow)] text-[var(--color-primary)] border-[var(--color-primary)]/20"
-                        : "bg-[var(--bg-secondary)] text-[var(--text-secondary)] border-[var(--border-soft)]"
-                    }`}
-                  >
-                    Ping Host
-                  </button>
-                  <button
-                    onClick={() => setTestType("balance")}
-                    className={`p-2.5 rounded-lg text-xs font-bold transition-all border ${
-                      testType === "balance"
-                        ? "bg-[var(--color-primary-glow)] text-[var(--color-primary)] border-[var(--color-primary)]/20"
-                        : "bg-[var(--bg-secondary)] text-[var(--text-secondary)] border-[var(--border-soft)]"
-                    }`}
-                  >
-                    Check Balance
-                  </button>
-                  <button
-                    onClick={() => setTestType("status_check")}
-                    className={`p-2.5 rounded-lg text-xs font-bold transition-all border ${
-                      testType === "status_check"
-                        ? "bg-[var(--color-primary-glow)] text-[var(--color-primary)] border-[var(--color-primary)]/20"
-                        : "bg-[var(--bg-secondary)] text-[var(--text-secondary)] border-[var(--border-soft)]"
-                    }`}
-                  >
-                    Verify Status API
-                  </button>
-                </div>
-              </div>
 
-              {testResult && (
-                <div className="bg-[var(--bg-secondary)]/50 p-4 rounded-xl border border-[var(--border-soft)] text-xs font-mono overflow-x-auto max-h-56">
-                  {testResult.error ? (
-                    <div className="text-rose-500">
-                      <div className="font-bold flex items-center gap-1">❌ {testResult.message}</div>
-                      <div className="mt-1">{testResult.error}</div>
-                    </div>
-                  ) : (
-                    <div className="text-emerald-500">
-                      <div className="font-bold flex items-center gap-1">✔ {testResult.message}</div>
-                      <div className="mt-2 text-[10px] text-[var(--text-primary)]">
-                        <pre>{JSON.stringify(testResult, null, 2)}</pre>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <button
-                onClick={runApiTest}
-                disabled={testRunning}
-                className="w-full bg-[var(--color-primary)] text-[var(--bg-primary)] py-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {testRunning ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" /> Running Diagnostics...
-                  </>
-                ) : (
-                  "Execute Diagnostics"
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 7. Safety warning modal */}
       {showWarningModal && (

@@ -24,7 +24,7 @@ export default function ApiKeyManager() {
 
   const fetchKeys = async () => {
     try {
-      const res = await api.get('/developer/keys');
+      const res = await api.get('/admin/developer/keys');
       setKeys(res.data.data);
     } catch (err) {
       toast.error("Failed to fetch keys");
@@ -39,7 +39,7 @@ export default function ApiKeyManager() {
 
   const generateNewKey = async () => {
     try {
-      const res = await api.post('/developer/keys/generate');
+      const res = await api.post('/admin/developer/keys/generate');
       setKeys(prev => [...prev, res.data.data]);
       toast.success("API Keys generated successfully");
     } catch (err) {
@@ -54,7 +54,7 @@ export default function ApiKeyManager() {
 
   const toggleStatus = async (clientId) => {
     try {
-      await api.put(`/developer/keys/${clientId}/toggle`);
+      await api.put(`/admin/developer/keys/${clientId}/toggle`);
       fetchKeys();
       toast.success("Status updated");
     } catch (err) {

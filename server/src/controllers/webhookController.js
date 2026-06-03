@@ -18,6 +18,20 @@ export const handleProviderWebhook = async (req, res) => {
   const { providerCode } = req.params;
   const data = req.method === 'GET' ? req.query : req.body;
   const correlationId = crypto.randomBytes(8).toString('hex');
+
+  const isLegacyProvider = (code) => {
+    return ["APIBOX", "P1", "NEXGATE", "MPLAN", "EZYTM"].includes(String(code).toUpperCase().trim());
+  };
+  const isDynamic = !isLegacyProvider(providerCode);
+
+  if (isDynamic && process.env.ENABLE_DYNAMIC_RECHARGE !== "true") {
+    console.log(`[Webhook][${correlationId}][SAFE_MODE] Webhook acknowledged for dynamic provider: ${providerCode}`, JSON.stringify(data));
+    return res.status(200).json({
+      success: true,
+      message: "Webhook acknowledged"
+    });
+  }
+
   let lockToken = null;
 
   try {

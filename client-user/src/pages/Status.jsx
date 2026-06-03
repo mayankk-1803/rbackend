@@ -16,7 +16,7 @@ export default function Status() {
   useEffect(() => {
     const handleUpdate = (data) => {
       if (import.meta.env.DEV) {
-        if (import.meta.env.DEV) console.log('[Status Update Received]:', data);
+        if (import.meta.env.DEV) if (import.meta.env.DEV) console.log('[Status Update Received]:', data);
       }
       
       setTxn((prev) => {
@@ -75,7 +75,7 @@ export default function Status() {
       >
         <div className="glass-card border border-[var(--glass-border)] rounded-2xl md:rounded-3xl shadow-xl overflow-hidden">
           <div className="px-6 md:px-8 py-5 md:py-6 border-b border-[var(--glass-border)] bg-[var(--glass-button-bg)]">
-            <h2 className="text-lg md:text-xl font-black text-[var(--text-color)] tracking-tight uppercase italic">Track <span className="text-[var(--color-accent)] cyan-glow">Status</span></h2>
+            <h2 className="text-lg md:text-xl font-black text-[var(--text-color)] tracking-tight uppercase italic">Track <span className="text-[var(--color-accent)] purple-glow">Status</span></h2>
             <p className="text-[10px] md:text-sm text-[var(--text-secondary)] mt-1 font-bold uppercase tracking-widest">Enter tracking ID for real-time telemetry</p>
           </div>
           
@@ -91,7 +91,7 @@ export default function Status() {
               <button 
                 type="submit"
                 disabled={loading || !txnId}
-                className="px-8 py-3 bg-[var(--color-accent)] text-slate-950 font-black rounded-xl hover:opacity-90 disabled:opacity-30 transition-all text-[10px] uppercase tracking-widest shadow-lg shadow-cyan-600/10 cursor-pointer"
+                className="px-8 py-3 bg-[var(--color-accent)] text-white font-black rounded-xl hover:opacity-90 disabled:opacity-30 transition-all text-[10px] uppercase tracking-widest shadow-lg shadow-purple-600/10 cursor-pointer"
               >
                 {loading ? 'Searching...' : 'Check Status'}
               </button>
@@ -116,7 +116,7 @@ export default function Status() {
                     <div className="p-4 md:p-5">
                       <span className="block text-[8px] md:text-[10px] text-[var(--text-muted)] uppercase font-black tracking-widest mb-1.5">Current State</span>
                       {status === "pending" ? (
-                        <span className="flex items-center gap-2 text-[var(--color-accent)] cyan-glow font-black text-[10px] md:text-xs tracking-widest uppercase">
+                        <span className="flex items-center gap-2 text-[var(--color-accent)] purple-glow font-black text-[10px] md:text-xs tracking-widest uppercase">
                           <span className="animate-spin h-3 w-3 border-2 border-[var(--color-accent)] border-t-transparent rounded-full"></span>
                           PROCESSING...
                         </span>

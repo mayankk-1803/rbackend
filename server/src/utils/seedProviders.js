@@ -51,18 +51,44 @@ const realProviders = [
     balanceUrl: null,
     disputeUrl: null,
     maintenanceMode: false
+  },
+  {
+    name: "PhonePe",
+    code: "NEXGATE",
+    providerType: "PAYMENT",
+    baseUrl: "https://nexgate.in/api/v1",
+    apiKey: process.env.NEXGATE_APIKEY || "test_key",
+    priority: 1,
+    isActive: true,
+    inSwitch: true,
+    routeType: "Both",
+    successRate: 100,
+    avgResponseTime: 120,
+    apiUrl: "https://nexgate.in/api/v1",
+    statusCheckUrl: null,
+    balanceUrl: null,
+    disputeUrl: null,
+    maintenanceMode: false
   }
 ];
 
 export const seedProviders = async () => {
   try {
-    console.log("Resetting providers to real integrations...");
-    await prisma.provider.deleteMany({});
-    
-    await prisma.provider.createMany({
-      data: realProviders
-    });
-    console.log("Production integration providers seeded successfully.");
+    console.log("Checking and seeding missing providers...");
+    for (const p of realProviders) {
+      const existing = await prisma.provider.findUnique({
+        where: { code: p.code }
+      });
+      if (!existing) {
+        await prisma.provider.create({
+          data: p
+        });
+        console.log(`Seeded missing provider: ${p.code}`);
+      } else {
+        console.log(`Provider already exists: ${p.code}`);
+      }
+    }
+    console.log("Production integration providers check complete.");
   } catch (error) {
     console.error("Error seeding providers:", error);
   }

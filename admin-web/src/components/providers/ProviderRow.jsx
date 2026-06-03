@@ -63,6 +63,19 @@ export const ProviderRow = ({
                 MNT
               </span>
             )}
+            {!["APIBOX", "P1", "NEXGATE", "MPLAN", "EZYTM"].includes(String(provider.code).toUpperCase().trim()) && (
+              <>
+                <span className="px-1.5 py-0.5 text-[8px] font-black uppercase bg-purple-500/15 text-purple-500 border border-purple-500/20 rounded tracking-wider">
+                  DYNAMIC
+                </span>
+                <span className="px-1.5 py-0.5 text-[8px] font-black uppercase bg-blue-500/15 text-blue-500 border border-blue-500/20 rounded tracking-wider">
+                  MONITORING ONLY
+                </span>
+                <span className="px-1.5 py-0.5 text-[8px] font-black uppercase bg-rose-500/15 text-rose-500 border border-rose-500/20 rounded tracking-wider">
+                  RECHARGE DISABLED
+                </span>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] text-[var(--text-secondary)] font-extrabold uppercase tracking-wider">

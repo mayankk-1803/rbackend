@@ -202,6 +202,41 @@ export const getAnalytics = async (req, res) => {
 };
 
 /**
+ * Get Developer Analytics for Admin (GLOBAL)
+ */
+export const getAdminDeveloperAnalytics = async (req, res) => {
+  try {
+    const totalRequests = await prisma.apiLog.count();
+    const successRate = await prisma.apiLog.count({ 
+      where: { statusCode: { lt: 400 } } 
+    });
+    
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const activity = await prisma.apiLog.groupBy({
+      by: ['createdAt'],
+      where: { 
+        createdAt: { gte: sevenDaysAgo }
+      },
+      _count: { id: true },
+      _avg: { latency: true }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        totalRequests,
+        successRate: totalRequests > 0 ? (successRate / totalRequests) * 100 : 100,
+        activity
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
  * Get Recent API Logs (LEGACY)
  */
 export const getLogs = async (req, res) => {
