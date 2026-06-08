@@ -3,6 +3,9 @@ import { Prisma } from "@prisma/client";
 import { recordFinancialEntry } from "../services/ledgerService.js";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { checkMasterKeyLockout, recordMasterKeyFailure, clearMasterKeyFailures, safeCompare } from "../middlewares/masterKeySessionMiddleware.js";
+import { logMasterKeyAction } from "../services/masterKeyAuditService.js";
 
 /**
  * 1. Customer Care workspace (uses real production disputes table)
@@ -1718,6 +1721,262 @@ export const deleteAgreement = async (req, res) => {
 
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * Verify administrative Master Key and generate short-lived session token.
+ */
+export const verifyMasterKey = async (req, res) => {
+  const { masterKey } = req.body;
+  const adminId = req.user?.id;
+
+  if (!masterKey) {
+    return res.status(400).json({ success: false, message: "Master key is required" });
+  }
+
+  try {
+    // Check if admin is currently locked out
+    const isLocked = await checkMasterKeyLockout(adminId);
+    if (isLocked) {
+      await logMasterKeyAction(adminId, "MASTER_KEY_DENIED", req, { reason: "Account locked out" });
+      return res.status(403).json({
+        success: false,
+        message: "Master Key locked due to too many failed attempts. Locked for 15 minutes."
+      });
+    }
+
+    const systemKey = process.env.SYSTEM_MASTER_KEY;
+    const previousKey = process.env.SYSTEM_MASTER_KEY_PREVIOUS;
+
+    if (!systemKey) {
+      return res.status(500).json({ success: false, message: "System master key is not configured" });
+    }
+
+    const matchCurrent = safeCompare(masterKey, systemKey);
+    const matchPrevious = previousKey ? safeCompare(masterKey, previousKey) : false;
+    const isValid = matchCurrent || matchPrevious;
+
+    if (!isValid) {
+      await recordMasterKeyFailure(adminId);
+      await logMasterKeyAction(adminId, "MASTER_KEY_FAILED", req);
+      
+      const nowLocked = await checkMasterKeyLockout(adminId);
+      if (nowLocked) {
+        await logMasterKeyAction(adminId, "MASTER_KEY_LOCKED", req);
+        return res.status(403).json({
+          success: false,
+          message: "Master Key locked. Maximum failed attempts exceeded. Locked for 15 minutes."
+        });
+      }
+
+      return res.status(403).json({ success: false, message: "Invalid Master Key." });
+    }
+
+    // Success: Clear failure attempts and active lockouts
+    await clearMasterKeyFailures(adminId);
+    await logMasterKeyAction(adminId, "MASTER_KEY_USED", req);
+
+    // Generate Master Key Session Token
+    const token = jwt.sign(
+      { adminId, role: req.user.role, type: "MASTER_KEY_SESSION" },
+      process.env.MASTER_KEY_SESSION_SECRET || "fallback_master_secret",
+      { expiresIn: process.env.MASTER_KEY_SESSION_DURATION || "10m" }
+    );
+
+    await logMasterKeyAction(adminId, "MASTER_KEY_SESSION_CREATED", req);
+
+    return res.json({
+      success: true,
+      masterKeySession: token
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * Get read-only status and activity statistics for Master Key configurations.
+ */
+export const getMasterKeyStatus = async (req, res) => {
+  try {
+    const isConfigured = !!process.env.SYSTEM_MASTER_KEY;
+    const isEnabled = process.env.ENABLE_MASTER_KEY === "true";
+
+    // Query last success timestamp
+    const lastSuccessLog = await prisma.auditLog.findFirst({
+      where: { action: "MASTER_KEY_USED" },
+      orderBy: { createdAt: "desc" }
+    });
+
+    // Query last failure timestamp
+    const lastFailureLog = await prisma.auditLog.findFirst({
+      where: { action: "MASTER_KEY_FAILED" },
+      orderBy: { createdAt: "desc" }
+    });
+
+    // Query last denied timestamp
+    const lastDeniedLog = await prisma.auditLog.findFirst({
+      where: { action: "MASTER_KEY_DENIED" },
+      orderBy: { createdAt: "desc" }
+    });
+
+    // Recent Master Key system events
+    const recentEvents = await prisma.auditLog.findMany({
+      where: {
+        action: {
+          in: [
+            "MASTER_KEY_USED",
+            "MASTER_KEY_FAILED",
+            "MASTER_KEY_DENIED",
+            "MASTER_KEY_LOCKED",
+            "MASTER_KEY_UNLOCKED",
+            "MASTER_KEY_SESSION_CREATED",
+            "MASTER_KEY_SESSION_EXPIRED"
+          ]
+        }
+      },
+      include: {
+        admin: { select: { name: true, email: true } }
+      },
+      orderBy: { createdAt: "desc" },
+      take: 10
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        enabled: isConfigured && isEnabled,
+        lastSuccess: lastSuccessLog ? lastSuccessLog.createdAt : null,
+        lastFailure: lastFailureLog ? lastFailureLog.createdAt : null,
+        lastDenied: lastDeniedLog ? lastDeniedLog.createdAt : null,
+        recentEvents
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * Get all SUPER_ADMIN administrators.
+ */
+export const getSuperAdmins = async (req, res) => {
+  try {
+    const superAdmins = await prisma.user.findMany({
+      where: { role: "SUPER_ADMIN" },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        isActive: true,
+        createdAt: true
+      }
+    });
+    return res.json({ success: true, data: superAdmins });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * Create a new Super Admin account.
+ */
+export const createSuperAdmin = async (req, res) => {
+  const { name, email, phone, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ success: false, message: "Email and password are required" });
+  }
+
+  try {
+    const existing = await prisma.user.findFirst({
+      where: { OR: [{ email }, { phone: phone || undefined }] }
+    });
+
+    if (existing) {
+      return res.status(400).json({ success: false, message: "User with this email or phone already exists" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = await prisma.user.create({
+      data: {
+        name: name || "Super Admin",
+        email,
+        phone,
+        password: hashedPassword,
+        role: "SUPER_ADMIN",
+        isActive: true,
+        authType: "email",
+        isEmailVerified: true
+      }
+    });
+
+    await prisma.wallet.create({
+      data: {
+        userId: newUser.id,
+        balance: 0.00,
+        currency: "INR"
+      }
+    });
+
+    await logMasterKeyAction(req.user?.id, "SUPER_ADMIN_CREATED", req, { targetUserId: newUser.id, email });
+
+    return res.status(201).json({
+      success: true,
+      message: "Super Admin created successfully",
+      data: { id: newUser.id, email: newUser.email }
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * Delete a Super Admin account safely.
+ */
+export const deleteSuperAdmin = async (req, res) => {
+  const targetUserId = parseInt(req.params.id);
+  if (isNaN(targetUserId)) {
+    return res.status(400).json({ success: false, message: "Invalid target user ID" });
+  }
+
+  try {
+    if (targetUserId === req.user.id) {
+      return res.status(400).json({ success: false, message: "You cannot delete your own account." });
+    }
+
+    const targetUser = await prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true, role: true, email: true }
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({ success: false, message: "Super Admin not found" });
+    }
+
+    if (targetUser.role !== "SUPER_ADMIN") {
+      return res.status(400).json({ success: false, message: "Target user is not a Super Admin" });
+    }
+
+    const superAdminCount = await prisma.user.count({
+      where: { role: "SUPER_ADMIN", isActive: true }
+    });
+
+    if (superAdminCount <= 1) {
+      return res.status(400).json({ success: false, message: "At least one Super Admin must remain active." });
+    }
+
+    await prisma.$transaction([
+      prisma.wallet.deleteMany({ where: { userId: targetUserId } }),
+      prisma.user.delete({ where: { id: targetUserId } })
+    ]);
+
+    await logMasterKeyAction(req.user?.id, "SUPER_ADMIN_DELETED", req, { targetUserId, email: targetUser.email });
+
+    return res.json({ success: true, message: "Super Admin deleted successfully" });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
   }
 };
 

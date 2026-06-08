@@ -20,12 +20,21 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
+    // Attach Master Key Session token if active and valid
+    if (window.masterKeySession && window.masterKeySessionExpiry && window.masterKeySessionExpiry > Date.now()) {
+      config.headers["x-master-key-session"] = window.masterKeySession;
+    } else {
+      window.masterKeySession = null;
+      window.masterKeySessionExpiry = null;
+    }
+
     // Add Idempotency Key for mutation methods
     if (['post', 'put', 'patch', 'delete'].includes(config.method?.toLowerCase())) {
       config.headers['x-idempotency-key'] = `admin_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     }
     
     return config;
+
 
   },
   (error) => {
@@ -77,6 +86,34 @@ api.interceptors.response.use(
   },
   (error) => {
     const status = error.response?.status;
+    const config = error.config;
+
+    // Phase 3 - Normalize message and code extraction
+    const msg =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      error?.message ||
+      "";
+
+    const code =
+      error?.response?.data?.code || "";
+
+    // Phase 7 - Console Trace Logging
+    console.log(
+      "[MASTER KEY]",
+      {
+        status,
+        code,
+        msg
+      }
+    );
+
+    const isMasterKeyReq = status === 403 && (
+      code === "MASTER_KEY_REQUIRED" ||
+      code === "MASTER_KEY_EXPIRED" ||
+      msg.includes("Master Key")
+    );
+
     const message = sanitizeErrorMessage(error);
 
     if (status === 401) {
@@ -86,6 +123,40 @@ api.interceptors.response.use(
       window.location.href = "/87564/admin/login";
     } else if (status === 429) {
       toast.error("Rate limit exceeded. Please slow down.");
+    } else if (isMasterKeyReq) {
+      if (config && config._masterKeyRetried) {
+        return Promise.reject(error);
+      }
+
+      return new Promise((resolve, reject) => {
+        // Phase 7 - Console Replay Trace
+        console.log(
+          "[MASTER KEY REPLAY]",
+          config.url
+        );
+
+        const event = new CustomEvent("TRIGGER_MASTER_KEY_PROMPT", {
+          detail: {
+            requestConfig: error.config,
+            resolve: (sessionToken) => {
+              if (config) {
+                config.headers["x-master-key-session"] = sessionToken;
+                config._masterKeyRetried = true;
+                api(config).then(resolve).catch(reject);
+              } else {
+                reject(error);
+              }
+            },
+            reject: (err) => {
+              // Phase 6 - Toast specific error message instead of generic fallback
+              const errorText = err?.message || sanitizeErrorMessage(err || error) || "Master Key authorization required.";
+              toast.error(errorText);
+              reject(err || error);
+            }
+          }
+        });
+        window.dispatchEvent(event);
+      });
     } else if (status !== 404) {
       toast.error(message);
     }

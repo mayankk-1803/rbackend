@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
+import MasterKeyModal from '../../components/MasterKeyModal';
 
 const StatCard = ({ title, value, icon: Icon, colorClass, loading }) => {
   return (
@@ -71,6 +72,17 @@ export const enterpriseFeatures = {
 
 export const Users = () => {
   const pendingUpdatesRef = useRef({});
+  const [isMasterKeyModalOpen, setIsMasterKeyModalOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
+
+  const handleCriticalAction = (actionCallback) => {
+    if (window.masterKeySession && window.masterKeySessionExpiry && window.masterKeySessionExpiry > Date.now()) {
+      actionCallback(window.masterKeySession);
+    } else {
+      setPendingAction(() => actionCallback);
+      setIsMasterKeyModalOpen(true);
+    }
+  };
   // Navigation Workspaces Selection
   const [activeWorkspace, setActiveWorkspace] = useState("directory");
 
@@ -874,31 +886,40 @@ export const Users = () => {
     if (bulkSelectedUserIds.length === 0) {
       return toast.error("Please select target users from the directory workspace first!");
     }
-    try {
-      setBulkProgress("executing");
-      const { data } = await api.post('/admin/enterprise/users/bulk-action', {
-        userIds: bulkSelectedUserIds,
-        actionType: bulkAction.actionType,
-        actionPayload: {
-          slabName: bulkAction.slabName,
-          amount: bulkAction.amount,
-          direction: bulkAction.direction,
-          description: bulkAction.description,
-          title: bulkAction.title,
-          message: bulkAction.message
-        }
-      });
-      if (data && data.success) {
-        toast.success(`Bulk command executed successfully!`);
-        setBulkProgress({
-          success: data.data.success,
-          failed: data.data.failed
+
+    const executeAction = async () => {
+      try {
+        setBulkProgress("executing");
+        const { data } = await api.post('/admin/enterprise/users/bulk-action', {
+          userIds: bulkSelectedUserIds,
+          actionType: bulkAction.actionType,
+          actionPayload: {
+            slabName: bulkAction.slabName,
+            amount: bulkAction.amount,
+            direction: bulkAction.direction,
+            description: bulkAction.description,
+            title: bulkAction.title,
+            message: bulkAction.message
+          }
         });
-        setBulkSelectedUserIds([]);
+        if (data && data.success) {
+          toast.success(`Bulk command executed successfully!`);
+          setBulkProgress({
+            success: data.data.success,
+            failed: data.data.failed
+          });
+          setBulkSelectedUserIds([]);
+        }
+      } catch (err) {
+        toast.error("Bulk action failed");
+        setBulkProgress(null);
       }
-    } catch (err) {
-      toast.error("Bulk action failed");
-      setBulkProgress(null);
+    };
+
+    if (bulkAction.actionType === "debit_credit") {
+      handleCriticalAction(executeAction);
+    } else {
+      executeAction();
     }
   };
 
@@ -1033,19 +1054,28 @@ export const Users = () => {
 
   const handleConfirmSendTempPassword = async () => {
     if (!userForTempPass) return;
-    try {
-      setTempPassLoading(true);
-      const { data } = await api.patch(`/admin/users/${userForTempPass.id}/send-temp-password`);
-      if (data && data.success) {
-        toast.success(data.message || "Temporary password sent successfully on WhatsApp.");
+
+    const executeAction = async () => {
+      try {
+        setTempPassLoading(true);
+        const { data } = await api.patch(`/admin/users/${userForTempPass.id}/send-temp-password`);
+        if (data && data.success) {
+          toast.success(data.message || "Temporary password sent successfully on WhatsApp.");
+        }
+      } catch (error) {
+        console.error("Error sending temporary password:", error);
+        toast.error(error.response?.data?.message || "Failed to send temporary password");
+      } finally {
+        setTempPassLoading(false);
+        setIsTempPassConfirmOpen(false);
+        setUserForTempPass(null);
       }
-    } catch (error) {
-      console.error("Error sending temporary password:", error);
-      toast.error(error.response?.data?.message || "Failed to send temporary password");
-    } finally {
-      setTempPassLoading(false);
-      setIsTempPassConfirmOpen(false);
-      setUserForTempPass(null);
+    };
+
+    if (["ADMIN", "SUPER_ADMIN"].includes(userForTempPass.role)) {
+      handleCriticalAction(executeAction);
+    } else {
+      executeAction();
     }
   };
 
@@ -3383,6 +3413,14 @@ export const Users = () => {
           </div>
         )}
       </AnimatePresence>
+
+      <MasterKeyModal
+        isOpen={isMasterKeyModalOpen}
+        onClose={() => setIsMasterKeyModalOpen(false)}
+        onSuccess={(token) => {
+          if (pendingAction) pendingAction(token);
+        }}
+      />
     </div>
   );
 };

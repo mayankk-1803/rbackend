@@ -94,7 +94,11 @@ export default function MobilePostpaid() {
             const codeMatch = dbActiveCodes.includes(String(meta.code));
             return nameMatch || codeMatch;
           });
-          setActiveOperatorOptions(filtered);
+          if (filtered.length > 0) {
+            setActiveOperatorOptions(filtered);
+          } else {
+            setActiveOperatorOptions(allOptions);
+          }
         }
       } catch (err) {
         console.error("Failed to load active operators", err);

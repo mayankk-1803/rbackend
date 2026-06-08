@@ -7,6 +7,7 @@ import { formatAmount, safeArray, safeValue } from '../utils/helpers';
 import socket from '../services/socket';
 import toast from 'react-hot-toast';
 import { DisputeModal } from '../components/reports/DisputeModal';
+import { InvoiceModal } from '../components/reports/InvoiceModal';
 
 const formatCurrency = (value) => `INR ${Number(value || 0).toLocaleString("en-IN", {
   minimumFractionDigits: 2,
@@ -36,6 +37,7 @@ export default function History() {
   const [refreshingTxnId, setRefreshingTxnId] = useState(null);
   const [selectedTxn, setSelectedTxn] = useState(null);
   const [showDispute, setShowDispute] = useState(false);
+  const [showInvoice, setShowInvoice] = useState(false);
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -350,7 +352,11 @@ export default function History() {
                             <RefreshCw className={`w-4 h-4 ${refreshingTxnId === txn.id ? "animate-spin" : ""}`} />
                           </button>
                         )}
-                        <button className="p-2 min-w-10 min-h-10 hover:bg-[var(--color-accent-glow)] rounded-lg transition-colors text-[var(--text-secondary)] hover:text-[var(--color-accent)] cursor-pointer" title="View Invoice">
+                        <button 
+                          onClick={() => { setSelectedTxn(txn); setShowInvoice(true); }}
+                          className="p-2 min-w-10 min-h-10 hover:bg-[var(--color-accent-glow)] rounded-lg transition-colors text-[var(--text-secondary)] hover:text-[var(--color-accent)] cursor-pointer" 
+                          title="View Invoice"
+                        >
                           <FileText className="w-4 h-4" />
                         </button>
                          <button 
@@ -450,6 +456,11 @@ export default function History() {
       <DisputeModal 
         isOpen={showDispute} 
         onClose={() => setShowDispute(false)} 
+        transaction={selectedTxn} 
+      />
+      <InvoiceModal 
+        isOpen={showInvoice} 
+        onClose={() => setShowInvoice(false)} 
         transaction={selectedTxn} 
       />
     </motion.div>

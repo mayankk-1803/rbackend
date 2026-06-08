@@ -33,7 +33,7 @@ export const getInvoice = async (req, res) => {
         status: txn.status,
         mobile: txn.mobile,
         operator: txn.operator,
-        providerRef: txn.providerRef || txn.providerRefId || txn.providerTxnId,
+        providerRef: txn.providerRef || txn.providerRefId || txn.providerTxnId || null,
         branding: "DiziPay Vault",
         logo: "https://dizipay.in/logo.png"
       };
@@ -43,10 +43,20 @@ export const getInvoice = async (req, res) => {
         data: { invoiceSnapshot: snapshot }
       });
 
-      return res.json({ success: true, data: snapshot });
+      const responseSnapshot = {
+        ...snapshot,
+        operatorReferenceId: txn.providerRef || txn.providerRefId || txn.providerTxnId || null
+      };
+
+      return res.json({ success: true, data: responseSnapshot });
     }
 
-    res.json({ success: true, data: txn.invoiceSnapshot });
+    const responseSnapshot = {
+      ...(typeof txn.invoiceSnapshot === 'string' ? JSON.parse(txn.invoiceSnapshot) : txn.invoiceSnapshot),
+      operatorReferenceId: txn.providerRef || txn.providerRefId || txn.providerTxnId || null
+    };
+
+    res.json({ success: true, data: responseSnapshot });
   } catch (err) {
     res.status(err.statusCode || 500).json({ success: false, message: err.message });
   }

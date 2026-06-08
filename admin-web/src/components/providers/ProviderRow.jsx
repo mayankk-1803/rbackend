@@ -63,7 +63,7 @@ export const ProviderRow = ({
                 MNT
               </span>
             )}
-            {!["APIBOX", "P1", "NEXGATE", "MPLAN", "EZYTM"].includes(String(provider.code).toUpperCase().trim()) && (
+            {!["APIBOX", "P1", "NEXGATE", "MPLAN", "EZYTM", "PRIMARY GATEWAY", "PLANS ENGINE", "OPERATOR ENGINE"].includes(String(provider.code).toUpperCase().trim()) && (
               <>
                 <span className="px-1.5 py-0.5 text-[8px] font-black uppercase bg-purple-500/15 text-purple-500 border border-purple-500/20 rounded tracking-wider">
                   DYNAMIC

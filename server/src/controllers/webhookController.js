@@ -10,6 +10,7 @@ import { pushToDLQ } from "../services/dlqService.js";
 import { claimIdempotencyKey } from "../utils/idempotency.js";
 import eventBus from "../config/eventBus.js";
 import { isFinalizedStatus, isValidStatusTransition } from "../utils/transactionStateGuard.js";
+import { isValidOperatorRef } from "../utils/validators.js";
 
 /**
  * Universal Webhook Controller for Provider Callbacks.
@@ -145,6 +146,21 @@ export const handleProviderWebhook = async (req, res) => {
       }
 
       if (status === 'success') {
+        const hasExistingValidRef = isValidOperatorRef(currentTxn.providerRef, currentTxn);
+        const isNewRefValid = isValidOperatorRef(providerTxnId, currentTxn);
+        let finalProviderRef = currentTxn.providerRef;
+        if (!hasExistingValidRef && isNewRefValid) {
+          finalProviderRef = providerTxnId;
+        }
+
+        let updatedSnapshot = currentTxn.invoiceSnapshot;
+        if (updatedSnapshot && typeof updatedSnapshot === 'object') {
+          updatedSnapshot = {
+            ...updatedSnapshot,
+            providerRef: finalProviderRef || updatedSnapshot.providerRef || null
+          };
+        }
+
         const updateResult = await tx.transaction.updateMany({
           where: {
             id: currentTxn.id,
@@ -153,7 +169,9 @@ export const handleProviderWebhook = async (req, res) => {
           data: {
             status: 'SUCCESS',
             reviewStatus: 'SUCCESS',
-            providerTxnId,
+            providerTxnId: finalProviderRef || providerTxnId || currentTxn.providerTxnId,
+            providerRef: finalProviderRef || null,
+            invoiceSnapshot: updatedSnapshot || undefined,
             rechargeProcessing: false,
             processedAt: new Date()
           }
@@ -223,6 +241,13 @@ export const handleProviderWebhook = async (req, res) => {
           return;
         }
 
+        const hasExistingValidRef = isValidOperatorRef(currentTxn.providerRef, currentTxn);
+        const isNewRefValid = isValidOperatorRef(providerTxnId, currentTxn);
+        let finalProviderRef = currentTxn.providerRef;
+        if (!hasExistingValidRef && isNewRefValid) {
+          finalProviderRef = providerTxnId;
+        }
+
         // Step 1: transition to FAILED
         const updateFailed = await tx.transaction.updateMany({
           where: {
@@ -232,7 +257,8 @@ export const handleProviderWebhook = async (req, res) => {
           data: {
             status: 'FAILED',
             reviewStatus: 'FAILED',
-            providerTxnId,
+            providerTxnId: finalProviderRef || providerTxnId || currentTxn.providerTxnId,
+            providerRef: finalProviderRef || null,
             rechargeProcessing: false
           }
         });

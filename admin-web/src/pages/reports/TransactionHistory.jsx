@@ -23,6 +23,7 @@ import { formatAmount, safeArray } from '../../utils/helpers';
 import { downloadFile } from '../../utils/downloadFile';
 import { InvoiceModal } from '../../components/InvoiceModal';
 import toast from 'react-hot-toast';
+import MasterKeyModal from '../../components/MasterKeyModal';
 import { useSocket } from '../../hooks/useSocket';
 
 const StatCard = ({ title, value, colorClass, icon: Icon }) => (
@@ -41,6 +42,18 @@ const StatCard = ({ title, value, colorClass, icon: Icon }) => (
 );
 
 export default function AdminTransactionHistory() {
+  const [isMasterKeyModalOpen, setIsMasterKeyModalOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
+
+  const handleCriticalAction = (actionCallback) => {
+    if (window.masterKeySession && window.masterKeySessionExpiry && window.masterKeySessionExpiry > Date.now()) {
+      actionCallback(window.masterKeySession);
+    } else {
+      setPendingAction(() => actionCallback);
+      setIsMasterKeyModalOpen(true);
+    }
+  };
+
   const [transactions, setTransactions] = useState([]);
   const [summary, setSummary] = useState({});
   const [loading, setLoading] = useState(true);
@@ -201,18 +214,20 @@ export default function AdminTransactionHistory() {
     return () => clearInterval(timer);
   }, [softRefresh]);
 
-  const handleExport = async () => {
+  const handleExport = () => {
     if (isExporting) return;
-    setIsExporting(true);
-    const toastId = toast.loading("Preparing global export...");
-    try {
-      await downloadFile(api, '/admin/reports/export', `master_ledger_${Date.now()}.csv`, filters);
-      toast.success("Master ledger exported", { id: toastId });
-    } catch (err) {
-      toast.error("Global export failed", { id: toastId });
-    } finally {
-      setIsExporting(false);
-    }
+    handleCriticalAction(async () => {
+      setIsExporting(true);
+      const toastId = toast.loading("Preparing global export...");
+      try {
+        await downloadFile(api, '/admin/reports/export', `master_ledger_${Date.now()}.csv`, filters);
+        toast.success("Master ledger exported", { id: toastId });
+      } catch (err) {
+        toast.error("Global export failed", { id: toastId });
+      } finally {
+        setIsExporting(false);
+      }
+    });
   };
 
   const handleRefreshStatus = async (txnId) => {
@@ -527,6 +542,14 @@ export default function AdminTransactionHistory() {
           </div>
         )}
       </AnimatePresence>
+
+      <MasterKeyModal
+        isOpen={isMasterKeyModalOpen}
+        onClose={() => setIsMasterKeyModalOpen(false)}
+        onSuccess={(token) => {
+          if (pendingAction) pendingAction(token);
+        }}
+      />
     </motion.div>
   );
 }

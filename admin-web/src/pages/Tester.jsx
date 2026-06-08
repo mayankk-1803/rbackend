@@ -4,8 +4,21 @@ import { useSocket } from '../hooks/useSocket';
 import toast from 'react-hot-toast';
 import { Zap, Activity, Clock, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import MasterKeyModal from '../components/MasterKeyModal';
 
 export const Tester = () => {
+  const [isMasterKeyModalOpen, setIsMasterKeyModalOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
+
+  const handleCriticalAction = (actionCallback) => {
+    if (window.masterKeySession && window.masterKeySessionExpiry && window.masterKeySessionExpiry > Date.now()) {
+      actionCallback(window.masterKeySession);
+    } else {
+      setPendingAction(() => actionCallback);
+      setIsMasterKeyModalOpen(true);
+    }
+  };
+
   const [mobileNumber, setMobileNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -112,14 +125,16 @@ export const Tester = () => {
     }
   };
 
-  const handleTopUp = async () => {
-    const loadingToast = toast.loading("Adding balance...");
-    try {
-      await api.post('/admin/topup', { amount: 1000 });
-      toast.success("₹1000 added to your wallet", { id: loadingToast });
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Top-up failed", { id: loadingToast });
-    }
+  const handleTopUp = () => {
+    handleCriticalAction(async () => {
+      const loadingToast = toast.loading("Adding balance...");
+      try {
+        await api.post('/admin/topup', { amount: 1000 });
+        toast.success("₹1000 added to your wallet", { id: loadingToast });
+      } catch (err) {
+        toast.error(err.response?.data?.message || "Top-up failed", { id: loadingToast });
+      }
+    });
   };
 
   return (
@@ -354,6 +369,14 @@ export const Tester = () => {
           </section>
         </div>
       </div>
+
+      <MasterKeyModal
+        isOpen={isMasterKeyModalOpen}
+        onClose={() => setIsMasterKeyModalOpen(false)}
+        onSuccess={(token) => {
+          if (pendingAction) pendingAction(token);
+        }}
+      />
     </div>
   );
 };

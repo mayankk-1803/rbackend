@@ -69,10 +69,16 @@ router.get("/status/:id", auth, async (req, res) => {
   try {
     const txn = await prisma.transaction.findFirst({
       where: { id: parseInt(req.params.id), userId: req.user.id },
-      select: { status: true, amount: true, mobile: true, operator: true, createdAt: true, providerTxnId: true }
+      select: { status: true, amount: true, mobile: true, operator: true, createdAt: true, providerTxnId: true, providerRef: true, providerRefId: true }
     });
     if (!txn) return res.status(404).json({ success: false, message: "Transaction not found" });
-    res.json({ success: true, data: txn });
+    
+    const responseData = {
+      ...txn,
+      operatorReferenceId: txn.providerRef || txn.providerRefId || txn.providerTxnId || null
+    };
+    
+    res.json({ success: true, data: responseData });
   } catch (err) {
     res.status(500).json({ success: false, message: "Server error" });
   }

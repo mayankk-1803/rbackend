@@ -25,7 +25,7 @@ export const normalizeResponse = (raw) => {
     success,
     status: mappedStatus,
     message: providerMessage,
-    providerTxnId: raw.OPTXNID || raw.TXNID || null,
+    providerTxnId: raw.operator_ref || raw.operatorTxnId || raw.OPTXNID || raw.TXNID || null,
     raw
   };
 };

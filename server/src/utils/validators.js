@@ -18,3 +18,44 @@ export const isValidIndianMobile = (mobile) => {
   
   return true;
 };
+
+export const isValidOperatorRef = (ref, transaction = {}) => {
+  if (ref === null || ref === undefined) return false;
+  const strRef = String(ref).trim();
+  if (strRef === "") return false;
+
+  const upperRef = strRef.toUpperCase();
+  const invalidPlaceholders = [
+    "PENDING",
+    "TEST_OP_ID",
+    "TEST_REF",
+    "OP_SUCCESS",
+    "UNKNOWN",
+    "N/A",
+    "NULL",
+    "UNDEFINED"
+  ];
+  
+  if (invalidPlaceholders.includes(upperRef)) return false;
+
+  if (transaction) {
+    if (transaction.id && strRef === String(transaction.id)) return false;
+    if (transaction.paymentId && strRef === String(transaction.paymentId)) return false;
+    if (transaction.orderId && strRef === String(transaction.orderId)) return false;
+  }
+
+  // Check general formats of fake references
+  if (
+    upperRef.startsWith("TEST_OP_ID") ||
+    upperRef.startsWith("OP_SUCCESS") ||
+    upperRef.startsWith("OP_FAIL") ||
+    upperRef.startsWith("OP_FAKE") ||
+    upperRef.startsWith("RECON_") ||
+    upperRef.startsWith("NEXGATE_")
+  ) {
+    return false;
+  }
+
+  return true;
+};
+

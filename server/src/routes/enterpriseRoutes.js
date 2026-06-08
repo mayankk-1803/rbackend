@@ -2,6 +2,7 @@ import express from "express";
 import { auth } from "../middlewares/auth.js";
 import { isAdmin } from "../middlewares/admin.js";
 import { checkPermission } from "../middlewares/rbac.js";
+import { masterKeySessionMiddleware } from "../middlewares/masterKeySessionMiddleware.js";
 import {
   getCustomerCareQueue,
   getOutlets,
@@ -35,7 +36,8 @@ import {
   revokePartner,
   createAgreement,
   updateAgreement,
-  deleteAgreement
+  deleteAgreement,
+  getMasterKeyStatus
 } from "../controllers/enterpriseController.js";
 
 const router = express.Router();
@@ -50,33 +52,32 @@ router.get("/users/care", checkPermission("users", "read"), getCustomerCareQueue
 router.get("/outlets", checkPermission("outlets", "read"), getOutlets);
 router.post("/outlets", checkPermission("outlets", "write"), createOutlet);
 router.put("/outlets/:id", checkPermission("outlets", "write"), updateOutlet);
-router.patch("/outlets/:id/status", checkPermission("outlets", "approve"), updateOutletStatus);
+router.patch("/outlets/:id/status", checkPermission("outlets", "approve"), masterKeySessionMiddleware, updateOutletStatus);
 router.get("/users-no-outlet", checkPermission("outlets", "read"), getUsersWithoutOutlet);
 
 // 3. Partners
 router.get("/partners", checkPermission("users", "read"), getPartners);
 router.get("/manageable-users", checkPermission("users", "read"), getManageableUsers);
-router.post("/partners/convert", checkPermission("users", "write"), convertPartner);
-router.post("/partners/:id/rotate-secret", checkPermission("users", "write"), rotatePartnerSecret);
-router.patch("/partners/:id/status", checkPermission("users", "write"), togglePartnerStatus);
-router.patch("/partners/:id/environment", checkPermission("users", "write"), updatePartnerEnvironment);
-router.patch("/partners/:id/rate-limit", checkPermission("users", "write"), updatePartnerRateLimit);
+router.post("/partners/convert", checkPermission("users", "write"), masterKeySessionMiddleware, convertPartner);
+router.post("/partners/:id/rotate-secret", checkPermission("users", "write"), masterKeySessionMiddleware, rotatePartnerSecret);
+router.patch("/partners/:id/status", checkPermission("users", "write"), masterKeySessionMiddleware, togglePartnerStatus);
+router.patch("/partners/:id/environment", checkPermission("users", "write"), masterKeySessionMiddleware, updatePartnerEnvironment);
+router.patch("/partners/:id/rate-limit", checkPermission("users", "write"), masterKeySessionMiddleware, updatePartnerRateLimit);
 router.get("/partners/:id/usage", checkPermission("users", "read"), getPartnerUsage);
-router.post("/partners/:id/revoke", checkPermission("users", "write"), revokePartner);
+router.post("/partners/:id/revoke", checkPermission("users", "write"), masterKeySessionMiddleware, revokePartner);
 
 // 4. FOS Agents
 router.get("/fos", checkPermission("employees", "read"), getFosAgents);
 router.post("/fos/assign", checkPermission("employees", "write"), assignFosRetailers);
 
-// 5. Bulk Operations
-router.post("/users/bulk-action", checkPermission("users", "write"), executeBulkAction);
+router.post("/users/bulk-action", checkPermission("users", "write"), masterKeySessionMiddleware, executeBulkAction);
 
 // 6. Agreements
 router.get("/agreements", checkPermission("outlets", "read"), getAgreements);
 router.patch("/agreements/:id/status", checkPermission("outlets", "approve"), updateAgreementStatus);
 router.post("/agreements", checkPermission("outlets", "write"), createAgreement);
 router.put("/agreements/:id", checkPermission("outlets", "write"), updateAgreement);
-router.delete("/agreements/:id", checkPermission("outlets", "write"), deleteAgreement);
+router.delete("/agreements/:id", checkPermission("outlets", "write"), masterKeySessionMiddleware, deleteAgreement);
 
 // 7. Employee Workforce CRM
 router.get("/employees", checkPermission("employees", "read"), getEmployees);
@@ -96,9 +97,12 @@ router.get("/audit/logs", checkPermission("audit", "read"), getAuditLogs);
 
 // 11. RBAC Matrix
 router.get("/roles/permissions", checkPermission("audit", "read"), getRbacPermissions);
-router.put("/roles/permissions", checkPermission("audit", "write"), updateRbacPermissions);
+router.put("/roles/permissions", checkPermission("audit", "write"), masterKeySessionMiddleware, updateRbacPermissions);
 router.get("/rbac", checkPermission("audit", "read"), getRbacPermissions);
-router.put("/rbac", checkPermission("audit", "write"), updateRbacPermissions);
-router.put("/rbac/", checkPermission("audit", "write"), updateRbacPermissions);
+router.put("/rbac", checkPermission("audit", "write"), masterKeySessionMiddleware, updateRbacPermissions);
+router.put("/rbac/", checkPermission("audit", "write"), masterKeySessionMiddleware, updateRbacPermissions);
+
+// 12. Security Center Status Route
+router.get("/security/master-key-status", getMasterKeyStatus);
 
 export default router;

@@ -11,6 +11,7 @@ import { logTransactionEvent, TXN_EVENTS } from "../services/transactionEventSer
 import { issueReward } from "../services/rewardEngine.js";
 import { recordFinancialEntry } from "../services/ledgerService.js";
 import { isFinalizedStatus, isValidStatusTransition } from "../utils/transactionStateGuard.js";
+import { isValidOperatorRef } from "../utils/validators.js";
 import { selectProvider } from "../services/routingEngine/routingEngine.js";
 
 dotenv.config();
@@ -202,13 +203,20 @@ const worker = new Worker("recharge", async (job) => {
         // 3. PERSIST FINAL SUCCESS & SNAPSHOT
         const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true, phone: true, email: true } });
         
+        const hasExistingValidRef = isValidOperatorRef(txn.providerRef, txn);
+        const isNewRefValid = isValidOperatorRef(operatorTxnId, txn);
+        let finalProviderRef = txn.providerRef;
+        if (!hasExistingValidRef && isNewRefValid) {
+          finalProviderRef = operatorTxnId;
+        }
+
         const invoiceSnapshot = {
           customer: { name: user?.name, phone: user?.phone, email: user?.email },
           operator: normalizeOperator(frontendOperator),
           mobile,
           amount,
           timestamp: new Date().toISOString(),
-          providerRef: operatorTxnId
+          providerRef: finalProviderRef || null
         };
 
         const updateResult = await prisma.transaction.updateMany({
@@ -220,7 +228,8 @@ const worker = new Worker("recharge", async (job) => {
             status: "PROCESSING",
             rechargeProcessing: false,
             provider: successfulProvider,
-            providerTxnId: operatorTxnId,
+            providerTxnId: finalProviderRef || operatorTxnId || txn.providerTxnId,
+            providerRef: finalProviderRef || null,
             operator: normalizeOperator(frontendOperator),
             invoiceSnapshot: invoiceSnapshot
           }

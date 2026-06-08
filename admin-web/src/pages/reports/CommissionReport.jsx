@@ -15,6 +15,7 @@ import api from '../../services/api';
 import { formatAmount, safeArray } from '../../utils/helpers';
 import { downloadFile } from '../../utils/downloadFile';
 import toast from 'react-hot-toast';
+import MasterKeyModal from '../../components/MasterKeyModal';
 
 const COLORS = ['#1F7A4D', '#10B981', '#34D399', '#059669', '#6EE7B7', '#A7F3D0'];
 
@@ -32,6 +33,18 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 export default function CommissionReport() {
+  const [isMasterKeyModalOpen, setIsMasterKeyModalOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
+
+  const handleCriticalAction = (actionCallback) => {
+    if (window.masterKeySession && window.masterKeySessionExpiry && window.masterKeySessionExpiry > Date.now()) {
+      actionCallback(window.masterKeySession);
+    } else {
+      setPendingAction(() => actionCallback);
+      setIsMasterKeyModalOpen(true);
+    }
+  };
+
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
@@ -52,18 +65,20 @@ export default function CommissionReport() {
     fetchData();
   }, [fetchData]);
 
-  const handleExport = async () => {
+  const handleExport = () => {
     if (isExporting) return;
-    setIsExporting(true);
-    const toastId = toast.loading("Exporting commission data...");
-    try {
-      await downloadFile(api, '/admin/reports/export', `commissions_${Date.now()}.csv`, { type: 'COMMISSION' });
-      toast.success("Data exported", { id: toastId });
-    } catch (err) {
-      toast.error("Export failed", { id: toastId });
-    } finally {
-      setIsExporting(false);
-    }
+    handleCriticalAction(async () => {
+      setIsExporting(true);
+      const toastId = toast.loading("Exporting commission data...");
+      try {
+        await downloadFile(api, '/admin/reports/export', `commissions_${Date.now()}.csv`, { type: 'COMMISSION' });
+        toast.success("Data exported", { id: toastId });
+      } catch (err) {
+        toast.error("Export failed", { id: toastId });
+      } finally {
+        setIsExporting(false);
+      }
+    });
   };
 
   const totalEarnings = data.reduce((acc, curr) => acc + (curr._sum.profit || 0), 0);
@@ -182,6 +197,14 @@ export default function CommissionReport() {
           </div>
         </div>
       </div>
+
+      <MasterKeyModal
+        isOpen={isMasterKeyModalOpen}
+        onClose={() => setIsMasterKeyModalOpen(false)}
+        onSuccess={(token) => {
+          if (pendingAction) pendingAction(token);
+        }}
+      />
     </motion.div>
   );
 }

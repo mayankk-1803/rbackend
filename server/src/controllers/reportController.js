@@ -71,8 +71,7 @@ export const getTransactionHistory = async (req, res) => {
       const { provider, providerTxnId, providerResponse, ...sanitized } = tx;
       return {
         ...sanitized,
-        // Optional: Keep providerRef but rename if needed, user said hide vendor identifiers
-        // providerRef is often shown on invoices, let's keep it but ensure it's not a vendor name
+        operatorReferenceId: tx.providerRef || tx.providerRefId || tx.providerTxnId || null
       };
     });
 

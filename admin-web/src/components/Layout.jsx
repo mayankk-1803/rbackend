@@ -1,17 +1,48 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { AnimatePresence, motion } from 'framer-motion';
+import MasterKeyModal from './MasterKeyModal';
 
 export const Layout = () => {
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isMasterKeyModalOpen, setIsMasterKeyModalOpen] = useState(false);
+  const pendingRequestsRef = useRef([]);
 
   // Close sidebar on route change on mobile
   useEffect(() => {
     setIsSidebarOpen(false);
   }, [location.pathname]);
+
+  // Global Master Key challenge listener
+  useEffect(() => {
+    const handleTriggerPrompt = (e) => {
+      const { resolve, reject } = e.detail;
+      pendingRequestsRef.current.push({ resolve, reject });
+      setIsMasterKeyModalOpen(true);
+    };
+
+    window.addEventListener("TRIGGER_MASTER_KEY_PROMPT", handleTriggerPrompt);
+    return () => {
+      window.removeEventListener("TRIGGER_MASTER_KEY_PROMPT", handleTriggerPrompt);
+    };
+  }, []);
+
+  const handleMasterKeySuccess = (sessionToken) => {
+    const pending = pendingRequestsRef.current;
+    pendingRequestsRef.current = [];
+    pending.forEach(req => req.resolve(sessionToken));
+    setIsMasterKeyModalOpen(false);
+  };
+
+  const handleMasterKeyClose = () => {
+    const pending = pendingRequestsRef.current;
+    pendingRequestsRef.current = [];
+    pending.forEach(req => req.reject(new Error("Master Key authorization cancelled")));
+    setIsMasterKeyModalOpen(false);
+  };
 
   return (
     <div className="admin-shell flex h-screen bg-[var(--bg-color)] text-[var(--text-color)] transition-colors duration-200 relative overflow-hidden font-['Inter']">
@@ -36,6 +67,12 @@ export const Layout = () => {
           </div>
         </main>
       </div>
+
+      <MasterKeyModal
+        isOpen={isMasterKeyModalOpen}
+        onClose={handleMasterKeyClose}
+        onSuccess={handleMasterKeySuccess}
+      />
     </div>
   );
 };

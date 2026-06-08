@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { ShieldAlert, Zap, Radio, RefreshCw } from 'lucide-react';
+import api from '../../services/api';
+import MasterKeyModal from '../../components/MasterKeyModal';
 
 export const EmergencyRoutingControl = () => {
   const [overrides, setOverrides] = useState({});
@@ -8,19 +10,28 @@ export const EmergencyRoutingControl = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  const [isMasterKeyModalOpen, setIsMasterKeyModalOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
+
+  const handleCriticalAction = (actionCallback) => {
+    if (window.masterKeySession && window.masterKeySessionExpiry && window.masterKeySessionExpiry > Date.now()) {
+      actionCallback(window.masterKeySession);
+    } else {
+      setPendingAction(() => actionCallback);
+      setIsMasterKeyModalOpen(true);
+    }
+  };
+
   const fetchConfig = async () => {
     setLoading(true);
     try {
-      const token = sessionStorage.getItem('dizipay_admin_token');
-      const headers = { 'Authorization': `Bearer ${token}` };
-
       const [resOverrides, resProviders] = await Promise.all([
-        fetch('/api/admin/enterprise/routing/emergency', { headers }).then(r => r.json()),
-        fetch('/api/admin/enterprise/providers', { headers }).then(r => r.json())
+        api.get('/admin/enterprise/routing/emergency'),
+        api.get('/admin/enterprise/providers')
       ]);
 
-      if (resOverrides.success) setOverrides(resOverrides.data);
-      if (resProviders.success) setProviders(resProviders.data);
+      if (resOverrides.data?.success) setOverrides(resOverrides.data.data);
+      if (resProviders.data?.success) setProviders(resProviders.data.data);
     } catch (err) {
       toast.error('Failed to load emergency overrides settings');
     } finally {
@@ -32,53 +43,41 @@ export const EmergencyRoutingControl = () => {
     fetchConfig();
   }, []);
 
-  const handleUpdateOverride = async (field, value) => {
-    setSubmitting(true);
-    try {
-      const token = sessionStorage.getItem('dizipay_admin_token');
-      const payload = {
-        globalFreeze: field === 'globalFreeze' ? value : overrides.globalFreeze === 'true',
-        forcedProvider: field === 'forcedProvider' ? value : overrides.forcedProvider || ''
-      };
+  const handleUpdateOverride = (field, value) => {
+    handleCriticalAction(async () => {
+      setSubmitting(true);
+      try {
+        const payload = {
+          globalFreeze: field === 'globalFreeze' ? value : overrides.globalFreeze === 'true',
+          forcedProvider: field === 'forcedProvider' ? value : overrides.forcedProvider || ''
+        };
 
-      const response = await fetch('/api/admin/enterprise/routing/emergency', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
+        const response = await api.post('/admin/enterprise/routing/emergency', payload);
 
-      const res = await response.json();
-      if (res.success) {
-        toast.success('Emergency override configuration updated in Redis.');
-        setOverrides(res.data);
-      } else {
-        toast.error(res.message || 'Failed to update overrides');
+        if (response.data?.success) {
+          toast.success('Emergency override configuration updated in Redis.');
+          setOverrides(response.data.data);
+        } else {
+          toast.error(response.data?.message || 'Failed to update overrides');
+        }
+      } catch (err) {
+        toast.error(err.response?.data?.message || 'Error updating overrides');
+      } finally {
+        setSubmitting(false);
       }
-    } catch (err) {
-      toast.error('Error updating overrides');
-    } finally {
-      setSubmitting(false);
-    }
+    });
   };
 
   const handleRebuildCache = async () => {
     try {
-      const token = sessionStorage.getItem('dizipay_admin_token');
-      const response = await fetch('/api/admin/enterprise/routing/cache/rebuild', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const res = await response.json();
-      if (res.success) {
-        toast.success(res.message || 'Redis configurations sync completed.');
+      const response = await api.post('/admin/enterprise/routing/cache/rebuild');
+      if (response.data?.success) {
+        toast.success(response.data.message || 'Redis configurations sync completed.');
       } else {
-        toast.error(res.message || 'Cache rebuild failed.');
+        toast.error(response.data?.message || 'Cache rebuild failed.');
       }
     } catch (err) {
-      toast.error('Connection error rebuilding cache');
+      toast.error(err.response?.data?.message || 'Connection error rebuilding cache');
     }
   };
 
@@ -178,6 +177,14 @@ export const EmergencyRoutingControl = () => {
           </div>
         </div>
       </div>
+
+      <MasterKeyModal
+        isOpen={isMasterKeyModalOpen}
+        onClose={() => setIsMasterKeyModalOpen(false)}
+        onSuccess={(token) => {
+          if (pendingAction) pendingAction(token);
+        }}
+      />
     </div>
   );
 };

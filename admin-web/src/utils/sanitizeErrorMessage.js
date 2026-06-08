@@ -3,13 +3,36 @@ export function sanitizeErrorMessage(error, isSuccess = false) {
 
   const raw = typeof error === "string"
     ? error
-    : error?.response?.data?.message || error?.response?.data?.error || error?.response?.data?.msg || error?.message || "";
+    : error?.response?.data?.error || error?.response?.data?.message || error?.response?.data?.msg || error?.message || "";
 
   const message = String(raw).toLowerCase();
 
+  const code = error?.response?.data?.code || "";
+
+  if (code === "MASTER_KEY_REQUIRED") {
+    return "Master Key authorization required.";
+  }
+  if (code === "MASTER_KEY_EXPIRED") {
+    return "Master Key session expired.";
+  }
+  if (code === "MASTER_KEY_INVALID") {
+    return "Invalid Master Key.";
+  }
+
+  // Handle Master Key validation messages first to prevent them from being mapped to "Permission denied" or "Something went wrong"
+  if (message.includes("master key") || message.includes("masterkey")) {
+    if (message.includes("expired")) {
+      return "Master Key session expired.";
+    }
+    if (message.includes("invalid") || message.includes("failed")) {
+      return "Invalid Master Key.";
+    }
+    return "Master Key authorization required.";
+  }
+
   // 1. If it's a standard HTTP status error from the backend with an explicit message, return it directly
   if (error && typeof error !== "string" && error.response) {
-    const backendMessage = error.response.data?.message || error.response.data?.error || error.response.data?.msg;
+    const backendMessage = error.response.data?.error || error.response.data?.message || error.response.data?.msg;
     if (backendMessage) {
       return backendMessage;
     }

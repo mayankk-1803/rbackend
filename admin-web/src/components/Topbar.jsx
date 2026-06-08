@@ -11,6 +11,7 @@ export const Topbar = ({ toggleSidebar }) => {
   const [apiHealth, setApiHealth] = useState('HEALTHY'); // HEALTHY, DEGRADED, DOWN
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [sessionTimeLeft, setSessionTimeLeft] = useState(0);
   const [adminUser] = useState(() => {
     try {
       return JSON.parse(sessionStorage.getItem("dizipay_admin_data")) || {};
@@ -18,6 +19,27 @@ export const Topbar = ({ toggleSidebar }) => {
       return {};
     }
   });
+
+  // Track Master Key session in RAM
+  useEffect(() => {
+    const checkSession = () => {
+      const expiry = window.masterKeySessionExpiry;
+      const session = window.masterKeySession;
+      if (session && expiry && expiry > Date.now()) {
+        setSessionTimeLeft(Math.max(0, Math.ceil((expiry - Date.now()) / 1000)));
+      } else {
+        if (window.masterKeySession) {
+          window.masterKeySession = null;
+          window.masterKeySessionExpiry = null;
+        }
+        setSessionTimeLeft(0);
+      }
+    };
+
+    checkSession();
+    const interval = setInterval(checkSession, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Fetch admin wallet balance
   const fetchWallet = async () => {
@@ -110,6 +132,15 @@ export const Topbar = ({ toggleSidebar }) => {
             {adminUser.role === 'SUPER_ADMIN' ? 'Super Admin' : 'Root Admin'}
           </span>
         </div>
+
+        {sessionTimeLeft > 0 && (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-xl animate-pulse">
+            <Shield className="w-3.5 h-3.5 text-rose-500" />
+            <span className="text-[9px] font-bold uppercase tracking-wider">
+              Master Key Active: {Math.floor(sessionTimeLeft / 60)}:{String(sessionTimeLeft % 60).padStart(2, '0')}
+            </span>
+          </div>
+        )}
 
         {/* Notifications Dropdown */}
         <div className="relative">

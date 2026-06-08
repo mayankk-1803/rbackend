@@ -10,6 +10,7 @@ import eventBus from "../config/eventBus.js";
 import { claimIdempotencyKey } from "../utils/idempotency.js";
 import { recordReconciliationLatency } from "./webhookMonitoringService.js";
 import { isFinalizedStatus, isValidStatusTransition } from "../utils/transactionStateGuard.js";
+import { isValidOperatorRef } from "../utils/validators.js";
 
 // In-memory lock to prevent overlapping reconciliation runs
 let isReconciling = false;
@@ -239,6 +240,22 @@ export async function handleSuccessfulSync(txn, response) {
       return;
     }
 
+    const responseRef = response.operatorTxnId || response.providerTxnId;
+    const hasExistingValidRef = isValidOperatorRef(lockedTxn.providerRef, lockedTxn);
+    const isNewRefValid = isValidOperatorRef(responseRef, lockedTxn);
+    let finalProviderRef = lockedTxn.providerRef;
+    if (!hasExistingValidRef && isNewRefValid) {
+      finalProviderRef = responseRef;
+    }
+
+    let updatedSnapshot = lockedTxn.invoiceSnapshot;
+    if (updatedSnapshot && typeof updatedSnapshot === 'object') {
+      updatedSnapshot = {
+        ...updatedSnapshot,
+        providerRef: finalProviderRef || updatedSnapshot.providerRef || null
+      };
+    }
+
     const updateResult = await tx.transaction.updateMany({
       where: {
         id: txn.id,
@@ -246,7 +263,9 @@ export async function handleSuccessfulSync(txn, response) {
       },
       data: { 
         status: 'SUCCESS',
-        providerTxnId: response.operatorTxnId || txn.providerTxnId
+        providerTxnId: finalProviderRef || responseRef || lockedTxn.providerTxnId,
+        providerRef: finalProviderRef || null,
+        invoiceSnapshot: updatedSnapshot || undefined
       }
     });
 

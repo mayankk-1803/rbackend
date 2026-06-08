@@ -1,6 +1,7 @@
 import express from "express";
 import { auth } from "../middlewares/auth.js";
 import { isAdmin } from "../middlewares/admin.js";
+import { masterKeySessionMiddleware } from "../middlewares/masterKeySessionMiddleware.js";
 import {
   upload,
   uploadImages,
@@ -47,15 +48,15 @@ router.get("/orders", auth, getUserOrders);
 // the auth middleware will verify they are accessed with ADMIN_PANEL tokenType.
 router.post("/admin/upload", auth, isAdmin, upload.array("images", 10), uploadImages);
 
-router.post("/admin/categories", auth, isAdmin, createCategory);
-router.put("/admin/categories/:id", auth, isAdmin, updateCategory);
-router.delete("/admin/categories/:id", auth, isAdmin, deleteCategory);
+router.post("/admin/categories", auth, isAdmin, masterKeySessionMiddleware, createCategory);
+router.put("/admin/categories/:id", auth, isAdmin, masterKeySessionMiddleware, updateCategory);
+router.delete("/admin/categories/:id", auth, isAdmin, masterKeySessionMiddleware, deleteCategory);
 
-router.post("/admin/products", auth, isAdmin, createProduct);
-router.put("/admin/products/:id", auth, isAdmin, updateProduct);
-router.delete("/admin/products/:id", auth, isAdmin, deleteProduct);
+router.post("/admin/products", auth, isAdmin, masterKeySessionMiddleware, createProduct);
+router.put("/admin/products/:id", auth, isAdmin, masterKeySessionMiddleware, updateProduct);
+router.delete("/admin/products/:id", auth, isAdmin, masterKeySessionMiddleware, deleteProduct);
 
 router.get("/admin/orders", auth, isAdmin, getAdminOrders);
-router.put("/admin/orders/:id/status", auth, isAdmin, updateOrderStatus);
+router.put("/admin/orders/:id/status", auth, isAdmin, masterKeySessionMiddleware, updateOrderStatus);
 
 export default router;

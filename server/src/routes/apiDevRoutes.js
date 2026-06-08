@@ -78,6 +78,7 @@ router.get("/status/:id", async (req, res) => {
     
     // Sandbox Mock Response
     if (req.isSandbox || isNaN(Number(txnIdStr))) {
+      const sandboxTxnId = `SANDBOX_${Math.floor(100000 + Math.random() * 900000)}`;
       return res.json({
         success: true,
         data: {
@@ -87,7 +88,8 @@ router.get("/status/:id", async (req, res) => {
           operator: "JIO",
           status: "SUCCESS",
           provider: "SANDBOX_MOCK",
-          providerTxnId: `SANDBOX_${Math.floor(100000 + Math.random() * 900000)}`,
+          providerTxnId: sandboxTxnId,
+          operatorReferenceId: "SANDBOX_123456789012",
           createdAt: new Date()
         }
       });
@@ -106,12 +108,20 @@ router.get("/status/:id", async (req, res) => {
         status: true,
         provider: true,
         providerTxnId: true,
+        providerRef: true,
+        providerRefId: true,
         createdAt: true
       }
     });
       
     if (!txn) return res.status(404).json({ success: false, message: "Transaction not found" });
-    res.json({ success: true, data: txn });
+    
+    const responseData = {
+      ...txn,
+      operatorReferenceId: txn.providerRef || txn.providerRefId || txn.providerTxnId || null
+    };
+
+    res.json({ success: true, data: responseData });
   } catch (err) {
     res.status(500).json({ success: false, message: "Server error" });
   }

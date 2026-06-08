@@ -111,14 +111,24 @@ router.get("/transactions", async (req, res) => {
         processedAt: true,
         retryCount: true,
         reviewStatus: true,
-        invoiceSnapshot: true
+        invoiceSnapshot: true,
+        providerTxnId: true,
+        providerRef: true,
+        providerRefId: true
       }
+    });
+
+    const mappedTransactions = transactions.map(tx => {
+      return {
+        ...tx,
+        operatorReferenceId: tx.providerRef || tx.providerRefId || tx.providerTxnId || null
+      };
     });
 
     res.json({
       success: true,
       message: "Transactions fetched",
-      data: transactions
+      data: mappedTransactions
     });
   } catch (err) {
     res.status(500).json({

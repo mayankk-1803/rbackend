@@ -3,6 +3,7 @@ import api from "../services/api";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import ProvidersManager from "../components/providers/ProvidersManager";
+import MasterKeyModal from "../components/MasterKeyModal";
 import {
   Activity,
   Layers,
@@ -43,6 +44,11 @@ export const ControlCenter = () => {
   const [showCsvImport, setShowCsvImport] = useState(false);
 
   const [activeTab, setActiveTab] = useState("providers");
+  const [securityStatus, setSecurityStatus] = useState({ enabled: false, lastSuccess: null, lastFailure: null, lastDenied: null, recentEvents: [] });
+  const [superAdmins, setSuperAdmins] = useState([]);
+  const [newSuperAdminForm, setNewSuperAdminForm] = useState({ name: "", email: "", phone: "", password: "" });
+  const [isMasterKeyModalOpen, setIsMasterKeyModalOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
   const [providers, setProviders] = useState([]);
   const [operatorMappings, setOperatorMappings] = useState([]);
   const [routingRules, setRoutingRules] = useState([]);
@@ -53,9 +59,8 @@ export const ControlCenter = () => {
   const [loading, setLoading] = useState(true);
 
   const fetchData = async () => {
-    setLoading(true);
     try {
-      const [provRes, mapRes, ruleRes, tempRes, logsRes, telRes, decLogsRes, opsRes] = await Promise.all([
+      const [provRes, mapRes, ruleRes, tempRes, logsRes, telRes, decLogsRes, opsRes, secRes, superRes] = await Promise.all([
         api.get("/admin/enterprise/providers").catch(() => ({ data: { data: [] } })),
         api.get("/admin/enterprise/operators/mappings").catch(() => ({ data: { data: [] } })),
         api.get("/admin/enterprise/routing/rules").catch(() => ({ data: { data: [] } })),
@@ -63,7 +68,9 @@ export const ControlCenter = () => {
         api.get("/admin/enterprise/whatsapp/logs").catch(() => ({ data: { data: [] } })),
         api.get("/admin/enterprise/telemetry").catch(() => ({ data: { data: { healthLogs: [], decisionLogs: [], queueStatus: {}, featureFlags: {} } } })),
         api.get("/admin/enterprise/routing/logs").catch(() => ({ data: { data: [] } })),
-        api.get("/admin/enterprise/operators").catch(() => ({ data: { data: [] } }))
+        api.get("/admin/enterprise/operators").catch(() => ({ data: { data: [] } })),
+        api.get("/admin/enterprise/security/master-key-status").catch(() => ({ data: { data: { enabled: false, lastSuccess: null, lastFailure: null, lastDenied: null, recentEvents: [] } } })),
+        api.get("/admin/security/super-admins").catch(() => ({ data: { data: [] } }))
       ]);
 
       setProviders(provRes.data?.data || []);
@@ -74,6 +81,8 @@ export const ControlCenter = () => {
       setTelemetry(telRes.data?.data || { healthLogs: [], decisionLogs: [], queueStatus: {}, featureFlags: {} });
       setRoutingDecisionLogs(decLogsRes.data?.data || []);
       setOperators(opsRes.data?.data || []);
+      setSecurityStatus(secRes.data?.data || { enabled: false, lastSuccess: null, lastFailure: null, lastDenied: null, recentEvents: [] });
+      setSuperAdmins(superRes.data?.data || []);
     } catch (err) {
       console.error(err);
       toast.error("Failed to load control center configurations");
@@ -240,20 +249,58 @@ export const ControlCenter = () => {
     }
   };
 
-  const handleExportCSV = async () => {
-    try {
-      const response = await api.get("/admin/enterprise/operators/export", { responseType: "blob" });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "operators_registry.csv");
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      toast.success("Operators exported successfully!");
-    } catch (err) {
-      toast.error("Failed to export operators CSV");
+  const handleExportCSV = () => {
+    handleCriticalAction(async () => {
+      try {
+        const response = await api.get("/admin/enterprise/operators/export", { responseType: "blob" });
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", "operators_registry.csv");
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        toast.success("Operators exported successfully!");
+      } catch (err) {
+        toast.error("Failed to export operators CSV");
+      }
+    });
+  };
+
+  const handleCriticalAction = (actionCallback) => {
+    if (window.masterKeySession && window.masterKeySessionExpiry && window.masterKeySessionExpiry > Date.now()) {
+      actionCallback(window.masterKeySession);
+    } else {
+      setPendingAction(() => actionCallback);
+      setIsMasterKeyModalOpen(true);
     }
+  };
+
+  const handleCreateSuperAdmin = (e) => {
+    e.preventDefault();
+    handleCriticalAction(async () => {
+      try {
+        await api.post("/admin/security/super-admin", newSuperAdminForm);
+        toast.success("Super Admin created successfully!");
+        setNewSuperAdminForm({ name: "", email: "", phone: "", password: "" });
+        fetchData();
+      } catch (err) {
+        toast.error(err.response?.data?.message || "Failed to create Super Admin");
+      }
+    });
+  };
+
+  const handleDeleteSuperAdmin = (id) => {
+    if (!window.confirm("Are you sure you want to delete this Super Admin?")) return;
+    handleCriticalAction(async () => {
+      try {
+        await api.delete(`/admin/security/super-admin/${id}`);
+        toast.success("Super Admin deleted successfully!");
+        fetchData();
+      } catch (err) {
+        toast.error(err.response?.data?.message || "Failed to delete Super Admin");
+      }
+    });
   };
 
   // Enterprise Telemetry Classification Thresholds
@@ -282,6 +329,176 @@ export const ControlCenter = () => {
 
   const renderProviders = () => (
     <ProvidersManager />
+  );
+
+  const renderSecurity = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left column - Master Key Status & Activity */}
+        <div className="space-y-6">
+          <div className="bg-[var(--card-bg)] p-6 rounded-xl border border-[var(--border-soft)] shadow-soft">
+            <h3 className="text-sm font-bold text-[var(--text-primary)] mb-4 flex items-center gap-1.5">
+              <Shield className="w-4 h-4 text-rose-500" /> Master Key Status
+            </h3>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center py-2 border-b border-[var(--border-soft)]">
+                <span className="text-xs text-[var(--text-secondary)] font-semibold">Framework Mode</span>
+                <span className={`px-2.5 py-0.5 rounded text-[10px] font-black uppercase ${securityStatus.enabled ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border border-rose-500/20"}`}>
+                  {securityStatus.enabled ? "Active / Enabled" : "Disabled / Inactive"}
+                </span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-[var(--border-soft)]">
+                <span className="text-xs text-[var(--text-secondary)] font-semibold">Last Success</span>
+                <span className="text-xs font-mono text-[var(--text-primary)]">
+                  {securityStatus.lastSuccess ? new Date(securityStatus.lastSuccess).toLocaleString() : "Never"}
+                </span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-[var(--border-soft)]">
+                <span className="text-xs text-[var(--text-secondary)] font-semibold">Last Failure</span>
+                <span className="text-xs font-mono text-[var(--text-primary)]">
+                  {securityStatus.lastFailure ? new Date(securityStatus.lastFailure).toLocaleString() : "Never"}
+                </span>
+              </div>
+              <div className="flex justify-between items-center py-2">
+                <span className="text-xs text-[var(--text-secondary)] font-semibold">Last Denied</span>
+                <span className="text-xs font-mono text-[var(--text-primary)]">
+                  {securityStatus.lastDenied ? new Date(securityStatus.lastDenied).toLocaleString() : "Never"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-[var(--card-bg)] p-6 rounded-xl border border-[var(--border-soft)] shadow-soft">
+            <h3 className="text-sm font-bold text-[var(--text-primary)] mb-4">
+              Recent Master Key Events
+            </h3>
+            <div className="flow-root">
+              <ul className="-mb-8">
+                {securityStatus.recentEvents?.map((event, idx) => (
+                  <li key={event.id}>
+                    <div className="relative pb-8">
+                      {idx !== securityStatus.recentEvents.length - 1 && (
+                        <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-[var(--border-soft)]" aria-hidden="true" />
+                      )}
+                      <div className="relative flex space-x-3">
+                        <div>
+                          <span className={`h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-[var(--card-bg)] ${
+                            event.action === "MASTER_KEY_USED" ? "bg-emerald-500/10 text-emerald-500" :
+                            event.action === "MASTER_KEY_FAILED" ? "bg-rose-500/10 text-rose-500" : "bg-amber-500/10 text-amber-500"
+                          }`}>
+                            <Shield className="w-4 h-4" />
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0 pt-1.5 flex justify-between space-x-4">
+                          <div>
+                            <p className="text-xs font-bold text-[var(--text-primary)]">{event.action.replace("MASTER_KEY_", "")}</p>
+                            <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">By: {event.admin?.email || "System"}</p>
+                          </div>
+                          <div className="text-right text-[10px] whitespace-nowrap text-[var(--text-muted)] font-mono">
+                            {new Date(event.createdAt).toLocaleTimeString()}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+                {(!securityStatus.recentEvents || securityStatus.recentEvents.length === 0) && (
+                  <div className="text-center py-6 text-xs text-[var(--text-muted)] uppercase tracking-wider">No recent events logged</div>
+                )}
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {/* Right columns - Super Admin CRUD and User list */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-[var(--card-bg)] p-6 rounded-xl border border-[var(--border-soft)] shadow-soft">
+            <h3 className="text-sm font-bold text-[var(--text-primary)] mb-4 flex items-center gap-1.5">
+              Super Admin Management
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Form to create */}
+              <div className="bg-[var(--bg-secondary)]/50 p-5 rounded-xl border border-[var(--border-soft)]">
+                <h4 className="text-xs font-bold text-[var(--text-primary)] mb-4 uppercase tracking-wider">Register New Super Admin</h4>
+                <form onSubmit={handleCreateSuperAdmin} className="space-y-4">
+                  <div>
+                    <label className="text-[10px] text-[var(--text-secondary)] font-bold uppercase block mb-1">Name</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Maya Devi"
+                      value={newSuperAdminForm.name}
+                      onChange={(e) => setNewSuperAdminForm({ ...newSuperAdminForm, name: e.target.value })}
+                      className="w-full text-xs bg-[var(--card-bg)] border border-[var(--border-soft)] rounded-lg p-2.5 text-[var(--text-primary)] outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-[var(--text-secondary)] font-bold uppercase block mb-1">Email Address</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="e.g. maya@dizipay.in"
+                      value={newSuperAdminForm.email}
+                      onChange={(e) => setNewSuperAdminForm({ ...newSuperAdminForm, email: e.target.value })}
+                      className="w-full text-xs bg-[var(--card-bg)] border border-[var(--border-soft)] rounded-lg p-2.5 text-[var(--text-primary)] outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-[var(--text-secondary)] font-bold uppercase block mb-1">Phone Number</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 9876543210"
+                      value={newSuperAdminForm.phone}
+                      onChange={(e) => setNewSuperAdminForm({ ...newSuperAdminForm, phone: e.target.value })}
+                      className="w-full text-xs bg-[var(--card-bg)] border border-[var(--border-soft)] rounded-lg p-2.5 text-[var(--text-primary)] outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-[var(--text-secondary)] font-bold uppercase block mb-1">Login Password</label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="Enter secure password"
+                      value={newSuperAdminForm.password}
+                      onChange={(e) => setNewSuperAdminForm({ ...newSuperAdminForm, password: e.target.value })}
+                      className="w-full text-xs bg-[var(--card-bg)] border border-[var(--border-soft)] rounded-lg p-2.5 text-[var(--text-primary)] outline-none"
+                    />
+                  </div>
+                  <button type="submit" className="w-full bg-[var(--color-primary)] text-[var(--bg-primary)] py-2 rounded-lg text-xs font-bold uppercase tracking-wider">
+                    Register Super Admin
+                  </button>
+                </form>
+              </div>
+
+              {/* List existing */}
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Active Super Admins</h4>
+                <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+                  {superAdmins.map((admin) => (
+                    <div key={admin.id} className="p-3 bg-[var(--bg-secondary)]/30 border border-[var(--border-soft)] rounded-xl flex justify-between items-center gap-3">
+                      <div>
+                        <div className="font-bold text-xs text-[var(--text-primary)]">{admin.name || "Super Admin"}</div>
+                        <div className="text-[10px] text-[var(--text-secondary)] mt-0.5">{admin.email}</div>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteSuperAdmin(admin.id)}
+                        className="p-2 hover:bg-rose-500/10 text-rose-400 hover:text-rose-500 rounded-lg transition-all cursor-pointer"
+                        title="Delete Super Admin"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  {superAdmins.length === 0 && (
+                    <div className="text-center py-12 text-xs text-[var(--text-muted)] uppercase tracking-wider">No Super Admin records found</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 
   const renderOperators = () => (
@@ -971,7 +1188,8 @@ export const ControlCenter = () => {
           { id: "operators", label: "Operator Codes", icon: Smartphone },
           { id: "routing", label: "Shadow Routing", icon: Sliders },
           { id: "telemetry", label: "Health & Telemetry", icon: Activity },
-          { id: "whatsapp", label: "WhatsApp Automations", icon: Send }
+          { id: "whatsapp", label: "WhatsApp Automations", icon: Send },
+          { id: "security", label: "Security Center", icon: Shield }
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -1010,10 +1228,19 @@ export const ControlCenter = () => {
               {activeTab === "routing" && renderRouting()}
               {activeTab === "telemetry" && renderTelemetry()}
               {activeTab === "whatsapp" && renderWhatsapp()}
+              {activeTab === "security" && renderSecurity()}
             </motion.div>
           </AnimatePresence>
         )}
       </div>
+
+      <MasterKeyModal
+        isOpen={isMasterKeyModalOpen}
+        onClose={() => setIsMasterKeyModalOpen(false)}
+        onSuccess={(token) => {
+          if (pendingAction) pendingAction(token);
+        }}
+      />
     </motion.div>
   );
 };

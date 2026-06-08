@@ -1,7 +1,6 @@
 import React, { useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Printer, Download, Smartphone, CheckCircle2, ShieldCheck, Clock, AlertCircle } from 'lucide-react';
-import html2pdf from 'html2pdf.js';
 import { formatAmount } from '../utils/helpers';
 import toast from 'react-hot-toast';
 
@@ -103,7 +102,7 @@ const PrintableAdminInvoice = React.forwardRef(({ transaction, snapshot, display
           </p>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <p style={{ fontSize: '10px', fontWeight: '900', color: '#0f172a', marginBottom: '4px' }}>TELEMETRY REFERENCE</p>
+          <p style={{ fontSize: '10px', fontWeight: '900', color: '#0f172a', marginBottom: '4px' }}>Operator Reference ID</p>
           <p style={{ fontSize: '10px', color: '#94a3b8', fontFamily: 'monospace', wordBreak: 'break-all' }}>{displayRef}</p>
         </div>
       </div>
@@ -122,7 +121,53 @@ export const InvoiceModal = ({ isOpen, onClose, transaction }) => {
   const displayOperator = snapshot.operator || transaction.operator;
   const displayMobile = snapshot.mobile || transaction.mobile;
   const displayAmount = snapshot.amount || transaction.amount;
-  const displayRef = snapshot.providerRef || transaction.providerRef || 'PENDING_RECONCILIATION';
+
+  const getOperatorRef = () => {
+    const candidates = [
+      transaction.operatorReferenceId,
+      snapshot.providerRef,
+      transaction.providerRef,
+      transaction.providerRefId,
+      transaction.providerTxnId
+    ];
+    for (const val of candidates) {
+      if (val === null || val === undefined) continue;
+      const strVal = String(val).trim();
+      if (strVal === "") continue;
+      
+      const upperVal = strVal.toUpperCase();
+      const invalidPlaceholders = [
+        "PENDING",
+        "PENDING_RECONCILIATION",
+        "TEST_OP_ID",
+        "TEST_REF",
+        "OP_SUCCESS",
+        "UNKNOWN",
+        "N/A",
+        "NULL",
+        "UNDEFINED"
+      ];
+      if (invalidPlaceholders.includes(upperVal)) continue;
+      if (
+        upperVal.startsWith("TEST_OP_ID") ||
+        upperVal.startsWith("OP_SUCCESS") ||
+        upperVal.startsWith("OP_FAIL") ||
+        upperVal.startsWith("OP_FAKE") ||
+        upperVal.startsWith("RECON_") ||
+        upperVal.startsWith("NEXGATE_")
+      ) {
+        continue;
+      }
+      if (transaction.id && strVal === String(transaction.id)) continue;
+      if (transaction.paymentId && strVal === String(transaction.paymentId)) continue;
+      if (transaction.orderId && strVal === String(transaction.orderId)) continue;
+      
+      return strVal;
+    }
+    return "Pending Operator Assignment";
+  };
+
+  const displayRef = getOperatorRef();
   const displayDate = snapshot.timestamp || transaction.createdAt;
 
   const handleDownload = async () => {
@@ -150,6 +195,7 @@ export const InvoiceModal = ({ isOpen, onClose, transaction }) => {
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
       
+      const html2pdf = (await import('html2pdf.js')).default;
       await html2pdf().set(opt).from(element).save();
       toast.success("Receipt downloaded", { id: toastId });
     } catch (error) {
@@ -269,7 +315,7 @@ export const InvoiceModal = ({ isOpen, onClose, transaction }) => {
                       <span className="text-lg font-black text-[var(--text-primary)]">₹{formatAmount(displayAmount)}</span>
                     </div>
                     <div className="flex justify-between items-center pt-4 border-t border-[var(--border-soft)]">
-                      <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Audit Ref</span>
+                      <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Operator Reference ID</span>
                       <span className="text-[10px] font-mono font-bold text-[var(--text-secondary)] truncate max-w-[150px]">{displayRef}</span>
                     </div>
                   </div>

@@ -12,6 +12,7 @@ import {
   recordServerError
 } from "../services/webhookMonitoringService.js";
 import { isFinalizedStatus, isValidStatusTransition } from "../utils/transactionStateGuard.js";
+import { isValidOperatorRef } from "../utils/validators.js";
 
 const PROCESSABLE_STATUSES = ["PENDING", "PENDING_REVIEW", "PROCESSING"];
 
@@ -229,6 +230,21 @@ export const handleApiboxCallback = async (req, res) => {
       let updatedTxn;
 
       if (finalStatus === "SUCCESS") {
+        const hasExistingValidRef = isValidOperatorRef(lockedTxn.providerRef, lockedTxn);
+        const isNewRefValid = isValidOperatorRef(providerTxId, lockedTxn);
+        let finalProviderRef = lockedTxn.providerRef;
+        if (!hasExistingValidRef && isNewRefValid) {
+          finalProviderRef = providerTxId;
+        }
+
+        let updatedSnapshot = lockedTxn.invoiceSnapshot;
+        if (updatedSnapshot && typeof updatedSnapshot === 'object') {
+          updatedSnapshot = {
+            ...updatedSnapshot,
+            providerRef: finalProviderRef || updatedSnapshot.providerRef || null
+          };
+        }
+
         const updateResult = await tx.transaction.updateMany({
           where: {
             id: txn.id,
@@ -236,7 +252,9 @@ export const handleApiboxCallback = async (req, res) => {
           },
           data: {
             status: 'SUCCESS',
-            providerTxnId: providerTxId || txn.providerTxnId,
+            providerTxnId: finalProviderRef || providerTxId || lockedTxn.providerTxnId,
+            providerRef: finalProviderRef || null,
+            invoiceSnapshot: updatedSnapshot || undefined,
             apiResponse: mergedResponse,
             processedAt: new Date()
           }
@@ -295,6 +313,13 @@ export const handleApiboxCallback = async (req, res) => {
           return { updatedTxn: lockedTxn, updatedWallet: null, alreadyProcessed: true };
         }
 
+        const hasExistingValidRef = isValidOperatorRef(lockedTxn.providerRef, lockedTxn);
+        const isNewRefValid = isValidOperatorRef(providerTxId, lockedTxn);
+        let finalProviderRef = lockedTxn.providerRef;
+        if (!hasExistingValidRef && isNewRefValid) {
+          finalProviderRef = providerTxId;
+        }
+
         // Step 1: transition to FAILED
         const updateFailed = await tx.transaction.updateMany({
           where: {
@@ -303,7 +328,8 @@ export const handleApiboxCallback = async (req, res) => {
           },
           data: {
             status: 'FAILED',
-            providerTxnId: providerTxId || txn.providerTxnId,
+            providerTxnId: finalProviderRef || providerTxId || lockedTxn.providerTxnId,
+            providerRef: finalProviderRef || null,
             apiResponse: mergedResponse
           }
         });

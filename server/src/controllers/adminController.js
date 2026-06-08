@@ -4,6 +4,7 @@ import { addRechargeJob } from "../services/queueService.js";
 import { compareProviders } from "../services/compareService.js";
 import { recordFinancialEntry } from "../services/ledgerService.js";
 import { logAction, AUDIT_ACTIONS } from "../services/auditService.js";
+import { logMasterKeyAction } from "../services/masterKeyAuditService.js";
 import { Prisma } from "@prisma/client";
 import eventBus from "../config/eventBus.js";
 import { logTransactionEvent, TXN_EVENTS } from "../services/transactionEventService.js";
@@ -278,6 +279,9 @@ export const getSingleUser = async (req, res) => {
 };
 
 export const toggleUserStatus = async (req, res) => {
+  // Set flag to tell masterKeySessionMiddleware to skip its default generic audit log for this request
+  req.skipMasterKeyMiddlewareLog = true;
+
   try {
     const targetUserId = parseInt(req.params.id);
     const { isActive } = req.body;
@@ -296,7 +300,7 @@ export const toggleUserStatus = async (req, res) => {
 
     const targetUser = await prisma.user.findUnique({
       where: { id: targetUserId },
-      select: { id: true, role: true }
+      select: { id: true, role: true, isActive: true, name: true }
     });
 
     if (!targetUser) {
@@ -326,13 +330,31 @@ export const toggleUserStatus = async (req, res) => {
       }
     });
 
+    // Create audit log: USER_STATUS_CHANGED
     await logAction({
-      action: isActive ? AUDIT_ACTIONS.USER_ACTIVATE || "USER_ACTIVATE" : AUDIT_ACTIONS.USER_DEACTIVATE || "USER_DEACTIVATE",
+      action: "USER_STATUS_CHANGED",
       adminId: req.user.id,
       userId: targetUserId,
       entity: "user",
-      details: { isActive },
+      details: {
+        adminId: String(req.user.id),
+        targetUserId: String(targetUserId),
+        targetUserName: updatedUser.name || targetUser.name || "N/A",
+        previousStatus: targetUser.isActive,
+        newStatus: isActive,
+        masterKeyProtected: true,
+        timestamp: new Date().toISOString(),
+        ipAddress: req.ip || req.headers['x-forwarded-for'] || "N/A",
+        userAgent: req.headers['user-agent'] || "N/A"
+      },
       req
+    });
+
+    // Create audit log: MASTER_KEY_USED
+    await logMasterKeyAction(req.user?.id, "MASTER_KEY_USED", req, {
+      action: "USER_STATUS_CHANGE",
+      targetUserId: String(targetUserId),
+      targetUserName: updatedUser.name || targetUser.name || "N/A"
     });
 
     res.json({
@@ -1836,6 +1858,77 @@ export const downloadApiDocs = async (req, res) => {
     const fileStream = fs.createReadStream(pdfPath);
     fileStream.pipe(res);
   } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const getApiDocsRegistry = async (req, res) => {
+  try {
+    const registryPath = path.join(process.cwd(), "src", "config", "apiDocsRegistry.json");
+    const registryData = await fs.promises.readFile(registryPath, "utf8");
+    const registry = JSON.parse(registryData);
+
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ success: false, message: "Unauthorized request" });
+    }
+
+    // 1. SUPER_ADMIN gets full access
+    if (user.role === "SUPER_ADMIN") {
+      return res.json({ success: true, ...registry });
+    }
+
+    // 2. ADMIN gets developer APIs + permitted admin APIs based on DB RolePermission matrix
+    if (user.role === "ADMIN") {
+      const permissions = await prisma.rolePermission.findMany({
+        where: { role: user.role }
+      });
+      const allowedModules = new Set(
+        permissions.filter(p => p.canRead).map(p => p.module)
+      );
+
+      const filteredGroups = registry.groups.map(group => {
+        const filteredEndpoints = group.endpoints.filter(ep => {
+          if (ep.isDeveloper) return true;
+          if (ep.module) {
+            return allowedModules.has(ep.module);
+          }
+          return false;
+        });
+
+        return { ...group, endpoints: filteredEndpoints };
+      }).filter(group => group.endpoints.length > 0);
+
+      return res.json({
+        success: true,
+        version: registry.version,
+        environment: registry.environment,
+        baseUrl: registry.baseUrl,
+        postmanUrl: registry.postmanUrl,
+        contact: registry.contact,
+        authentication: registry.authentication,
+        groups: filteredGroups
+      });
+    }
+
+    // 3. Retailer / Developer / API User gets only developer endpoints
+    const filteredGroups = registry.groups.map(group => {
+      const filteredEndpoints = group.endpoints.filter(ep => ep.isDeveloper);
+      return { ...group, endpoints: filteredEndpoints };
+    }).filter(group => group.endpoints.length > 0);
+
+    return res.json({
+      success: true,
+      version: registry.version,
+      environment: registry.environment,
+      baseUrl: registry.baseUrl,
+      postmanUrl: registry.postmanUrl,
+      contact: registry.contact,
+      authentication: registry.authentication,
+      groups: filteredGroups
+    });
+  } catch (err) {
+    console.error("[Registry Controller Error]:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };

@@ -102,7 +102,7 @@ const PrintableInvoice = React.forwardRef(({ transaction, snapshot, displayDate,
           </p>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <p style={{ fontSize: '10px', fontWeight: '900', color: '#0f172a', marginBottom: '4px' }}>PROVIDER REFERENCE</p>
+          <p style={{ fontSize: '10px', fontWeight: '900', color: '#0f172a', marginBottom: '4px' }}>OPERATOR REFERENCE ID</p>
           <p style={{ fontSize: '10px', color: '#94a3b8', fontFamily: 'monospace', wordBreak: 'break-all' }}>{displayRef}</p>
         </div>
       </div>
@@ -121,7 +121,53 @@ export const InvoiceModal = ({ isOpen, onClose, transaction }) => {
   const displayOperator = snapshot.operator || transaction.operator;
   const displayMobile = snapshot.mobile || transaction.mobile;
   const displayAmount = snapshot.amount || transaction.amount;
-  const displayRef = snapshot.providerRef || transaction.providerRef || 'PENDING';
+
+  const getOperatorRef = () => {
+    const candidates = [
+      transaction.operatorReferenceId,
+      snapshot.providerRef,
+      transaction.providerRef,
+      transaction.providerRefId,
+      transaction.providerTxnId
+    ];
+    for (const val of candidates) {
+      if (val === null || val === undefined) continue;
+      const strVal = String(val).trim();
+      if (strVal === "") continue;
+      
+      const upperVal = strVal.toUpperCase();
+      const invalidPlaceholders = [
+        "PENDING",
+        "PENDING_RECONCILIATION",
+        "TEST_OP_ID",
+        "TEST_REF",
+        "OP_SUCCESS",
+        "UNKNOWN",
+        "N/A",
+        "NULL",
+        "UNDEFINED"
+      ];
+      if (invalidPlaceholders.includes(upperVal)) continue;
+      if (
+        upperVal.startsWith("TEST_OP_ID") ||
+        upperVal.startsWith("OP_SUCCESS") ||
+        upperVal.startsWith("OP_FAIL") ||
+        upperVal.startsWith("OP_FAKE") ||
+        upperVal.startsWith("RECON_") ||
+        upperVal.startsWith("NEXGATE_")
+      ) {
+        continue;
+      }
+      if (transaction.id && strVal === String(transaction.id)) continue;
+      if (transaction.paymentId && strVal === String(transaction.paymentId)) continue;
+      if (transaction.orderId && strVal === String(transaction.orderId)) continue;
+      
+      return strVal;
+    }
+    return "Pending Operator Assignment";
+  };
+
+  const displayRef = getOperatorRef();
   const displayDate = snapshot.timestamp || transaction.createdAt;
 
   const handleDownload = async () => {
@@ -276,7 +322,7 @@ export const InvoiceModal = ({ isOpen, onClose, transaction }) => {
                       </div>
                     )}
                     <div className="flex justify-between items-center pt-4 border-t border-[var(--glass-border)]">
-                      <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Operator Ref</span>
+                      <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Operator Reference ID</span>
                       <span className="text-[10px] font-mono font-bold text-[var(--text-secondary)] truncate max-w-[150px]">{displayRef}</span>
                     </div>
                   </div>

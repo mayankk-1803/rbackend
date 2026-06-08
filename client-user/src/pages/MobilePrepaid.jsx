@@ -466,7 +466,11 @@ export default function MobilePrepaid() {
             const codeMatch = dbActiveCodes.includes(String(meta.code));
             return nameMatch || codeMatch;
           });
-          setActiveOperatorOptions(filtered);
+          if (filtered.length > 0) {
+            setActiveOperatorOptions(filtered);
+          } else {
+            setActiveOperatorOptions(PREPAID_OPERATOR_OPTIONS);
+          }
         }
       } catch (err) {
         console.error("Failed to load active operators", err);
@@ -561,6 +565,8 @@ export default function MobilePrepaid() {
   // Debounced Auto-Detection & Live Plan Fetching
   useEffect(() => {
     if (number.length === 10 && /^[6-9]\d{9}$/.test(number)) {
+      setPlansData({});
+      setActiveTab("popular");
       const timer = setTimeout(async () => {
         if (detectionRequestRef.current.controller) {
           detectionRequestRef.current.controller.abort();
@@ -634,6 +640,7 @@ export default function MobilePrepaid() {
         if (planRequestRef.current.controller) planRequestRef.current.controller.abort();
         if (detectionRequestRef.current.controller) detectionRequestRef.current.controller.abort();
         setPlansData({});
+        setActiveTab("popular");
         setDetectedCircle('');
         setDetectedCircleCode('');
         setSelectedOperator('');
@@ -666,6 +673,7 @@ export default function MobilePrepaid() {
     setIsManualOverride(true);
     setShowOperatorSelector(false);
     setPlansData({});
+    setActiveTab("popular");
     setSelectedPlanDetails(null);
     if (import.meta.env.DEV) console.log("[MANUAL_OPERATOR_OVERRIDE]", {
       previousOperator: operatorMeta[selectedOperator]?.label || selectedOperator || 'None',
@@ -768,6 +776,7 @@ export default function MobilePrepaid() {
 
   const currentPlans = plansData[activeTab] || [];
   const hasPlans = Object.keys(plansData).some(k => plansData[k]?.length > 0);
+  const isFetching = detecting || plansLoading;
 
   return (
     <Motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-6xl mx-auto space-y-8 py-6 px-4 md:px-0 relative z-10">
@@ -877,52 +886,76 @@ export default function MobilePrepaid() {
           )}
 
           {/* Categorized Plans Section */}
-          {number.length === 10 && (!fallbackMode || hasPlans || plansLoading) && (
+          {number.length === 10 && (!fallbackMode || hasPlans || isFetching) && (
             <div className="space-y-6 pt-6 border-t border-[var(--glass-border)]">
-              {/* Category Tabs */}
-              <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar border-b border-[var(--glass-border)]">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex-shrink-0 cursor-pointer ${
-                      activeTab === tab.id
-                        ? 'bg-[var(--color-primary)] text-white shadow-lg shadow-[var(--color-primary-glow)]'
-                        : 'bg-[var(--glass-button-bg)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-color)] border border-[var(--glass-border)]'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
+              {isFetching ? (
+                <>
+                  {/* Fetching Banner */}
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <div className="w-10 h-10 border-4 border-[var(--color-primary-glow)] border-t-[var(--color-primary)] rounded-full animate-spin" />
+                    
+                    <p className="mt-4 text-sm font-black uppercase tracking-widest text-[var(--text-color)]">
+                      Fetching Plans...
+                    </p>
 
-              {/* Plan Cards Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
-                {detecting || plansLoading ? (
-                  [1, 2, 3].map(i => <ShimmerCard key={i} />)
-                ) : currentPlans.length > 0 ? (
-                  currentPlans.map((plan, idx) => (
-                     <PlanCard key={idx} plan={plan} onSelect={handlePlanSelect} />
-                  ))
-                ) : hasPlans ? (
-                  <div className="col-span-full py-16 text-center bg-[var(--bg-tertiary)]/20 rounded-3xl border border-[var(--glass-border)] border-dashed">
-                    <p className="text-xs font-black text-[var(--text-muted)] uppercase tracking-widest">No plans available in this category</p>
+                    <p className="text-xs text-[var(--text-secondary)]">
+                      Please wait while we fetch the best plans for your operator
+                    </p>
                   </div>
-                ) : (
-                  <div className="col-span-full py-16 text-center bg-[var(--bg-tertiary)]/20 rounded-3xl border border-[var(--glass-border)] border-dashed flex flex-col items-center justify-center gap-3">
-                    <Activity className="w-8 h-8 text-[var(--text-muted)] animate-pulse" />
-                    <p className="text-xs font-black text-[var(--text-muted)] uppercase tracking-widest">No live plans found for this number</p>
-                    <div className="flex flex-wrap items-center justify-center gap-4">
-                      <button onClick={() => setShowOperatorSelector(true)} className="mt-2 text-xs font-black text-[var(--color-primary)] uppercase tracking-widest underline cursor-pointer">
-                        Change Operator
-                      </button>
-                      <button onClick={() => setFallbackMode(true)} className="mt-2 text-xs font-black text-[var(--color-primary)] uppercase tracking-widest underline cursor-pointer">
-                        Enter Amount Manually
-                      </button>
-                    </div>
+
+                  {/* Shimmer Cards Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+                    <ShimmerCard />
+                    <ShimmerCard />
+                    <ShimmerCard />
                   </div>
-                )}
-              </div>
+                </>
+              ) : hasPlans ? (
+                <>
+                  {/* Category Tabs */}
+                  <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar border-b border-[var(--glass-border)]">
+                    {tabs.map((tab) => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex-shrink-0 cursor-pointer ${
+                          activeTab === tab.id
+                            ? 'bg-[var(--color-primary)] text-white shadow-lg shadow-[var(--color-primary-glow)]'
+                            : 'bg-[var(--glass-button-bg)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-color)] border border-[var(--glass-border)]'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Plan Cards Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+                    {currentPlans.length > 0 ? (
+                      currentPlans.map((plan, idx) => (
+                         <PlanCard key={idx} plan={plan} onSelect={handlePlanSelect} />
+                      ))
+                    ) : (
+                      <div className="col-span-full py-16 text-center bg-[var(--bg-tertiary)]/20 rounded-3xl border border-[var(--glass-border)] border-dashed">
+                        <p className="text-xs font-black text-[var(--text-muted)] uppercase tracking-widest">No plans available in this category</p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="col-span-full py-16 text-center bg-[var(--bg-tertiary)]/20 rounded-3xl border border-[var(--glass-border)] border-dashed flex flex-col items-center justify-center gap-3">
+                  <Activity className="w-8 h-8 text-[var(--text-muted)] animate-pulse" />
+                  <p className="text-xs font-black text-[var(--text-muted)] uppercase tracking-widest">No plans available for this operator.</p>
+                  <div className="flex flex-wrap items-center justify-center gap-4">
+                    <button onClick={() => setShowOperatorSelector(true)} className="mt-2 text-xs font-black text-[var(--color-primary)] uppercase tracking-widest underline cursor-pointer">
+                      Change Operator
+                    </button>
+                    <button onClick={() => setFallbackMode(true)} className="mt-2 text-xs font-black text-[var(--color-primary)] uppercase tracking-widest underline cursor-pointer">
+                      Enter Amount Manually
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

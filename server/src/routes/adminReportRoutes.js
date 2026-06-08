@@ -1,6 +1,7 @@
 import express from "express";
 import { auth } from "../middlewares/auth.js";
 import { isAdmin } from "../middlewares/admin.js";
+import { masterKeySessionMiddleware } from "../middlewares/masterKeySessionMiddleware.js";
 import { 
   getTransactionHistory, 
   getReportSummary, 
@@ -33,7 +34,7 @@ router.get("/commissions", getCommissionReport);
 /**
  * @route GET /api/admin/reports/export
  */
-router.get("/export", exportTransactions);
+router.get("/export", masterKeySessionMiddleware, exportTransactions);
 
 /**
  * @route GET /api/admin/reports/search

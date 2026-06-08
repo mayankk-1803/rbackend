@@ -1,6 +1,7 @@
 import express from "express";
 import { auth } from "../middlewares/auth.js";
 import { isAdmin } from "../middlewares/admin.js";
+import { masterKeySessionMiddleware } from "../middlewares/masterKeySessionMiddleware.js";
 import {
   getSlabs,
   createSlab,
@@ -122,40 +123,40 @@ router.use(auth, isAdmin);
 
 // Slab Master APIs
 router.get("/slabs", checkCommissionPermission("read"), getSlabs);
-router.post("/slabs", checkCommissionPermission("write"), createSlab);
-router.put("/slabs/:id", checkCommissionPermission("write"), updateSlab);
-router.delete("/slabs/:id", checkCommissionPermission("write"), deleteSlab);
-router.post("/slabs/:id/clone", checkCommissionPermission("write"), cloneSlab);
-router.post("/slabs/:id/assign-users", checkCommissionPermission("write"), assignUsersToSlab);
+router.post("/slabs", checkCommissionPermission("write"), masterKeySessionMiddleware, createSlab);
+router.put("/slabs/:id", checkCommissionPermission("write"), masterKeySessionMiddleware, updateSlab);
+router.delete("/slabs/:id", checkCommissionPermission("write"), masterKeySessionMiddleware, deleteSlab);
+router.post("/slabs/:id/clone", checkCommissionPermission("write"), masterKeySessionMiddleware, cloneSlab);
+router.post("/slabs/:id/assign-users", checkCommissionPermission("write"), masterKeySessionMiddleware, assignUsersToSlab);
 
 // Service Category APIs
 router.get("/service-categories", checkCommissionPermission("read"), getServiceCategories);
 
 // Package Master APIs
 router.get("/packages", checkCommissionPermission("read"), getPackages);
-router.post("/packages", checkCommissionPermission("write"), createPackage);
-router.put("/packages/:id", checkCommissionPermission("write"), updatePackage);
-router.delete("/packages/:id", checkCommissionPermission("write"), deletePackage);
-router.post("/packages/:id/clone", checkCommissionPermission("write"), clonePackage);
-router.post("/packages/:id/assign-users", checkCommissionPermission("write"), assignUsersToPackage);
+router.post("/packages", checkCommissionPermission("write"), masterKeySessionMiddleware, createPackage);
+router.put("/packages/:id", checkCommissionPermission("write"), masterKeySessionMiddleware, updatePackage);
+router.delete("/packages/:id", checkCommissionPermission("write"), masterKeySessionMiddleware, deletePackage);
+router.post("/packages/:id/clone", checkCommissionPermission("write"), masterKeySessionMiddleware, clonePackage);
+router.post("/packages/:id/assign-users", checkCommissionPermission("write"), masterKeySessionMiddleware, assignUsersToPackage);
 
 // Recharge Commission Rule APIs
 router.get("/recharge-rules", checkCommissionPermission("read"), getRechargeRules);
-router.post("/recharge-rules", checkCommissionPermission("write"), createRechargeRule);
-router.put("/recharge-rules/:id", checkCommissionPermission("write"), updateRechargeRule);
-router.delete("/recharge-rules/:id", checkCommissionPermission("write"), deleteRechargeRule);
-router.post("/recharge-rules/:id/clone", checkCommissionPermission("write"), cloneRechargeRule);
-router.post("/recharge-rules/:id/approve", checkCommissionPermission("write"), approveRechargeRule);
-router.post("/recharge-rules/:id/reject", checkCommissionPermission("write"), rejectRechargeRule);
+router.post("/recharge-rules", checkCommissionPermission("write"), masterKeySessionMiddleware, createRechargeRule);
+router.put("/recharge-rules/:id", checkCommissionPermission("write"), masterKeySessionMiddleware, updateRechargeRule);
+router.delete("/recharge-rules/:id", checkCommissionPermission("write"), masterKeySessionMiddleware, deleteRechargeRule);
+router.post("/recharge-rules/:id/clone", checkCommissionPermission("write"), masterKeySessionMiddleware, cloneRechargeRule);
+router.post("/recharge-rules/:id/approve", checkCommissionPermission("write"), masterKeySessionMiddleware, approveRechargeRule);
+router.post("/recharge-rules/:id/reject", checkCommissionPermission("write"), masterKeySessionMiddleware, rejectRechargeRule);
 
 // Range Commission Rule APIs
 router.get("/range-rules", checkCommissionPermission("read"), getRangeRules);
-router.post("/range-rules", checkCommissionPermission("write"), createRangeRule);
-router.put("/range-rules/:id", checkCommissionPermission("write"), updateRangeRule);
-router.delete("/range-rules/:id", checkCommissionPermission("write"), deleteRangeRule);
-router.post("/range-rules/:id/clone", checkCommissionPermission("write"), cloneRangeRule);
-router.post("/range-rules/:id/approve", checkCommissionPermission("write"), approveRangeRule);
-router.post("/range-rules/:id/reject", checkCommissionPermission("write"), rejectRangeRule);
+router.post("/range-rules", checkCommissionPermission("write"), masterKeySessionMiddleware, createRangeRule);
+router.put("/range-rules/:id", checkCommissionPermission("write"), masterKeySessionMiddleware, updateRangeRule);
+router.delete("/range-rules/:id", checkCommissionPermission("write"), masterKeySessionMiddleware, deleteRangeRule);
+router.post("/range-rules/:id/clone", checkCommissionPermission("write"), masterKeySessionMiddleware, cloneRangeRule);
+router.post("/range-rules/:id/approve", checkCommissionPermission("write"), masterKeySessionMiddleware, approveRangeRule);
+router.post("/range-rules/:id/reject", checkCommissionPermission("write"), masterKeySessionMiddleware, rejectRangeRule);
 
 // Catalog APIs
 router.get("/operators", checkCommissionPermission("read"), getCommissionOperators);
@@ -164,8 +165,8 @@ router.get("/commission-roles", checkCommissionPermission("read"), getCommission
 // Bulk setting APIs
 router.get("/bulk/jobs", checkCommissionPermission("read"), getBulkJobs);
 router.post("/bulk/preview", checkCommissionPermission("read"), getBulkPreview);
-router.post("/bulk/execute", checkCommissionPermission("write"), executeBulkJob);
-router.post("/bulk/rollback/:id", checkCommissionPermission("write"), rollbackBulkJob);
+router.post("/bulk/execute", checkCommissionPermission("write"), masterKeySessionMiddleware, executeBulkJob);
+router.post("/bulk/rollback/:id", checkCommissionPermission("write"), masterKeySessionMiddleware, rollbackBulkJob);
 
 // Simulation APIs
 router.post("/simulate", checkCommissionPermission("read"), simulateCommission);
@@ -177,18 +178,18 @@ router.get("/audit-logs", checkCommissionPermission("read"), getCommissionAuditL
 
 // Migration & Rollout APIs
 router.get("/config", checkCommissionPermission("read"), getCommissionConfig);
-router.put("/config", checkCommissionPermission("write"), updateCommissionConfig);
+router.put("/config", checkCommissionPermission("write"), masterKeySessionMiddleware, updateCommissionConfig);
 router.get("/migration/metrics", checkCommissionPermission("read"), getCommissionMigrationMetrics);
 
 // Commission Intelligence Endpoints
 router.get("/intelligence/recommendations", checkCommissionPermission("read"), getCommissionRecommendations);
 router.get("/intelligence/config", checkCommissionPermission("read"), getCommissionIntelConfig);
-router.put("/intelligence/config", checkCommissionPermission("write"), updateCommissionIntelConfig);
+router.put("/intelligence/config", checkCommissionPermission("write"), masterKeySessionMiddleware, updateCommissionIntelConfig);
 router.post("/intelligence/recommendations", checkCommissionPermission("write"), simulateCommissionRecommendation);
-router.post("/intelligence/recommendations/:id/approve", checkCommissionPermission("write"), approveCommissionRecommendation);
-router.post("/intelligence/recommendations/:id/reject", checkCommissionPermission("write"), rejectCommissionRecommendation);
-router.post("/intelligence/recommendations/:id/apply", checkCommissionPermission("write"), applyCommissionRecommendation);
-router.post("/intelligence/recommendations/:id/rollback", checkCommissionPermission("write"), rollbackCommissionRecommendation);
+router.post("/intelligence/recommendations/:id/approve", checkCommissionPermission("write"), masterKeySessionMiddleware, approveCommissionRecommendation);
+router.post("/intelligence/recommendations/:id/reject", checkCommissionPermission("write"), masterKeySessionMiddleware, rejectCommissionRecommendation);
+router.post("/intelligence/recommendations/:id/apply", checkCommissionPermission("write"), masterKeySessionMiddleware, applyCommissionRecommendation);
+router.post("/intelligence/recommendations/:id/rollback", checkCommissionPermission("write"), masterKeySessionMiddleware, rollbackCommissionRecommendation);
 
 export default router;
 

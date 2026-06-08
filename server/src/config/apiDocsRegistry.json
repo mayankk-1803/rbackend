@@ -1,0 +1,337 @@
+{
+  "version": "1.0.0",
+  "environment": "PRODUCTION",
+  "baseUrl": "https://rchserver.irecharge.in/api",
+  "postmanUrl": "https://documenter.getpostman.com/view/dizipay-api-collection",
+  "contact": {
+    "support": "developer@dizipay.in",
+    "info": "https://irecharge.in/developer-hub"
+  },
+  "authentication": {
+    "jwt": {
+      "name": "JWT Bearer Token",
+      "description": "Used for standard user session APIs inside the admin panel or user dashboard.",
+      "header": "Authorization: Bearer <TOKEN>",
+      "sample": "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    },
+    "apiKey": {
+      "name": "API Credentials Access",
+      "description": "Used for partner B2B high-throughput integrations.",
+      "headers": {
+        "x-client-id": "dp_xxxxxxxxxxxxxxxx",
+        "x-api-key": "ak_live_xxxxxxxxxxxxxxxx",
+        "x-api-secret": "sec_live_xxxxxxxxxxxxxxxx"
+      },
+      "sample": "curl -X GET \"https://rchserver.irecharge.in/api/v1/dev/wallet\" -H \"x-client-id: dp_1234\" -H \"x-api-key: ak_live_5678\" -H \"x-api-secret: sec_live_abcd\""
+    }
+  },
+  "groups": [
+    {
+      "name": "Authentication",
+      "endpoints": [
+        {
+          "isDeveloper": true,
+          "method": "POST",
+          "path": "/api/auth/login",
+          "description": "Authenticate user credentials and retrieve a JWT bearer token.",
+          "parameters": [
+            { "name": "email", "type": "string", "required": true, "description": "Registered email address" },
+            { "name": "password", "type": "string", "required": true, "description": "Plaintext password" }
+          ],
+          "sampleRequest": {
+            "email": "superadmin@dizipay.in",
+            "password": "yourpassword123"
+          },
+          "sampleResponse": {
+            "success": true,
+            "token": "eyJhbGciOiJIUzI1NiIsIn...",
+            "user": { "id": 1, "name": "Super Admin", "role": "SUPER_ADMIN" }
+          },
+          "errorCodes": [
+            { "code": 401, "message": "Invalid credentials" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Wallet",
+      "endpoints": [
+        {
+          "isDeveloper": true,
+          "method": "GET",
+          "path": "/api/wallet/balance",
+          "description": "Retrieve current wallet balance, cashback credits, and earned loyalty coin balances.",
+          "parameters": [],
+          "sampleRequest": {},
+          "sampleResponse": {
+            "success": true,
+            "data": { "balance": 5000.50, "cashbackBalance": 150.25, "coinBalance": 120 }
+          },
+          "errorCodes": [
+            { "code": 401, "message": "Unauthorized request" }
+          ]
+        },
+        {
+          "module": "wallets",
+          "method": "POST",
+          "path": "/api/admin/topup",
+          "description": "Adjust retailer or API partner wallet balance directly.",
+          "parameters": [
+            { "name": "userId", "type": "integer", "required": true, "description": "Target User ID" },
+            { "name": "amount", "type": "number", "required": true, "description": "Credit adjustment amount" },
+            { "name": "type", "type": "string", "required": true, "description": "'CREDIT' or 'DEBIT'" }
+          ],
+          "sampleRequest": {
+            "userId": 12,
+            "amount": 100.00,
+            "type": "CREDIT"
+          },
+          "sampleResponse": {
+            "success": true,
+            "message": "Balance adjusted successfully",
+            "data": { "newBalance": 1100.00 }
+          },
+          "errorCodes": [
+            { "code": 403, "message": "Access Denied: Administrative access required" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Recharge",
+      "endpoints": [
+        {
+          "isDeveloper": true,
+          "method": "GET",
+          "path": "/api/v1/dev/operator/{mobile}",
+          "description": "Automatically detect mobile operator and telecom circle for a given 10-digit Indian mobile number.",
+          "parameters": [
+            { "name": "mobile", "type": "string", "required": true, "description": "10-digit mobile number" }
+          ],
+          "sampleRequest": {},
+          "sampleResponse": {
+            "success": true,
+            "operator": "JIO",
+            "circle": "Delhi",
+            "message": "Operator detected"
+          },
+          "errorCodes": [
+            { "code": 400, "message": "Invalid mobile number" }
+          ]
+        },
+        {
+          "isDeveloper": true,
+          "method": "GET",
+          "path": "/api/v1/dev/plans",
+          "description": "Fetch available recharge plans for a specific operator and circle.",
+          "parameters": [
+            { "name": "mobile", "type": "string", "required": true, "description": "10-digit mobile number" },
+            { "name": "operatorCode", "type": "string", "required": true, "description": "Operator code (e.g. 5 for JIO)" }
+          ],
+          "sampleRequest": {},
+          "sampleResponse": {
+            "success": true,
+            "data": [
+              { "amount": 299, "validity": "28 Days", "description": "1.5GB/day mobile internet" }
+            ]
+          },
+          "errorCodes": [
+            { "code": 400, "message": "Failed to fetch plans" }
+          ]
+        },
+        {
+          "isDeveloper": true,
+          "method": "POST",
+          "path": "/api/v1/dev/recharge",
+          "description": "Initiate mobile or utility recharge transaction using active B2B credentials.",
+          "parameters": [
+            { "name": "mobile", "type": "string", "required": true, "description": "10-digit mobile number" },
+            { "name": "operatorCode", "type": "string", "required": true, "description": "Telecom operator ID code" },
+            { "name": "amount", "type": "number", "required": true, "description": "Transaction amount in INR" }
+          ],
+          "sampleRequest": {
+            "mobile": "9876543210",
+            "operatorCode": "5",
+            "amount": 299
+          },
+          "sampleResponse": {
+            "success": true,
+            "message": "Recharge initiated",
+            "data": { "transactionId": 45678, "newBalance": 4701.50 }
+          },
+          "errorCodes": [
+            { "code": 400, "message": "Insufficient wallet balance" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "endpoints": [
+        {
+          "isDeveloper": true,
+          "method": "POST",
+          "path": "/api/payment/initiate",
+          "description": "Initiate payment gateway transaction for wallet funding.",
+          "parameters": [
+            { "name": "amount", "type": "number", "required": true, "description": "Amount to fund in INR" },
+            { "name": "paymentMethod", "type": "string", "required": true, "description": "'PAYU' or 'NEXGATE'" }
+          ],
+          "sampleRequest": {
+            "amount": 1000.00,
+            "paymentMethod": "PAYU"
+          },
+          "sampleResponse": {
+            "success": true,
+            "orderId": "pay_98765",
+            "checkoutUrl": "https://secure.payu.in/_payment"
+          },
+          "errorCodes": [
+            { "code": 400, "message": "Unsupported payment gateway" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Transactions",
+      "endpoints": [
+        {
+          "isDeveloper": true,
+          "method": "GET",
+          "path": "/api/v1/dev/status/{id}",
+          "description": "Check the status of a specific recharge or wallet transaction.",
+          "parameters": [
+            { "name": "id", "type": "integer", "required": true, "description": "Internal transaction identifier" }
+          ],
+          "sampleRequest": {},
+          "sampleResponse": {
+            "success": true,
+            "data": { "id": 45678, "status": "SUCCESS", "amount": 299.00 }
+          },
+          "errorCodes": [
+            { "code": 404, "message": "Transaction not found" }
+          ]
+        },
+        {
+          "module": "operations",
+          "method": "POST",
+          "path": "/api/admin/retry/{id}",
+          "description": "Manually force-retry a failed telecom recharge transaction.",
+          "parameters": [
+            { "name": "id", "type": "integer", "required": true, "description": "Failed transaction ID" }
+          ],
+          "sampleRequest": {},
+          "sampleResponse": {
+            "success": true,
+            "message": "Recharge retry initiated"
+          },
+          "errorCodes": [
+            { "code": 403, "message": "Master Key validation required" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Operators",
+      "endpoints": [
+        {
+          "module": "operations",
+          "method": "POST",
+          "path": "/api/admin/enterprise/operators",
+          "description": "Create a new operator circle configuration inside the routing registry.",
+          "parameters": [
+            { "name": "operatorName", "type": "string", "required": true, "description": "Operator name (e.g. BSNL)" },
+            { "name": "circleName", "type": "string", "required": true, "description": "Indian telecom circle name" }
+          ],
+          "sampleRequest": {
+            "operatorName": "BSNL",
+            "circleName": "Maharashtra"
+          },
+          "sampleResponse": {
+            "success": true,
+            "data": { "id": 14, "operatorName": "BSNL", "circleName": "Maharashtra" }
+          },
+          "errorCodes": [
+            { "code": 403, "message": "Access Denied" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "endpoints": [
+        {
+          "module": "operations",
+          "method": "GET",
+          "path": "/api/admin/reports/commission",
+          "description": "Fetch chronological ledger records of earned profit margins and commissions.",
+          "parameters": [],
+          "sampleRequest": {},
+          "sampleResponse": {
+            "success": true,
+            "data": [
+              { "id": 1, "commissionEarned": 5.40, "operator": "JIO", "timestamp": "2026-06-04" }
+            ]
+          },
+          "errorCodes": [
+            { "code": 403, "message": "Access Denied" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Developer APIs",
+      "endpoints": [
+        {
+          "isDeveloper": true,
+          "method": "POST",
+          "path": "/api/developer/verify-access",
+          "description": "Verify user developer credentials to establish a secure API session.",
+          "parameters": [
+            { "name": "email", "type": "string", "required": true, "description": "Developer email" },
+            { "name": "password", "type": "string", "required": true, "description": "Developer password" }
+          ],
+          "sampleRequest": {
+            "email": "developer@dizipay.in",
+            "password": "••••••••"
+          },
+          "sampleResponse": {
+            "success": true,
+            "devToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          },
+          "errorCodes": [
+            { "code": 455, "message": "Invalid credentials" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin APIs",
+      "endpoints": [
+        {
+          "module": "audit",
+          "method": "PUT",
+          "path": "/api/admin/enterprise/rbac",
+          "description": "Dynamically update access control rules matrix grid in the system.",
+          "parameters": [
+            { "name": "role", "type": "string", "required": true, "description": "Target role (e.g. ADMIN)" },
+            { "name": "module", "type": "string", "required": true, "description": "Target module name" },
+            { "name": "canRead", "type": "boolean", "required": true, "description": "Grant read permission" }
+          ],
+          "sampleRequest": {
+            "role": "ADMIN",
+            "module": "employees",
+            "canRead": true
+          },
+          "sampleResponse": {
+            "success": true,
+            "message": "RBAC permission updated"
+          },
+          "errorCodes": [
+            { "code": 403, "message": "Master Key validation required" }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -134,31 +134,42 @@ export default function PaymentSuccess() {
   useEffect(() => {
     let timer;
     let fallbackTimer;
+    let mobileRedirectTimer;
+
     if (state === STATUS_STATES.SUCCESS) {
-      if (countdown > 0) {
-        timer = setInterval(() => {
-          setCountdown(prev => prev - 1);
-        }, 1000);
-      } else if (countdown === 0) {
-        if (!redirectingRef.current) {
-          redirectingRef.current = true;
-          window.dispatchEvent(new Event("wallet-refresh"));
-          navigate('/dashboard', { replace: true });
+      const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      if (isMobile) {
+        mobileRedirectTimer = setTimeout(() => {
+          window.location.href = `irechargein://payment-success?order_id=${orderId}`;
+        }, 1500);
+      } else {
+        if (countdown > 0) {
+          timer = setInterval(() => {
+            setCountdown(prev => prev - 1);
+          }, 1000);
+        } else if (countdown === 0) {
+          if (!redirectingRef.current) {
+            redirectingRef.current = true;
+            window.dispatchEvent(new Event("wallet-refresh"));
+            navigate('/dashboard', { replace: true });
+          }
         }
+        fallbackTimer = setTimeout(() => {
+          if (!redirectingRef.current) {
+            redirectingRef.current = true;
+            window.dispatchEvent(new Event("wallet-refresh"));
+            window.location.replace("/dashboard");
+          }
+        }, 2500);
       }
-      fallbackTimer = setTimeout(() => {
-        if (!redirectingRef.current) {
-          redirectingRef.current = true;
-          window.dispatchEvent(new Event("wallet-refresh"));
-          window.location.replace("/dashboard");
-        }
-      }, 2500);
     }
     return () => {
       if (timer) clearInterval(timer);
       if (fallbackTimer) clearTimeout(fallbackTimer);
+      if (mobileRedirectTimer) clearTimeout(mobileRedirectTimer);
     };
-  }, [state, countdown, navigate]);
+  }, [state, countdown, navigate, orderId]);
 
   const renderContent = () => {
     switch (state) {
@@ -196,6 +207,7 @@ export default function PaymentSuccess() {
         );
 
       case STATUS_STATES.SUCCESS:
+        const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         return (
           <motion.div 
             initial={{ scale: 0.9, opacity: 0 }}
@@ -208,10 +220,19 @@ export default function PaymentSuccess() {
             
             <div className="text-center space-y-3">
               <h2 className="text-3xl font-black text-[var(--text-color)] uppercase tracking-tighter italic">Topup <span className="text-emerald-400 emerald-glow">Successful</span></h2>
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20 shadow-sm">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span className="text-[9px] font-black uppercase tracking-widest">Verified Transaction</span>
-              </div>
+              {isMobile ? (
+                <div className="space-y-1">
+                  <p className="text-sm font-bold text-[var(--text-color)]">Opening DiziPay App...</p>
+                  <p className="text-[10px] text-[var(--text-secondary)] font-medium">
+                    If the app does not open automatically, tap the button below.
+                  </p>
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20 shadow-sm">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span className="text-[9px] font-black uppercase tracking-widest">Verified Transaction</span>
+                </div>
+              )}
             </div>
 
             <div className="w-full bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-3xl p-6 space-y-4">
@@ -229,19 +250,32 @@ export default function PaymentSuccess() {
             </div>
 
             <div className="w-full space-y-4">
-               <button 
-                onClick={() => {
-                  window.dispatchEvent(new Event("wallet-refresh"));
-                  navigate('/dashboard');
-                }}
-                className="w-full py-4 bg-purple-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl hover:bg-purple-400 transition-all group cursor-pointer"
-              >
-                Go to Dashboard
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </button>
-              <p className="text-center text-[9px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">
-                Redirecting automatically in <span className="text-[var(--text-color)]">{countdown}s</span>
-              </p>
+              {isMobile ? (
+                <button 
+                  onClick={() => {
+                    window.location.href = `irechargein://payment-success?order_id=${orderId}`;
+                  }}
+                  className="w-full py-4 bg-purple-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl hover:bg-purple-400 transition-all cursor-pointer"
+                >
+                  Open DiziPay App
+                </button>
+              ) : (
+                <>
+                  <button 
+                    onClick={() => {
+                      window.dispatchEvent(new Event("wallet-refresh"));
+                      navigate('/dashboard');
+                    }}
+                    className="w-full py-4 bg-purple-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl hover:bg-purple-400 transition-all group cursor-pointer"
+                  >
+                    Go to Dashboard
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </button>
+                  <p className="text-center text-[9px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">
+                    Redirecting automatically in <span className="text-[var(--text-color)]">{countdown}s</span>
+                  </p>
+                </>
+              )}
             </div>
           </motion.div>
         );
