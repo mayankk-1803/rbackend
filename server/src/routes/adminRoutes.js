@@ -52,11 +52,22 @@ import {
 } from "../controllers/developerController.js";
 
 
-import { 
-  getAdminWalletStats, 
-  initiateAdminTopup, 
-  verifyAdminTopup 
-} from "../controllers/adminWalletController.js";
+
+import {
+  getDashboardStats as getMasterWalletStats,
+  getLedger as getMasterWalletLedger,
+  getPendingSettlements as getMasterWalletPending,
+  adjustWallet as adjustMasterWallet,
+  adjustMinimumOperationalBalance as adjustMasterMinBalance,
+  approveSettlement as approveMasterSettlement,
+  rejectSettlement as rejectMasterSettlement,
+  getMasterWallet,
+  creditMasterWallet,
+  debitMasterWallet,
+  getRechargePoolBalance,
+  fundUserWallet,
+  addFundsToMasterWallet
+} from "../controllers/adminMasterWalletController.js";
 
 const router = express.Router();
 
@@ -66,6 +77,7 @@ router.get("/dashboard", getDashboard);
 router.get("/users", getUsers);
 router.get("/users/stats", getUsersStats);
 router.get("/users/:id", getSingleUser);
+router.post("/users/:userId/fund-wallet", fundUserWallet);
 router.patch("/users/:id/status", masterKeySessionMiddleware, toggleUserStatus);
 router.patch("/users/:id/send-temp-password", masterKeySessionMiddleware, sendTemporaryPassword);
 router.get("/top-users", getTopUsers);
@@ -91,10 +103,21 @@ router.get("/api-access/webhook-events", getPartnerWebhookEvents);
 router.post("/api-access/webhook-events/replay", masterKeySessionMiddleware, replayPartnerWebhookEvent);
 router.get("/api-access/usage", getPartnerUsageLogs);
 
-// New Modular Wallet Routes
-router.get("/wallet/stats", getAdminWalletStats);
-router.post("/wallet/topup", masterKeySessionMiddleware, initiateAdminTopup);
-router.get("/wallet/verify/:orderId", verifyAdminTopup);
+
+
+// Master Wallet Routes
+router.get("/master-wallet", getMasterWallet);
+router.post("/master-wallet/credit", creditMasterWallet);
+router.post("/master-wallet/debit", debitMasterWallet);
+router.get("/master-wallet/stats", getMasterWalletStats);
+router.get("/master-wallet/ledger", getMasterWalletLedger);
+router.post("/master-wallet/add-funds", addFundsToMasterWallet);
+router.get("/recharge-pool-balance", getRechargePoolBalance);
+router.get("/master-wallet/pending", getMasterWalletPending);
+router.post("/master-wallet/adjust", masterKeySessionMiddleware, adjustMasterWallet);
+router.post("/master-wallet/min-balance", masterKeySessionMiddleware, adjustMasterMinBalance);
+router.post("/master-wallet/approve", masterKeySessionMiddleware, approveMasterSettlement);
+router.post("/master-wallet/reject", masterKeySessionMiddleware, rejectMasterSettlement);
 
 // V3 Fintech Routes
 router.get("/reports/commission", getCommissionReport);

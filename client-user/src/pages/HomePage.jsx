@@ -12,6 +12,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import ThemeSelector from '../components/ThemeSelector';
 import { useIsIOS } from '../utils/device';
 import { useTheme } from '../context/ThemeContext';
+import Logo from '../components/Logo';
 
 // Register GSAP ScrollTrigger
 gsap.registerPlugin(ScrollTrigger);
@@ -346,7 +347,7 @@ export default function HomePage() {
     { icon: RefreshCw, title: "Smart Retry Engine", desc: "Intelligent real-time failover preventing lost or stuck payments.", size: "small", accent: "purple" },
     { icon: Activity, title: "Queue Architecture", desc: "BullMQ-powered background tasks built for enterprise throughput scale.", size: "small", accent: "green" },
     { icon: Globe, title: "Realtime Updates", desc: "Interactive WebSocket driven client dashboard syncing with state streams.", size: "medium", accent: "purple" },
-    { icon: TrendingUp, title: "Cashback Incentive", desc: "Algorithmic wallet rebates distributed directly upon success validations.", size: "medium", accent: "green" },
+    { icon: TrendingUp, title: "Coins Reward Incentive", desc: "Algorithmic wallet rebates distributed as Reward Coins upon success validations.", size: "medium", accent: "green" },
     { icon: Shield, title: "Ledger Security", desc: "Cryptographically safe database balances backing multi-currency accounts.", size: "large", accent: "purple" },
     { icon: Terminal, title: "Developer Gateway", desc: "High-performance REST architecture, detailed analytics logs, and sandbox credentials.", size: "small", accent: "purple" },
     { icon: Smartphone, title: "Global Tracking", desc: "Comprehensive step-by-step transaction logs monitoring all API states.", size: "small", accent: "purple" }
@@ -355,7 +356,7 @@ export default function HomePage() {
   const steps = [
     { num: "01", title: "Submit Transaction Request", desc: "User triggers bill recharge. The system processes the wallet ledger atomically and records the pending transaction state." },
     { num: "02", title: "Queue & Gateway Routing", desc: "Asynchronous background workers trigger direct provider integrations, monitoring responses with smart latency retry parameters." },
-    { num: "03", title: "Sync Verification & Rebate", desc: "Provider webhook or poll secures state. Realtime WebSockets push status to the client, distributing cached cashback coins." }
+    { num: "03", title: "Sync Verification & Rebate", desc: "Provider webhook or poll secures state. Realtime WebSockets push status to the client, distributing reward coins." }
   ];
 
   return (
@@ -459,7 +460,7 @@ export default function HomePage() {
 
         {/* Integrated Glass Navbar (Row #1) */}
         <nav 
-          className="fixed top-5 left-1/2 z-50 landing-nav flex items-center px-8 h-[72px] transition-all duration-300 ease-out"
+          className="fixed top-5 left-1/2 z-50 landing-nav flex items-center px-6 h-[60px] transition-all duration-300 ease-out"
           style={{
             width: "calc(100% - 64px)",
             maxWidth: "1700px",
@@ -473,23 +474,12 @@ export default function HomePage() {
           }}
         >
           <div className="w-full flex items-center justify-between">
-            <Link to="/" className="flex items-center gap-1.5 group navbar-logo-container">
-              <div 
-                className="w-8 h-8 rounded-lg flex items-center justify-center border transition-all duration-500 bg-white/5 border-white/10"
-              >
-                <Zap 
-                  className="w-4 h-4 animate-pulse text-white fill-white/10" 
-                />
-              </div>
-              <span 
-                className="text-xl font-black tracking-tight font-sans lowercase navbar-logo-text text-white"
-              >
-                irecharge
-              </span>
+            <Link to="/" className="navbar-logo-container shrink-0 overflow-visible">
+              <Logo size="md" />
             </Link>
             
             {/* Desktop Links */}
-            <div className="hidden md:flex items-center gap-10">
+            <div className="hidden md:flex items-center gap-8">
               {navLinks.map((link) => {
                 const isActive = activeSection === link.id;
                 return (
@@ -516,7 +506,7 @@ export default function HomePage() {
             </div>
 
             {/* Auth Buttons */}
-            <div className="hidden md:flex items-center gap-6">
+            <div className="hidden md:flex items-center gap-5">
               <ThemeSelector />
               <Link 
                 to="/login" 
@@ -626,7 +616,7 @@ export default function HomePage() {
                 color: resolvedTheme === 'light' ? '#334155' : 'rgba(255, 255, 255, 0.85)'
               }}
             >
-              Recharge, Wallet, Marketplace, Cashback, Utility Payments and Digital Services in one intelligent platform built for modern retailers, distributors and businesses.
+              Recharge, Wallet, Marketplace, Rewards, Utility Payments and Digital Services in one intelligent platform built for modern retailers, distributors and businesses.
             </p>
 
             {/* CTA Buttons */}
@@ -663,7 +653,7 @@ export default function HomePage() {
               {[
                 { icon: Zap, label: "Instant Recharge" },
                 { icon: Shield, label: "Secure Payments" },
-                { icon: Coins, label: "Cashback Rewards" },
+                { icon: Coins, label: "Coins Rewards" },
                 { icon: Headphones, label: "24x7 Support" }
               ].map((item, idx) => (
                 <div 
@@ -885,12 +875,7 @@ export default function HomePage() {
       {/* Cinematic Footer */}
       <footer className="bg-slate-950/80 border-t border-white/5 pt-16 pb-12 relative z-10 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-6 flex flex-col items-center justify-center text-center space-y-6">
-          <div className="flex items-center gap-2 group navbar-logo-container">
-            <div className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center border border-white/10 group-hover:border-white/30 transition-all duration-500">
-              <Zap className="w-4 h-4 text-white fill-white/10" />
-            </div>
-            <span className="text-xl font-black text-white tracking-tight font-sans lowercase navbar-logo-text">irecharge</span>
-          </div>
+          <Logo size="lg" showSubtitle={true} />
           <p className="text-xs text-slate-500 max-w-sm font-medium tracking-wide">
             The most reliable asynchronous realtime recharge infrastructure platform.
           </p>
@@ -938,31 +923,8 @@ export default function HomePage() {
                 style={{ height: '72px' }}
               >
                 {/* Logo */}
-                <Link to="/" onClick={() => setIsOpen(false)} className="flex items-center gap-1.5 group navbar-logo-container">
-                  <div 
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all duration-500 ${
-                      resolvedTheme === 'light' 
-                        ? 'bg-[#0F172A]/5 border-[#0F172A]/10' 
-                        : 'bg-white/5 border-white/10'
-                    }`}
-                  >
-                    <Zap 
-                      className={`w-4 h-4 animate-pulse ${
-                        resolvedTheme === 'light' 
-                          ? 'text-[#0F172A] fill-[#0F172A]/10' 
-                          : 'text-white fill-white/10'
-                      }`} 
-                    />
-                  </div>
-                  <span 
-                    className={`text-xl font-black tracking-tight font-sans lowercase navbar-logo-text ${
-                      resolvedTheme === 'light' 
-                        ? 'text-[#0F172A]' 
-                        : 'text-white'
-                    }`}
-                  >
-                    irecharge
-                  </span>
+                <Link to="/" onClick={() => setIsOpen(false)} className="navbar-logo-container shrink-0 overflow-visible">
+                  <Logo size="md" />
                 </Link>
                 
                 {/* Empty Center */}

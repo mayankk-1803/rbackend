@@ -12,6 +12,7 @@ import { getInvoice } from "../controllers/invoiceController.js";
 import { raiseDispute, getMyDisputes } from "../controllers/disputeController.js";
 import { recordFinancialEntry } from "../services/ledgerService.js";
 import { redeemLimiter } from "../middlewares/rateLimiter.js";
+import { encodeTxnId } from "../utils/referenceHelper.js";
 
 
 
@@ -121,6 +122,7 @@ router.get("/transactions", async (req, res) => {
     const mappedTransactions = transactions.map(tx => {
       return {
         ...tx,
+        publicRef: encodeTxnId(tx.id),
         operatorReferenceId: tx.providerRef || tx.providerRefId || tx.providerTxnId || null
       };
     });
@@ -177,7 +179,7 @@ router.get("/dashboard", async (req, res) => {
 // PUT /user/update-profile
 router.put("/update-profile", upload.single('profileImage'), async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, address, alternatePhone, city, state, dob, gender, pincode } = req.body;
     let profileImageUrl = req.body.profileImage;
 
     if (req.file) {
@@ -187,12 +189,31 @@ router.put("/update-profile", upload.single('profileImage'), async (req, res) =>
       profileImageUrl = result.secure_url;
       fs.unlinkSync(req.file.path);
     }
+
+    let dobDate = undefined;
+    if (dob !== undefined) {
+      if (dob === null || dob === "") {
+        dobDate = null;
+      } else {
+        const parsed = new Date(dob);
+        if (!isNaN(parsed.getTime())) {
+          dobDate = parsed;
+        }
+      }
+    }
     
     const updatedUser = await prisma.user.update({
       where: { id: req.user.id },
       data: {
         ...(name && { name }),
-        ...(profileImageUrl && { profileImage: profileImageUrl })
+        ...(profileImageUrl && { profileImage: profileImageUrl }),
+        ...(address !== undefined && { address }),
+        ...(alternatePhone !== undefined && { alternatePhone }),
+        ...(city !== undefined && { city }),
+        ...(state !== undefined && { state }),
+        ...(dobDate !== undefined && { dob: dobDate }),
+        ...(gender !== undefined && { gender }),
+        ...(pincode !== undefined && { pincode })
       },
       select: {
         id: true,
@@ -200,7 +221,14 @@ router.put("/update-profile", upload.single('profileImage'), async (req, res) =>
         email: true,
         phone: true,
         role: true,
-        profileImage: true
+        profileImage: true,
+        address: true,
+        alternatePhone: true,
+        city: true,
+        state: true,
+        dob: true,
+        gender: true,
+        pincode: true
       }
     });
 

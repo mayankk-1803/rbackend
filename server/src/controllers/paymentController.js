@@ -317,6 +317,11 @@ export const getPaymentStatus = async (req, res) => {
     // Force no-store for real-time accuracy
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
 
+    const pendingCredit = await prisma.pendingWalletCredit.findFirst({
+      where: { paymentId: payment.id }
+    });
+    const settlementStatus = pendingCredit ? pendingCredit.settlementStatus : null;
+
     res.json({
       success: true,
       status: payment.status || "PENDING",
@@ -324,6 +329,8 @@ export const getPaymentStatus = async (req, res) => {
       orderId: payment.id,
       amount: payment.amount,
       walletBalance: payment.user.wallet?.balance ?? 0,
+      settlementStatus,
+      message: settlementStatus === "PENDING" ? "Payment received successfully. Wallet credit pending admin approval." : undefined,
       payload: {
         status: payment.status || "PENDING",
         amount: payment.amount,
@@ -331,6 +338,7 @@ export const getPaymentStatus = async (req, res) => {
         gatewayTxnId: payment.gatewayTxnId,
         webhookReceived: payment.webhookReceived,
         walletBalance: payment.user.wallet?.balance ?? 0,
+        settlementStatus,
         updatedAt: payment.updatedAt
       }
     });
@@ -346,6 +354,8 @@ export const getPaymentStatus = async (req, res) => {
   }
 };
 
+const memoryNonceCache = new Map();
+
 export const paymentWebhook = async (req, res) => {
   const body = req?.body || {};
   const query = req?.query || {};
@@ -354,217 +364,257 @@ export const paymentWebhook = async (req, res) => {
   const initialCorrelationId = crypto.randomBytes(8).toString('hex');
   const startWebhookTime = Date.now();
 
-  // Return HTTP 200 immediately to avoid timeouts on the provider side
-  try {
-    res.status(200).json({ success: true, message: "Webhook received immediately" });
-  } catch (err) {
-    console.error("[Webhook Immediate Response Error]:", err.message);
+  const webhookSignature =
+    headers['x-webhook-signature'] ||
+    headers['X-Webhook-Signature'] ||
+    headers['x-signature'] ||
+    headers['signature'] ||
+    body?.signature ||
+    query?.signature ||
+    null;
+
+  const incomingTimestamp =
+    headers['x-webhook-timestamp'] ||
+    headers['X-Webhook-Timestamp'] ||
+    headers['x-timestamp'] ||
+    headers['timestamp'] ||
+    body?.timestamp ||
+    query?.timestamp ||
+    null;
+
+  const incomingNonce =
+    headers['x-webhook-nonce'] ||
+    headers['X-Webhook-Nonce'] ||
+    headers['x-nonce'] ||
+    headers['nonce'] ||
+    body?.nonce ||
+    query?.nonce ||
+    null;
+
+  const paymentId = Number(rawPaymentId);
+
+  let correlationId = initialCorrelationId;
+  let adminId = null;
+  let targetUserId = null;
+  let paymentRecord = null;
+
+  // Try to pre-fetch payment to extract original correlationId UUID
+  if (rawPaymentId && !Number.isNaN(paymentId)) {
+    try {
+      paymentRecord = await prisma.payment.findUnique({
+        where: { id: paymentId }
+      });
+      if (paymentRecord) {
+        targetUserId = paymentRecord.userId;
+        if (paymentRecord.idempotencyKey) {
+          const parts = paymentRecord.idempotencyKey.split(":");
+          if (parts.length >= 4) {
+            correlationId = parts[3]; // The UUID
+          }
+          const adminIdPart = parts[1]?.split("=")[1];
+          adminId = adminIdPart ? Number(adminIdPart) : null;
+        }
+      }
+    } catch (err) {
+      console.warn(`[WEBHOOK] Pre-fetch error:`, err.message);
+    }
   }
 
-  const safeRes = {
-    status: () => ({ json: () => {} }),
-    json: () => {}
-  };
+  // 1. PAYMENT_WEBHOOK_RECEIPT log (logged synchronously so we see incoming requests immediately)
+  structuredLog({
+    eventType: "PAYMENT_WEBHOOK_RECEIPT",
+    correlationId,
+    paymentId,
+    adminId,
+    targetUserId,
+    message: `Received webhook callback for payment ${paymentId || 'unknown'}. Status: ${body?.status}`,
+    metadata: { headers, body }
+  });
 
-  // Process the webhook logic asynchronously in the background
-  (async (res) => {
-    let lockToken = null;
-    let correlationId = initialCorrelationId;
-    let adminId = null;
-    let targetUserId = null;
-    let paymentRecord = null;
+  if (Number.isNaN(paymentId)) {
+    structuredAlert({
+      level: "error",
+      eventType: "PAYMENT_STATUS_INVALID_ID",
+      correlationId,
+      message: `Invalid payment ID format in webhook: ${rawPaymentId}`
+    });
+    recordWebhookFailure();
+    return res.status(400).json({ success: false, message: "Invalid payment ID" });
+  }
 
-    // Try to pre-fetch payment to extract original correlationId UUID
-    if (rawPaymentId) {
-      try {
-        paymentRecord = await prisma.payment.findUnique({
-          where: { id: Number(rawPaymentId) }
-        });
-        if (paymentRecord) {
-          targetUserId = paymentRecord.userId;
-          if (paymentRecord.idempotencyKey) {
-            const parts = paymentRecord.idempotencyKey.split(":");
-            if (parts.length >= 4) {
-              correlationId = parts[3]; // The UUID
-            }
-            const adminIdPart = parts[1]?.split("=")[1];
-            adminId = adminIdPart ? Number(adminIdPart) : null;
-          }
-        }
-      } catch (err) {
-        console.warn(`[WEBHOOK] Pre-fetch error:`, err.message);
-      }
-    }
-
-    const webhookSignature =
-      headers['x-webhook-signature'] ||
-      headers['X-Webhook-Signature'] ||
-      headers['x-signature'] ||
-      headers['signature'] ||
-      body?.signature ||
-      query?.signature ||
-      null;
-
-    const incomingTimestamp =
-      headers['x-webhook-timestamp'] ||
-      headers['X-Webhook-Timestamp'] ||
-      headers['x-timestamp'] ||
-      headers['timestamp'] ||
-      body?.timestamp ||
-      query?.timestamp ||
-      null;
-
-    const incomingNonce =
-      headers['x-webhook-nonce'] ||
-      headers['X-Webhook-Nonce'] ||
-      headers['x-nonce'] ||
-      headers['nonce'] ||
-      body?.nonce ||
-      query?.nonce ||
-      null;
-
-    const paymentId = Number(rawPaymentId);
-
-    try {
-      // 1. PAYMENT_WEBHOOK_RECEIPT log
-      structuredLog({
-        eventType: "PAYMENT_WEBHOOK_RECEIPT",
+  // 2. Safe Optional Validation (performed synchronously)
+  const expectedSecret = process.env.WEBHOOK_SECRET || "internal_secret";
+  if (webhookSignature) {
+    if (!incomingTimestamp || !incomingNonce) {
+      structuredAlert({
+        level: "error",
+        eventType: "WEBHOOK_UNAUTHORIZED",
         correlationId,
         paymentId,
         adminId,
         targetUserId,
-        message: `Received webhook callback for payment ${paymentId || 'unknown'}. Status: ${body?.status}`,
-        metadata: { headers, body }
+        message: `Webhook validation failed: missing timestamp or nonce with signature.`
       });
+      recordWebhookFailure();
+      return res.status(400).json({ success: false, message: "Missing timestamp or nonce for signature validation" });
+    }
 
-      if (Number.isNaN(paymentId)) {
-        structuredAlert({
-          level: "error",
-          eventType: "PAYMENT_STATUS_INVALID_ID",
-          correlationId,
-          message: `Invalid payment ID format in webhook: ${rawPaymentId}`
-        });
-        recordWebhookFailure();
-        return res.status(400).json({ success: false, message: "Invalid payment ID" });
+    const now = Date.now();
+    const timestampMs = Number(incomingTimestamp);
+    if (isNaN(timestampMs)) {
+      recordWebhookFailure();
+      return res.status(400).json({ success: false, message: "Invalid timestamp format" });
+    }
+    if (now - timestampMs > 300000) {
+      structuredAlert({
+        level: "error",
+        eventType: "WEBHOOK_UNAUTHORIZED",
+        correlationId,
+        paymentId,
+        adminId,
+        targetUserId,
+        message: `Webhook validation failed: timestamp expired.`
+      });
+      recordWebhookFailure();
+      return res.status(400).json({ success: false, message: "Webhook timestamp expired" });
+    }
+    if (timestampMs - now > 5000) {
+      structuredAlert({
+        level: "error",
+        eventType: "WEBHOOK_UNAUTHORIZED",
+        correlationId,
+        paymentId,
+        adminId,
+        targetUserId,
+        message: `Webhook validation failed: timestamp in future.`
+      });
+      recordWebhookFailure();
+      return res.status(400).json({ success: false, message: "Webhook timestamp in future" });
+    }
+
+    const payloadString = incomingTimestamp + "." + incomingNonce + "." + JSON.stringify(body);
+    const expectedHmac = crypto.createHmac("sha256", expectedSecret).update(payloadString).digest("hex");
+    if (webhookSignature !== expectedHmac) {
+      structuredAlert({
+        level: "error",
+        eventType: "WEBHOOK_UNAUTHORIZED",
+        correlationId,
+        paymentId,
+        adminId,
+        targetUserId,
+        message: `Webhook validation failed: invalid HMAC signature.`
+      });
+      recordWebhookFailure();
+      return res.status(401).json({ success: false, message: "Invalid HMAC signature" });
+    }
+
+    // Nonce Replay Protection (performed synchronously)
+    let nonceClaimed = true;
+    let isIdenticalDuplicate = false;
+    const nowMs = Date.now();
+    const nonceKey = `nonce:${incomingNonce}`;
+
+    // Clean up expired memory nonces
+    for (const [key, val] of memoryNonceCache.entries()) {
+      const expireTime = val && typeof val === "object" ? val.expireAt : val;
+      if (nowMs > expireTime) {
+        memoryNonceCache.delete(key);
       }
+    }
 
-      // 2. Safe Optional Validation
-      const expectedSecret = process.env.WEBHOOK_SECRET || "internal_secret";
-      if (webhookSignature) {
-        if (!incomingTimestamp || !incomingNonce) {
-          structuredAlert({
-            level: "error",
-            eventType: "WEBHOOK_UNAUTHORIZED",
-            correlationId,
-            paymentId,
-            adminId,
-            targetUserId,
-            message: `Webhook validation failed: missing timestamp or nonce with signature.`
-          });
-          recordWebhookFailure();
-          return res.status(400).json({ success: false, message: "Missing timestamp or nonce for signature validation" });
-        }
+    let storedSignature = null;
+    if (redisClient.status === "ready") {
+      try {
+        storedSignature = await redisClient.get(nonceKey);
+      } catch (redisErr) {
+        console.warn(`[WEBHOOK][${correlationId}] Redis connection offline for replay check:`, redisErr.message);
+      }
+    } else {
+      const cacheVal = memoryNonceCache.get(nonceKey);
+      if (cacheVal) {
+        storedSignature = cacheVal && typeof cacheVal === "object" ? cacheVal.signature : null;
+      }
+    }
 
-        const now = Date.now();
-        const timestampMs = Number(incomingTimestamp);
-        if (isNaN(timestampMs)) {
-          recordWebhookFailure();
-          return res.status(400).json({ success: false, message: "Invalid timestamp format" });
-        }
-        if (now - timestampMs > 300000) {
-          structuredAlert({
-            level: "error",
-            eventType: "WEBHOOK_UNAUTHORIZED",
-            correlationId,
-            paymentId,
-            adminId,
-            targetUserId,
-            message: `Webhook validation failed: timestamp expired.`
-          });
-          recordWebhookFailure();
-          return res.status(400).json({ success: false, message: "Webhook timestamp expired" });
-        }
-        if (timestampMs - now > 5000) {
-          structuredAlert({
-            level: "error",
-            eventType: "WEBHOOK_UNAUTHORIZED",
-            correlationId,
-            paymentId,
-            adminId,
-            targetUserId,
-            message: `Webhook validation failed: timestamp in future.`
-          });
-          recordWebhookFailure();
-          return res.status(400).json({ success: false, message: "Webhook timestamp in future" });
-        }
-
-        const payloadString = incomingTimestamp + "." + incomingNonce + "." + JSON.stringify(body);
-        const expectedHmac = crypto.createHmac("sha256", expectedSecret).update(payloadString).digest("hex");
-        if (webhookSignature !== expectedHmac) {
-          structuredAlert({
-            level: "error",
-            eventType: "WEBHOOK_UNAUTHORIZED",
-            correlationId,
-            paymentId,
-            adminId,
-            targetUserId,
-            message: `Webhook validation failed: invalid HMAC signature.`
-          });
-          recordWebhookFailure();
-          return res.status(401).json({ success: false, message: "Invalid HMAC signature" });
-        }
-
-        // Nonce Replay Protection
-        let nonceClaimed = true;
+    if (storedSignature !== null) {
+      if (storedSignature === webhookSignature) {
+        isIdenticalDuplicate = true;
+      } else {
+        nonceClaimed = false;
+      }
+    } else {
+      if (redisClient.status === "ready") {
         try {
-          if (redisClient.status === "ready") {
-            const nonceKey = `nonce:${incomingNonce}`;
-            const claim = await redisClient.set(nonceKey, "1", "NX", "EX", 300);
-            if (claim === null || claim === 0 || !claim) {
-              nonceClaimed = false;
-            }
-          }
+          await redisClient.set(nonceKey, webhookSignature, "EX", 300);
         } catch (redisErr) {
-          console.warn(`[WEBHOOK][${correlationId}] Redis connection offline for replay check:`, redisErr.message);
-        }
-        if (!nonceClaimed) {
-          structuredAlert({
-            level: "error",
-            eventType: "DUPLICATE_NONCE_REPLAY",
-            correlationId,
-            paymentId,
-            adminId,
-            targetUserId,
-            message: `Webhook rejected: Duplicate nonce detected (${incomingNonce})`
-          });
-          recordWebhookFailure();
-          return res.status(429).json({ success: false, message: "Duplicate webhook nonce" });
+          console.warn(`[WEBHOOK][${correlationId}] Redis failed to set nonce:`, redisErr.message);
         }
       } else {
-        const incomingSecret = headers['x-webhook-secret'] || headers['X-Webhook-Secret'] || body?.secret || query?.secret || null;
-        if (incomingSecret !== expectedSecret) {
-          structuredAlert({
-            level: "error",
-            eventType: "WEBHOOK_UNAUTHORIZED",
-            correlationId,
-            paymentId,
-            adminId,
-            targetUserId,
-            message: `Webhook validation failed: missing signature and invalid webhook secret.`
-          });
-          recordWebhookFailure();
-          return res.status(401).json({ success: false, message: "Unauthorized: Invalid signature or webhook secret" });
-        }
-        structuredLog({
-          eventType: "PAYMENT_WEBHOOK_SECRET_AUTHORIZED",
-          correlationId,
-          paymentId,
-          adminId,
-          targetUserId,
-          message: `Webhook authorized internally via x-webhook-secret token.`
-        });
+        memoryNonceCache.set(nonceKey, { signature: webhookSignature, expireAt: nowMs + 300000 });
       }
+    }
 
+    if (isIdenticalDuplicate) {
+      structuredLog({
+        eventType: "PAYMENT_WEBHOOK_DUPLICATE_SKIP",
+        correlationId,
+        paymentId,
+        adminId,
+        targetUserId,
+        message: `Webhook validation: Identical duplicate webhook callback detected for payment ${paymentId}. Returning 200 OK.`
+      });
+      return res.status(200).json({ success: true, message: "Webhook received and verified successfully" });
+    }
+
+    if (!nonceClaimed) {
+      structuredAlert({
+        level: "error",
+        eventType: "DUPLICATE_NONCE_REPLAY",
+        correlationId,
+        paymentId,
+        adminId,
+        targetUserId,
+        message: `Webhook rejected: Duplicate nonce detected (${incomingNonce})`
+      });
+      recordWebhookFailure();
+      return res.status(429).json({ success: false, message: "Duplicate webhook nonce" });
+    }
+  } else {
+    const incomingSecret = headers['x-webhook-secret'] || headers['X-Webhook-Secret'] || body?.secret || query?.secret || null;
+    if (incomingSecret !== expectedSecret) {
+      structuredAlert({
+        level: "error",
+        eventType: "WEBHOOK_UNAUTHORIZED",
+        correlationId,
+        paymentId,
+        adminId,
+        targetUserId,
+        message: `Webhook validation failed: missing signature and invalid webhook secret.`
+      });
+      recordWebhookFailure();
+      return res.status(401).json({ success: false, message: "Unauthorized: Invalid signature or webhook secret" });
+    }
+    structuredLog({
+      eventType: "PAYMENT_WEBHOOK_SECRET_AUTHORIZED",
+      correlationId,
+      paymentId,
+      adminId,
+      targetUserId,
+      message: `Webhook authorized internally via x-webhook-secret token.`
+    });
+  }
+
+  // Signature and replay protection validated, send successful receipt response to webhook provider immediately
+  try {
+    res.status(200).json({ success: true, message: "Webhook received and verified successfully" });
+  } catch (err) {
+    console.error("[Webhook Response Error]:", err.message);
+  }
+
+  // Process the webhook database/wallet logic asynchronously in the background
+  (async () => {
+    let lockToken = null;
+    try {
       // Status Normalization
       const status = body?.status;
       const rawStatus = status || "";
@@ -595,7 +645,7 @@ export const paymentWebhook = async (req, res) => {
           targetUserId,
           message: `Could not acquire lock for payment ${paymentId}. Concurrency blocked.`
         });
-        return res.status(429).json({ success: false, message: "Concurrent webhook processing" });
+        return;
       }
 
       if (lockToken.startsWith("dummy_fallback_lock_")) {
@@ -692,7 +742,7 @@ export const paymentWebhook = async (req, res) => {
           metadata: { status: result.payment.status }
         });
         recordWebhookDuplicate();
-        return res.json({ success: true, message: "Duplicate webhook processed", correlationId });
+        return;
       }
 
       if (result.securityAlert) {
@@ -706,7 +756,7 @@ export const paymentWebhook = async (req, res) => {
           message: `SECURITY ALERT: Webhook amount mismatch! Gateway Amount: ${gatewayAmount}, Expected Amount: ${result.payment.amount}`
         });
         recordWebhookFailure();
-        return res.json({ success: true, message: "Security alert: amount mismatch", correlationId });
+        return;
       }
 
       if (result.payment.status === "SUCCESS") {
@@ -751,8 +801,6 @@ export const paymentWebhook = async (req, res) => {
         });
         recordWebhookFailure();
       }
-
-      return res.json({ success: true, message: "Webhook processed successfully", correlationId });
     } catch (error) {
       structuredAlert({
         level: "error",
@@ -766,11 +814,10 @@ export const paymentWebhook = async (req, res) => {
       });
       recordWebhookFailure();
       await pushToDLQ("PAYMENT_WEBHOOK_FAILURE", body, error);
-      return res.status(500).json({ success: false, message: "Internal server error during webhook processing" });
     } finally {
       if (lockToken) {
-        await releaseLock(`payment_webhook:${parseInt(rawPaymentId || 0)}`, lockToken);
+        await releaseLock(`payment_webhook:${paymentId}`, lockToken);
       }
     }
-  })(safeRes);
+  })();
 };

@@ -1,9 +1,11 @@
 import React, { useState, useEffect, memo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wallet, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownLeft, Clock, ShieldCheck, Zap, ChevronRight, Activity, Smartphone, FileText, AlertCircle } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownLeft, Clock, ShieldCheck, Zap, ChevronRight, Activity, Smartphone, FileText, AlertCircle, Coins } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../api';
 import { formatAmount, safeArray, safeValue } from '../utils/helpers';
+import { convertCashbackToCoins } from '../utils/rewardDisplayHelper';
+
 import socket from '../services/socket';
 import { InvoiceModal } from '../components/reports/InvoiceModal';
 import { DisputeModal } from '../components/reports/DisputeModal';
@@ -138,11 +140,11 @@ export default function Dashboard() {
           suffix="₹"
         />
         <StatCard 
-          title="Cashback Earned" 
-          value={wallet?.cashbackBalance || 0} 
-          icon={Zap} 
+          title="Coins Balance" 
+          value={convertCashbackToCoins(wallet?.cashbackBalance)} 
+          icon={Coins} 
           subtitle="Total Savings"
-          suffix="₹"
+          suffix=""
         />
         <StatCard 
           title="Success Rate" 
@@ -219,6 +221,9 @@ export default function Dashboard() {
                             {txn.direction === 'DEBIT' ? '-' : '+'}₹{formatAmount(txn.amount)}
                           </p>
                           <p className="text-[8px] font-mono text-[var(--text-muted)]">#{safeValue(txn.id).toString().toUpperCase()}</p>
+                          {txn.publicRef && (
+                            <p className="text-[8px] font-mono text-[var(--color-accent)] font-bold">{txn.publicRef}</p>
+                          )}
                         </div>
                         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                           <button 

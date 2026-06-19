@@ -77,6 +77,12 @@ const worker = new Worker("recharge", async (job) => {
         lockAcquired = true;
         console.log(`[WORKER_LOCK_ACQUIRED] Txn ${txnId} lock acquired.`);
 
+        const opCode = getProviderOperatorCode(frontendOperator);
+        const isDth = ["6", "7", "8", "9", "10"].includes(opCode);
+        if (isDth) {
+          console.log(`[DTH_RECHARGE_PROCESSING] transactionId=${txnId}, operator=${frontendOperator}, subscriberId=${mobile}, amount=${amount}, providerRef=N/A, providerTxnId=N/A`);
+        }
+
         await logTransactionEvent(txnId, TXN_EVENTS.PROVIDER_PENDING, { mobile, operator: frontendOperator, retryCount });
 
         // 1. SHADOW ROUTING CALCULATION
@@ -337,6 +343,12 @@ async function processFailureRefund({ txnId, userId, amount, attempts, reason })
                 return;
             }
 
+            const opCode = getProviderOperatorCode(txn.operator);
+            const isDth = ["6", "7", "8", "9", "10"].includes(opCode);
+            if (isDth) {
+              console.log(`[DTH_RECHARGE_FAILED] transactionId=${txnId}, operator=${txn.operator}, subscriberId=${txn.mobile}, amount=${txn.amount}, providerRef=${txn.providerRef || 'N/A'}, providerTxnId=${txn.providerTxnId || 'N/A'}`);
+            }
+
             // Transition from FAILED to REFUNDED
             const updateRefunded = await tx.transaction.updateMany({
                 where: {
@@ -356,6 +368,10 @@ async function processFailureRefund({ txnId, userId, amount, attempts, reason })
             if (updateRefunded.count === 0) {
                 console.log(`[FINAL_STATE_BLOCKED] REFUNDED transition blocked or already finalized: ${txnId}`);
                 return;
+            }
+
+            if (isDth) {
+              console.log(`[DTH_RECHARGE_REFUNDED] transactionId=${txnId}, operator=${txn.operator}, subscriberId=${txn.mobile}, amount=${txn.amount}, providerRef=${txn.providerRef || 'N/A'}, providerTxnId=${txn.providerTxnId || 'N/A'}`);
             }
 
             // Use Ledger Service for Refund

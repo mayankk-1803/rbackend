@@ -3,8 +3,11 @@ import { Link, useLocation } from "react-router-dom";
 import { motion as Motion } from "framer-motion";
 import { LogOut, LayoutDashboard, Smartphone, History, Activity, User, Zap, ShoppingBag, ShieldCheck, WalletCards, Headphones, ChevronRight, PanelLeftClose, PanelLeftOpen, Bell, Search, Coins } from "lucide-react";
 import ThemeSelector from "./ThemeSelector";
+import Logo from "./Logo";
 import { useIsIOS } from "../utils/device";
 import { useWallet } from "../context/WalletContext";
+import { convertCashbackToCoins } from "../utils/rewardDisplayHelper";
+
 
 const Navbar = ({ collapsed = false, setCollapsed = () => {} }) => {
   const location = useLocation();
@@ -57,13 +60,10 @@ const Navbar = ({ collapsed = false, setCollapsed = () => {} }) => {
       <nav className="h-full ui-sidebar rounded-2xl border border-[var(--glass-border)] shadow-[var(--glass-shadow)] ios-promote-layer flex flex-col overflow-hidden">
         <div className="p-5 border-b border-[var(--glass-border)]">
           <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between"} gap-2`}>
-          <Link to="/dashboard" className="flex items-center gap-3 group cursor-pointer navbar-logo-container min-w-0">
-            <div className="w-11 h-11 bg-[var(--accent-soft)] rounded-xl flex items-center justify-center border border-[var(--glass-border)] group-hover:border-[var(--glass-border-hover)] transition-all duration-300">
-              <Zap className="w-5 h-5 text-[var(--color-primary)] fill-[var(--color-primary-glow)]" />
-            </div>
+          <Link to="/dashboard" className="navbar-logo-container shrink-0 overflow-visible min-w-0 flex items-center gap-3">
+            <Logo size="lg" collapsed={collapsed} />
             {!collapsed && <div className="min-w-0">
-              <span className="block text-xl font-black text-[var(--text-color)] font-sans lowercase navbar-logo-text leading-tight">irecharge</span>
-              <span className="block text-[10px] font-bold text-[var(--text-muted)] uppercase">Client portal</span>
+              <span className="block text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Client portal</span>
             </div>}
           </Link>
           {!collapsed && (
@@ -131,9 +131,9 @@ const Navbar = ({ collapsed = false, setCollapsed = () => {} }) => {
           {!collapsed && <Link to="/reports/ledger" className="block rounded-2xl p-4 bg-[var(--accent-soft)]/70 border border-[var(--color-accent)]/15">
             <p className="text-[10px] font-black uppercase text-[var(--text-muted)]">Wallet summary</p>
             <p className="mt-1 text-lg font-black text-[var(--text-color)]">₹{Number(wallet?.balance || 0).toFixed(2)}</p>
-            <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] font-bold text-[var(--text-secondary)]">
-              <span className="inline-flex items-center gap-1"><Coins className="w-3 h-3" /> {Number(wallet?.coinBalance || 0)}</span>
-              <span>CB ₹{Number(wallet?.cashbackBalance || 0).toFixed(0)}</span>
+            <div className="mt-2 text-[10px] font-bold text-[var(--text-secondary)] flex items-center gap-1.5">
+              <Coins className="w-3.5 h-3.5 text-amber-400 fill-amber-400/20" />
+              <span>Coins: {convertCashbackToCoins(wallet?.cashbackBalance)}</span>
             </div>
           </Link>}
           <div className={`flex items-center gap-2 ${collapsed ? "flex-col" : ""}`}>

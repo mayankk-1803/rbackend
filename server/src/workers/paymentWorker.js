@@ -345,7 +345,7 @@ export const startPaymentWorker = () => {
                       await tx.order.update({
                         where: { id: order.id },
                         data: {
-                          paymentStatus: "SUCCESS",
+                          paymentStatus: "PAID",
                           status: "PROCESSING"
                         }
                       });
@@ -360,6 +360,13 @@ export const startPaymentWorker = () => {
                           }
                         });
                       }
+
+                      // Delete wishlist items for the customer
+                      await tx.wishlistItem.deleteMany({
+                        where: {
+                          wishlist: { userId: order.userId }
+                        }
+                      });
                     }
                   } else {
                     balanceAfter = new Prisma.Decimal(balanceBefore).plus(new Prisma.Decimal(dbPayment.amount));

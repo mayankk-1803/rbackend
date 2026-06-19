@@ -1,0 +1,98 @@
+[
+  {
+    "id": 1,
+    "code": "RECHARGE",
+    "name": "Mobile/DTH Recharge",
+    "isActive": true,
+    "createdAt": "2026-05-29T06:41:41.481Z",
+    "updatedAt": "2026-06-03T05:00:08.463Z"
+  },
+  {
+    "id": 2,
+    "code": "AEPS",
+    "name": "Aadhaar Enabled Payment System",
+    "isActive": true,
+    "createdAt": "2026-05-29T06:41:41.492Z",
+    "updatedAt": "2026-06-03T05:00:08.554Z"
+  },
+  {
+    "id": 3,
+    "code": "BBPS",
+    "name": "Bharat Bill Payment System",
+    "isActive": true,
+    "createdAt": "2026-05-29T06:41:41.498Z",
+    "updatedAt": "2026-06-03T04:46:02.102Z"
+  },
+  {
+    "id": 4,
+    "code": "DMT",
+    "name": "Domestic Money Transfer",
+    "isActive": true,
+    "createdAt": "2026-05-29T06:41:41.504Z",
+    "updatedAt": "2026-06-03T04:46:02.107Z"
+  },
+  {
+    "id": 5,
+    "code": "FASTAG",
+    "name": "FASTag Recharge",
+    "isActive": true,
+    "createdAt": "2026-05-29T06:41:41.510Z",
+    "updatedAt": "2026-06-03T04:46:02.113Z"
+  },
+  {
+    "id": 6,
+    "code": "CMS",
+    "name": "Cash Management Service",
+    "isActive": true,
+    "createdAt": "2026-05-29T06:41:41.515Z",
+    "updatedAt": "2026-06-03T04:46:02.118Z"
+  },
+  {
+    "id": 7,
+    "code": "INSURANCE",
+    "name": "Insurance Premium Payment",
+    "isActive": true,
+    "createdAt": "2026-05-29T06:41:41.520Z",
+    "updatedAt": "2026-06-03T04:46:02.123Z"
+  },
+  {
+    "id": 8,
+    "code": "TRAVEL",
+    "name": "Travel/Ticket Booking",
+    "isActive": true,
+    "createdAt": "2026-05-29T06:41:41.525Z",
+    "updatedAt": "2026-06-03T04:46:02.128Z"
+  },
+  {
+    "id": 9,
+    "code": "SHOPPING",
+    "name": "Shopping E-Commerce",
+    "isActive": true,
+    "createdAt": "2026-05-29T06:41:41.531Z",
+    "updatedAt": "2026-06-03T04:46:02.134Z"
+  },
+  {
+    "id": 10,
+    "code": "PAYOUT",
+    "name": "Payout Transfers",
+    "isActive": true,
+    "createdAt": "2026-05-29T06:41:41.537Z",
+    "updatedAt": "2026-06-03T04:46:02.139Z"
+  },
+  {
+    "id": 23,
+    "code": "CAT_SIM_1780049564593",
+    "name": "Sim Cat 1780049564593",
+    "isActive": true,
+    "createdAt": "2026-05-29T10:12:44.634Z",
+    "updatedAt": "2026-05-29T10:12:44.634Z"
+  },
+  {
+    "id": 29,
+    "code": "CAT_SIM_1780051354788",
+    "name": "Sim Cat 1780051354788",
+    "isActive": true,
+    "createdAt": "2026-05-29T10:42:34.826Z",
+    "updatedAt": "2026-05-29T10:42:34.826Z"
+  }
+]

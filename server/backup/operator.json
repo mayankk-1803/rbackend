@@ -1,0 +1,122 @@
+[
+  {
+    "id": 1,
+    "name": "JIO",
+    "codes": "{\"code\":\"5\",\"category\":\"Mobile\",\"circleRequired\":true,\"description\":\"Prepaid mobile recharge for JIO\"}",
+    "active": true,
+    "createdAt": "2026-05-29T07:34:49.641Z",
+    "updatedAt": "2026-06-10T10:32:07.611Z"
+  },
+  {
+    "id": 2,
+    "name": "AIRTEL",
+    "codes": "{\"code\":\"1\",\"category\":\"Mobile\",\"circleRequired\":true,\"description\":\"Prepaid mobile recharge for AIRTEL\"}",
+    "active": true,
+    "createdAt": "2026-05-29T07:34:49.641Z",
+    "updatedAt": "2026-06-10T10:32:07.530Z"
+  },
+  {
+    "id": 3,
+    "name": "VI",
+    "codes": "{\"code\":\"2\",\"category\":\"Mobile\",\"circleRequired\":true,\"description\":\"Prepaid mobile recharge for VI\"}",
+    "active": true,
+    "createdAt": "2026-05-29T07:34:49.641Z",
+    "updatedAt": "2026-06-10T10:32:07.589Z"
+  },
+  {
+    "id": 4,
+    "name": "BSNL",
+    "codes": "BSNL",
+    "active": true,
+    "createdAt": "2026-05-29T07:34:49.641Z",
+    "updatedAt": "2026-05-29T07:34:49.641Z"
+  },
+  {
+    "id": 17,
+    "name": "OP_SIM_1780049564593",
+    "codes": "OP_SIM_1780049564593",
+    "active": true,
+    "createdAt": "2026-05-29T10:12:44.619Z",
+    "updatedAt": "2026-05-29T10:12:44.619Z"
+  },
+  {
+    "id": 23,
+    "name": "OP_SIM_1780051354788",
+    "codes": "OP_SIM_1780051354788",
+    "active": true,
+    "createdAt": "2026-05-29T10:42:34.811Z",
+    "updatedAt": "2026-05-29T10:42:34.811Z"
+  },
+  {
+    "id": 26,
+    "name": "OP_SHADOW_1780052582818",
+    "codes": "OP_SHADOW_1780052582818",
+    "active": true,
+    "createdAt": "2026-05-29T11:03:02.846Z",
+    "updatedAt": "2026-05-29T11:03:02.846Z"
+  },
+  {
+    "id": 40,
+    "name": "TEST_OP",
+    "codes": null,
+    "active": true,
+    "createdAt": "2026-06-08T10:21:03.150Z",
+    "updatedAt": "2026-06-08T10:21:03.150Z"
+  },
+  {
+    "id": 41,
+    "name": "VIDEOCON D2H",
+    "codes": "{\"code\":\"6\",\"category\":\"DTH\",\"circleRequired\":false,\"description\":\"Direct-To-Home recharge for VIDEOCON D2H\"}",
+    "active": true,
+    "createdAt": "2026-06-10T06:57:39.514Z",
+    "updatedAt": "2026-06-10T10:32:07.619Z"
+  },
+  {
+    "id": 42,
+    "name": "AIRTEL DTH",
+    "codes": "{\"code\":\"7\",\"category\":\"DTH\",\"circleRequired\":false,\"description\":\"Direct-To-Home recharge for AIRTEL DTH\"}",
+    "active": true,
+    "createdAt": "2026-06-10T06:57:39.558Z",
+    "updatedAt": "2026-06-10T10:32:07.628Z"
+  },
+  {
+    "id": 43,
+    "name": "DISH TV",
+    "codes": "{\"code\":\"8\",\"category\":\"DTH\",\"circleRequired\":false,\"description\":\"Direct-To-Home recharge for DISH TV\"}",
+    "active": true,
+    "createdAt": "2026-06-10T06:57:39.564Z",
+    "updatedAt": "2026-06-10T10:32:07.636Z"
+  },
+  {
+    "id": 44,
+    "name": "SUN DIRECT",
+    "codes": "{\"code\":\"9\",\"category\":\"DTH\",\"circleRequired\":false,\"description\":\"Direct-To-Home recharge for SUN DIRECT\"}",
+    "active": true,
+    "createdAt": "2026-06-10T06:57:39.570Z",
+    "updatedAt": "2026-06-10T10:32:07.644Z"
+  },
+  {
+    "id": 45,
+    "name": "TATA SKY",
+    "codes": "{\"code\":\"10\",\"category\":\"DTH\",\"circleRequired\":false,\"description\":\"Direct-To-Home recharge for TATA SKY\"}",
+    "active": true,
+    "createdAt": "2026-06-10T06:57:39.575Z",
+    "updatedAt": "2026-06-10T10:32:07.653Z"
+  },
+  {
+    "id": 49,
+    "name": "BSNL Topup",
+    "codes": "{\"code\":\"3\",\"category\":\"Mobile\",\"circleRequired\":true,\"description\":\"Prepaid mobile recharge for BSNL Topup\"}",
+    "active": true,
+    "createdAt": "2026-06-10T10:29:33.719Z",
+    "updatedAt": "2026-06-10T10:32:07.596Z"
+  },
+  {
+    "id": 50,
+    "name": "BSNL Special",
+    "codes": "{\"code\":\"4\",\"category\":\"Mobile\",\"circleRequired\":true,\"description\":\"Prepaid mobile recharge for BSNL Special\"}",
+    "active": true,
+    "createdAt": "2026-06-10T10:29:33.730Z",
+    "updatedAt": "2026-06-10T10:32:07.603Z"
+  }
+]

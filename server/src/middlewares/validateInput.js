@@ -2,11 +2,30 @@ import Joi from "joi";
 
 export const validateRechargeInput = (req, res, next) => {
   const schema = Joi.object({
-    mobile: Joi.string().pattern(/^[6-9]\d{9}$/).required().messages({
-      "string.pattern.base": "Invalid Indian mobile number"
+    operatorCode: Joi.alternatives().try(Joi.string(), Joi.number()).required().messages({
+      "any.required": "Invalid Operator",
+      "any.empty": "Invalid Operator"
     }),
-    amount: Joi.number().positive().required(),
-    operatorCode: Joi.alternatives().try(Joi.string(), Joi.number()).required(),
+    mobile: Joi.string().required().messages({
+      "any.required": "Subscriber ID Required",
+      "string.empty": "Subscriber ID Required"
+    }).when("operatorCode", {
+      is: Joi.alternatives().try(
+        Joi.string().valid("6", "7", "8", "9", "10"),
+        Joi.number().valid(6, 7, 8, 9, 10)
+      ),
+      then: Joi.string().pattern(/^\d{8,15}$/).messages({
+        "string.pattern.base": "Invalid DTH Subscriber ID"
+      }),
+      otherwise: Joi.string().pattern(/^[6-9]\d{9}$/).messages({
+        "string.pattern.base": "Valid 10-digit mobile number required"
+      })
+    }),
+    amount: Joi.number().positive().required().messages({
+      "number.base": "Invalid Recharge Amount",
+      "number.positive": "Invalid Recharge Amount",
+      "any.required": "Recharge Amount Required"
+    }),
     operator: Joi.string().optional(),
     circle: Joi.string().allow("Unknown").optional(),
     providerCode: Joi.alternatives().try(Joi.string(), Joi.number()).optional().custom((val) => String(val)),

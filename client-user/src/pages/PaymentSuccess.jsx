@@ -13,7 +13,8 @@ const STATUS_STATES = {
   PENDING: 'PENDING',
   SUCCESS: 'SUCCESS',
   FAILED: 'FAILED',
-  EXPIRED: 'EXPIRED'
+  EXPIRED: 'EXPIRED',
+  SETTLEMENT_PENDING: 'SETTLEMENT_PENDING'
 };
 
 export default function PaymentSuccess() {
@@ -53,14 +54,20 @@ export default function PaymentSuccess() {
         });
         
         const normalizedStatus = String(status || "").trim().toUpperCase();
+        const settlementStatus = data?.settlementStatus || payload?.settlementStatus;
         
         const SUCCESS_STATES = ["SUCCESS", "COMPLETED", "PAID"];
         const FAILED_STATES = ["FAILED", "EXPIRED", "CANCELLED", "REJECTED"];
 
         if (SUCCESS_STATES.includes(normalizedStatus)) {
-          setState(STATUS_STATES.SUCCESS);
-          toast.success("Payment successful");
-          window.dispatchEvent(new Event("wallet-refresh"));
+          if (settlementStatus === "PENDING") {
+            setState(STATUS_STATES.SETTLEMENT_PENDING);
+            toast.success("Payment received. Settlement pending approval.");
+          } else {
+            setState(STATUS_STATES.SUCCESS);
+            toast.success("Payment successful");
+            window.dispatchEvent(new Event("wallet-refresh"));
+          }
         } else if (FAILED_STATES.includes(normalizedStatus)) {
           setState(STATUS_STATES.FAILED);
         } else {
@@ -138,6 +145,7 @@ export default function PaymentSuccess() {
 
     if (state === STATUS_STATES.SUCCESS) {
       const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const redirectPath = paymentData?.intent === "IMART" ? "/imart/wishlist" : "/dashboard";
       
       if (isMobile) {
         mobileRedirectTimer = setTimeout(() => {
@@ -152,14 +160,14 @@ export default function PaymentSuccess() {
           if (!redirectingRef.current) {
             redirectingRef.current = true;
             window.dispatchEvent(new Event("wallet-refresh"));
-            navigate('/dashboard', { replace: true });
+            navigate(redirectPath, { replace: true });
           }
         }
         fallbackTimer = setTimeout(() => {
           if (!redirectingRef.current) {
             redirectingRef.current = true;
             window.dispatchEvent(new Event("wallet-refresh"));
-            window.location.replace("/dashboard");
+            window.location.replace(redirectPath);
           }
         }, 2500);
       }
@@ -219,7 +227,12 @@ export default function PaymentSuccess() {
             </div>
             
             <div className="text-center space-y-3">
-              <h2 className="text-3xl font-black text-[var(--text-color)] uppercase tracking-tighter italic">Topup <span className="text-emerald-400 emerald-glow">Successful</span></h2>
+              <h2 className="text-3xl font-black text-[var(--text-color)] uppercase tracking-tighter italic">
+                {paymentData?.intent === "IMART" ? "Order " : "Topup "}
+                <span className="text-emerald-400 emerald-glow">
+                  {paymentData?.intent === "IMART" ? "Paid" : "Successful"}
+                </span>
+              </h2>
               {isMobile ? (
                 <div className="space-y-1">
                   <p className="text-sm font-bold text-[var(--text-color)]">Opening DiziPay App...</p>
@@ -237,14 +250,24 @@ export default function PaymentSuccess() {
 
             <div className="w-full bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-3xl p-6 space-y-4">
               <div className="flex justify-between items-center pb-4 border-b border-[var(--glass-border)]">
-                <span className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Amount Credited</span>
+                <span className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">
+                  {paymentData?.intent === "IMART" ? "Order Amount" : "Amount Credited"}
+                </span>
                 <span className="text-2xl font-black text-[var(--text-color)] tracking-tighter">₹{formatAmount(paymentData?.amount)}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">New Balance</span>
+                <span className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">
+                  {paymentData?.intent === "IMART" ? "Payment Status" : "New Balance"}
+                </span>
                 <div className="flex items-center gap-2">
-                  <Wallet className="w-3.5 h-3.5 text-[var(--color-accent)] purple-glow" />
-                  <span className="text-sm font-black text-[var(--color-accent)] tracking-tight purple-glow">₹{formatAmount(paymentData?.walletBalance)}</span>
+                  {paymentData?.intent === "IMART" ? (
+                    <span className="text-sm font-black text-emerald-400 tracking-tight emerald-glow">PAID</span>
+                  ) : (
+                    <>
+                      <Wallet className="w-3.5 h-3.5 text-[var(--color-accent)] purple-glow" />
+                      <span className="text-sm font-black text-[var(--color-accent)] tracking-tight purple-glow">₹{formatAmount(paymentData?.walletBalance)}</span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -264,11 +287,11 @@ export default function PaymentSuccess() {
                   <button 
                     onClick={() => {
                       window.dispatchEvent(new Event("wallet-refresh"));
-                      navigate('/dashboard');
+                      navigate(paymentData?.intent === "IMART" ? '/imart/wishlist' : '/dashboard');
                     }}
                     className="w-full py-4 bg-purple-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl hover:bg-purple-400 transition-all group cursor-pointer"
                   >
-                    Go to Dashboard
+                    {paymentData?.intent === "IMART" ? "View Orders" : "Go to Dashboard"}
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </button>
                   <p className="text-center text-[9px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">
@@ -276,6 +299,54 @@ export default function PaymentSuccess() {
                   </p>
                 </>
               )}
+            </div>
+          </motion.div>
+        );
+
+      case STATUS_STATES.SETTLEMENT_PENDING:
+        return (
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="flex flex-col items-center gap-8 py-10"
+          >
+            <div className="w-24 h-24 bg-amber-500/10 rounded-full flex items-center justify-center border-4 border-amber-500/20 shadow-xl shadow-amber-500/5 animate-pulse">
+              <Clock className="w-12 h-12 text-amber-400 amber-glow" />
+            </div>
+            
+            <div className="text-center space-y-3">
+              <h2 className="text-2xl font-black text-[var(--text-color)] uppercase tracking-tighter italic">Verification <span className="text-amber-400 amber-glow">Pending</span></h2>
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 text-amber-400 rounded-full border border-amber-500/20 shadow-sm">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span className="text-[9px] font-black uppercase tracking-widest font-mono">Payment Received</span>
+              </div>
+              <p className="text-[11px] text-[var(--text-secondary)] font-bold uppercase tracking-wider leading-relaxed px-6 pt-2">
+                Payment received successfully. Wallet credit pending admin approval.
+              </p>
+            </div>
+
+            <div className="w-full bg-[var(--glass-input-bg)] border border-[var(--glass-border)] rounded-3xl p-6 space-y-4">
+              <div className="flex justify-between items-center pb-4 border-b border-[var(--glass-border)]">
+                <span className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Amount Paid</span>
+                <span className="text-2xl font-black text-[var(--text-color)] tracking-tighter">₹{formatAmount(paymentData?.amount)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Current Balance</span>
+                <div className="flex items-center gap-2">
+                  <Wallet className="w-3.5 h-3.5 text-[var(--color-accent)] purple-glow" />
+                  <span className="text-sm font-black text-[var(--color-accent)] tracking-tight purple-glow">₹{formatAmount(paymentData?.walletBalance)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="w-full">
+              <button 
+                onClick={() => navigate('/dashboard')}
+                className="w-full py-4 bg-purple-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl hover:bg-purple-400 transition-all group cursor-pointer"
+              >
+                Go to Dashboard
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </button>
             </div>
           </motion.div>
         );

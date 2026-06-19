@@ -5,6 +5,8 @@ import { recordFinancialEntry, recordCoinEntry } from "./ledgerService.js";
 import { logTransactionEvent, TXN_EVENTS } from "./transactionEventService.js";
 import { claimIdempotencyKey } from "../utils/idempotency.js";
 import { getFreezeStatus } from "./freezeService.js";
+import { updateAdminWalletBalance } from "./adminWalletService.js";
+import { notifyAdmins } from "./pendingWalletCreditService.js";
 
 /**
  * Centralized Reward Engine for DiziPay.
@@ -168,37 +170,93 @@ export const issueReward = async (transactionId) => {
 
         // Award cashback if applicable
         if (rewardAmount && rewardAmount.greaterThan(0)) {
-          // Credit wallet and create ledger entry via central recordFinancialEntry service
-          const { balanceAfter } = await recordFinancialEntry({
+          const amountNum = Number(transaction.amount);
+          const rewardAmountVal = rewardAmount.toNumber();
+          const cashbackPercentage = (rewardAmountVal / amountNum) * 100;
+
+          let adminShareVal = 0;
+          let userShareVal = rewardAmountVal;
+
+          if (cashbackPercentage <= 3) {
+            adminShareVal = rewardAmountVal * 0.005;
+            userShareVal = rewardAmountVal - adminShareVal;
+          } else {
+            adminShareVal = rewardAmountVal * 0.01;
+            userShareVal = rewardAmountVal - adminShareVal;
+          }
+
+          // Credit Admin Wallet with adminShareVal
+          if (adminShareVal > 0) {
+            await updateAdminWalletBalance({
+              amount: adminShareVal,
+              type: "CASHBACK_REVENUE",
+              description: `Cashback revenue share for recharge #${transactionId}`,
+              referenceId: String(transactionId),
+              tx
+            });
+
+            // Create admin notification
+            await notifyAdmins(
+              "CASHBACK REVENUE CREDIT",
+              `Received cashback revenue share of ₹${adminShareVal.toFixed(4)} from recharge #${transactionId}.`,
+              "CASHBACK_REVENUE_CREDIT",
+              tx
+            );
+          }
+
+          // Credit User's cashbackBalance in wallet
+          const wallets = await tx.$queryRaw`SELECT * FROM wallet WHERE userId = ${userId} FOR UPDATE`;
+          if (!wallets || wallets.length === 0) {
+            throw new Error(`Wallet not found for user ${userId}`);
+          }
+          const wallet = wallets[0];
+          const cashbackBefore = Number(wallet.cashbackBalance);
+          const cashbackAfter = cashbackBefore + userShareVal;
+
+          await tx.wallet.update({
+            where: { userId },
+            data: { cashbackBalance: new Prisma.Decimal(cashbackAfter) }
+          });
+
+          // Create ledgerEntry for the user cashback credit (using skipWalletUpdate)
+          await recordFinancialEntry({
             userId,
-            amount: rewardAmount,
+            amount: userShareVal,
             type: 'CASHBACK_CREDIT',
             transactionId: transactionId,
             description: `Cashback for recharge #${transactionId}`,
             context: { correlationId, ipAddress: "system" },
-            tx
+            tx,
+            skipWalletUpdate: true,
+            overrideBalanceBefore: cashbackBefore,
+            overrideBalanceAfter: cashbackAfter
           });
 
           // Create dedicated CASHBACK transaction record for transaction log
-          const cashbackTx = await tx.transaction.create({
+          await tx.transaction.create({
             data: {
               userId,
-              amount: rewardAmount,
-              cashback: rewardAmount,
+              amount: new Prisma.Decimal(userShareVal),
+              cashback: new Prisma.Decimal(userShareVal),
               type: 'CASHBACK',
               status: 'SUCCESS',
               direction: 'CREDIT',
-              balanceAfter,
+              balanceAfter: new Prisma.Decimal(cashbackAfter),
               description: `Cashback for recharge #${transactionId}`,
               idempotencyKey: `reward:${transactionId}`,
               financialSequenceId: correlationId,
               invoiceSnapshot: {
                 rechargeId: transactionId,
-                cashbackPercentage: (rewardAmount.toNumber() / Number(transaction.amount)) * 100,
-                originalAmount: Number(transaction.amount)
+                cashbackPercentage,
+                originalAmount: amountNum,
+                adminShare: adminShareVal,
+                userShare: userShareVal
               }
             }
           });
+
+          // Save final user share as the rewardAmount for original transaction updates
+          rewardAmount = new Prisma.Decimal(userShareVal);
         } else {
           rewardAmount = new Prisma.Decimal(0);
         }

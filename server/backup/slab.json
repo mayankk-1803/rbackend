@@ -1,0 +1,233 @@
+[
+  {
+    "id": 1,
+    "name": "Default Slab",
+    "description": "Default commission rates slab",
+    "isActive": true,
+    "isDefault": true,
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdAt": "2026-05-29T06:41:41.545Z",
+    "updatedAt": "2026-05-29T06:41:41.545Z"
+  },
+  {
+    "id": 2,
+    "name": "Verify Slab 1780037491805 Modified",
+    "description": "Modified desc",
+    "isActive": true,
+    "isDefault": false,
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdAt": "2026-05-29T06:51:31.809Z",
+    "updatedAt": "2026-05-29T06:51:31.839Z"
+  },
+  {
+    "id": 3,
+    "name": "Cloned Slab 1780037491858",
+    "description": "Cloned slab rules",
+    "isActive": true,
+    "isDefault": false,
+    "isDeleted": true,
+    "deletedAt": "2026-05-29T06:51:31.909Z",
+    "createdAt": "2026-05-29T06:51:31.865Z",
+    "updatedAt": "2026-05-29T06:51:31.911Z"
+  },
+  {
+    "id": 4,
+    "name": "Verify Slab 1780037511955 Modified",
+    "description": "Modified desc",
+    "isActive": true,
+    "isDefault": false,
+    "isDeleted": true,
+    "deletedAt": "2026-05-29T06:51:52.052Z",
+    "createdAt": "2026-05-29T06:51:51.958Z",
+    "updatedAt": "2026-05-29T06:51:52.055Z"
+  },
+  {
+    "id": 5,
+    "name": "Cloned Slab 1780037511992",
+    "description": "Cloned slab rules",
+    "isActive": true,
+    "isDefault": false,
+    "isDeleted": true,
+    "deletedAt": "2026-05-29T06:51:52.072Z",
+    "createdAt": "2026-05-29T06:51:51.997Z",
+    "updatedAt": "2026-05-29T06:51:52.074Z"
+  },
+  {
+    "id": 84,
+    "name": "VIP_SLAB_1780049564593",
+    "description": null,
+    "isActive": true,
+    "isDefault": false,
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdAt": "2026-05-29T10:12:44.639Z",
+    "updatedAt": "2026-05-29T10:12:44.639Z"
+  },
+  {
+    "id": 85,
+    "name": "STANDARD_SLAB_1780049564593",
+    "description": null,
+    "isActive": true,
+    "isDefault": false,
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdAt": "2026-05-29T10:12:44.644Z",
+    "updatedAt": "2026-05-29T10:12:44.644Z"
+  },
+  {
+    "id": 86,
+    "name": "TEST_SLAB_1780049564593",
+    "description": null,
+    "isActive": true,
+    "isDefault": false,
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdAt": "2026-05-29T10:12:44.649Z",
+    "updatedAt": "2026-05-29T10:12:44.649Z"
+  },
+  {
+    "id": 87,
+    "name": "SIM_SCALE_SLAB_1780049564593",
+    "description": null,
+    "isActive": true,
+    "isDefault": false,
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdAt": "2026-05-29T10:12:45.344Z",
+    "updatedAt": "2026-05-29T10:12:45.344Z"
+  },
+  {
+    "id": 91,
+    "name": "SIM_SCALE_SLAB_1780050246149",
+    "description": null,
+    "isActive": true,
+    "isDefault": false,
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdAt": "2026-05-29T10:24:06.644Z",
+    "updatedAt": "2026-05-29T10:24:06.644Z"
+  },
+  {
+    "id": 95,
+    "name": "SIM_SCALE_SLAB_1780050322235",
+    "description": null,
+    "isActive": true,
+    "isDefault": false,
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdAt": "2026-05-29T10:25:22.904Z",
+    "updatedAt": "2026-05-29T10:25:22.904Z"
+  },
+  {
+    "id": 106,
+    "name": "VIP_SLAB_1780051354788",
+    "description": null,
+    "isActive": true,
+    "isDefault": false,
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdAt": "2026-05-29T10:42:34.831Z",
+    "updatedAt": "2026-05-29T10:42:34.831Z"
+  },
+  {
+    "id": 107,
+    "name": "STANDARD_SLAB_1780051354788",
+    "description": null,
+    "isActive": true,
+    "isDefault": false,
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdAt": "2026-05-29T10:42:34.836Z",
+    "updatedAt": "2026-05-29T10:42:34.836Z"
+  },
+  {
+    "id": 108,
+    "name": "TEST_SLAB_1780051354788",
+    "description": null,
+    "isActive": true,
+    "isDefault": false,
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdAt": "2026-05-29T10:42:34.840Z",
+    "updatedAt": "2026-05-29T10:42:34.840Z"
+  },
+  {
+    "id": 109,
+    "name": "SIM_SCALE_SLAB_1780051354788",
+    "description": null,
+    "isActive": true,
+    "isDefault": false,
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdAt": "2026-05-29T10:42:35.691Z",
+    "updatedAt": "2026-05-29T10:42:35.691Z"
+  },
+  {
+    "id": 118,
+    "name": "SHADOW_SLAB_1780052582818",
+    "description": null,
+    "isActive": true,
+    "isDefault": false,
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdAt": "2026-05-29T11:03:02.859Z",
+    "updatedAt": "2026-05-29T11:03:02.859Z"
+  },
+  {
+    "id": 130,
+    "name": "Verify Slab 1780469759489 Modified",
+    "description": "Modified desc",
+    "isActive": true,
+    "isDefault": false,
+    "isDeleted": true,
+    "deletedAt": "2026-06-03T06:55:59.668Z",
+    "createdAt": "2026-06-03T06:55:59.492Z",
+    "updatedAt": "2026-06-03T06:55:59.670Z"
+  },
+  {
+    "id": 131,
+    "name": "Cloned Slab 1780469759546",
+    "description": "Cloned slab rules",
+    "isActive": true,
+    "isDefault": false,
+    "isDeleted": true,
+    "deletedAt": "2026-06-03T06:55:59.692Z",
+    "createdAt": "2026-06-03T06:55:59.553Z",
+    "updatedAt": "2026-06-03T06:55:59.693Z"
+  },
+  {
+    "id": 133,
+    "name": "Verify Slab 1780469925318 Modified",
+    "description": "Modified desc",
+    "isActive": true,
+    "isDefault": false,
+    "isDeleted": true,
+    "deletedAt": "2026-06-03T06:58:45.430Z",
+    "createdAt": "2026-06-03T06:58:45.321Z",
+    "updatedAt": "2026-06-03T06:58:45.432Z"
+  },
+  {
+    "id": 134,
+    "name": "Cloned Slab 1780469925362",
+    "description": "Cloned slab rules",
+    "isActive": true,
+    "isDefault": false,
+    "isDeleted": true,
+    "deletedAt": "2026-06-03T06:58:45.452Z",
+    "createdAt": "2026-06-03T06:58:45.368Z",
+    "updatedAt": "2026-06-03T06:58:45.453Z"
+  },
+  {
+    "id": 138,
+    "name": "SCALE_SLAB_1781337821785",
+    "description": null,
+    "isActive": true,
+    "isDefault": false,
+    "isDeleted": false,
+    "deletedAt": null,
+    "createdAt": "2026-06-13T08:03:42.255Z",
+    "updatedAt": "2026-06-13T08:03:42.255Z"
+  }
+]

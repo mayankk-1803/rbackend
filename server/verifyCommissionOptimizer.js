@@ -15,6 +15,13 @@ async function main() {
     // Enable features
     await featureFlags.setFlag(FLAGS.COMMISSION_INTELLIGENCE_ENABLED, true);
 
+    // Ensure MANUAL automation mode for optimizer workflow testing
+    await prisma.commissionIntelligenceConfig.upsert({
+      where: { id: 1 },
+      update: { automationMode: "MANUAL" },
+      create: { id: 1, automationMode: "MANUAL", targetProfitMargin: 0.02, profitDropThreshold: 0.05 }
+    });
+
     let op = await prisma.operator.findFirst();
     if (!op) op = await prisma.operator.create({ data: { name: "AIRTEL" } });
 

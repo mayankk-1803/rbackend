@@ -10,9 +10,20 @@ export const getBalance = async (isP2A = false) => {
 
   try {
     // 1. Check Circuit Breaker
-    const isBroken = await redisClient.get(BREAKER_KEY);
+    let isBroken = null;
+    try {
+      isBroken = await redisClient.get(BREAKER_KEY);
+    } catch (redisErr) {
+      console.error("[APIBOX][REDIS_ERROR] Failed to read breaker state:", redisErr.message);
+    }
+
     if (isBroken) {
-      const cachedBalance = await redisClient.get(CACHE_KEY);
+      let cachedBalance = null;
+      try {
+        cachedBalance = await redisClient.get(CACHE_KEY);
+      } catch (redisErr) {
+        console.error("[APIBOX][REDIS_ERROR] Failed to read cached balance:", redisErr.message);
+      }
       return { 
         success: true, 
         cached: true, 
@@ -30,9 +41,13 @@ export const getBalance = async (isP2A = false) => {
     if (responseData && responseData.STATUS === 1) {
       const balance = Number(responseData.BALANCE || 0);
       // Update Cache
-      await redisClient.setex(CACHE_KEY, 3600, balance.toString());
-      // Reset Breaker failures on success
-      await redisClient.del(`${BREAKER_KEY}:failures`);
+      try {
+        await redisClient.setex(CACHE_KEY, 3600, balance.toString());
+        // Reset Breaker failures on success
+        await redisClient.del(`${BREAKER_KEY}:failures`);
+      } catch (redisErr) {
+        console.error("[APIBOX][REDIS_ERROR] Failed to write cache:", redisErr.message);
+      }
       
       return {
         success: true,
@@ -49,18 +64,27 @@ export const getBalance = async (isP2A = false) => {
     console.error(`[APIBOX][BALANCE_ERROR]:`, error.message);
     
     // Increment Failure Count for Breaker
-    const failureCount = await redisClient.incr(`${BREAKER_KEY}:failures`);
-    if (failureCount === 1) await redisClient.expire(`${BREAKER_KEY}:failures`, 300);
-    
-    if (failureCount >= 3) {
-      console.warn(`[APIBOX][CIRCUIT_BREAKER] Tripping breaker for 2 minutes`);
-      await redisClient.setex(BREAKER_KEY, 120, "broken");
+    try {
+      const failureCount = await redisClient.incr(`${BREAKER_KEY}:failures`);
+      if (failureCount === 1) await redisClient.expire(`${BREAKER_KEY}:failures`, 300);
+      
+      if (failureCount >= 3) {
+        console.warn(`[APIBOX][CIRCUIT_BREAKER] Tripping breaker for 2 minutes`);
+        await redisClient.setex(BREAKER_KEY, 120, "broken");
+      }
+    } catch (redisErr) {
+      console.error("[APIBOX][REDIS_ERROR] Failed to update breaker failures:", redisErr.message);
     }
 
     // Return Cached Balance as fallback
-    const cachedBalance = await redisClient.get(CACHE_KEY);
+    let cachedBalance = null;
+    try {
+      cachedBalance = await redisClient.get(CACHE_KEY);
+    } catch (redisErr) {
+      console.error("[APIBOX][REDIS_ERROR] Failed to read fallback cached balance:", redisErr.message);
+    }
     return { 
-      success: true, // We return success: true because we have cached data
+      success: true, 
       cached: true, 
       providerAvailable: false,
       balance: Number(cachedBalance || 0),

@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { Loader2, ArrowRight, Smartphone, Lock, KeyRound, Check, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AuthLeftPanel from '../components/AuthLeftPanel';
+import Logo from '../components/Logo';
 
 export default function ForgotPassword() {
   const [step, setStep] = useState(1); // 1: Request Reset, 2: Reset Password
@@ -125,10 +126,8 @@ export default function ForgotPassword() {
           <div className="glass-card p-8 sm:p-10 rounded-[32px] shadow-[var(--shadow-card)] border border-[#E5E7EB] dark:border-[#2A2A45] bg-[var(--glass-card-bg)] backdrop-blur-xl">
             
             {/* Heading Zone */}
-            <div className="text-left mb-8">
-              <h2 className="text-3xl font-black text-[var(--text-color)] tracking-tight lowercase navbar-logo-text leading-tight">
-                irecharge
-              </h2>
+            <div className="text-left mb-8 shrink-0 overflow-visible">
+              <Logo size="lg" className="mb-2" />
               <p className="text-[var(--text-secondary)] text-xs font-semibold mt-2 leading-relaxed">
                 Reset access securely.
               </p>

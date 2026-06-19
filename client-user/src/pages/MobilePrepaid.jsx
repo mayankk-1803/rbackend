@@ -9,6 +9,9 @@ import OperatorLogo from '../components/OperatorLogo';
 import { OPERATORS, operatorMeta } from '../config/operators';
 import { Smartphone, ChevronDown, CheckCircle2, Activity, ShieldCheck, Zap, Wifi, Tv, PhoneCall, Award } from 'lucide-react';
 import { isIOSDevice } from '../utils/device';
+import { getCachedPlans, setCachedPlans } from '../utils/rechargePlanCache';
+import { initPrepaidOperator } from '../services/operatorService';
+import { fetchRechargePlans } from '../services/mplanService';
 
 const OperatorDropdown = memo(({ selected, onSelect }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -445,6 +448,9 @@ export default function MobilePrepaid() {
   const [fallbackMode, setFallbackMode] = useState(false);
   const [detectedCircle, setDetectedCircle] = useState('');
   const [detectedCircleCode, setDetectedCircleCode] = useState('');
+  const [isCached, setIsCached] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const backgroundTimerRef = useRef(null);
   const navigate = useNavigate();
   const isIOS = isIOSDevice();
   const operator = selectedOperator;
@@ -544,6 +550,14 @@ export default function MobilePrepaid() {
       if (data.success) {
         setPlansData(data.plans || {});
         planCacheKeyRef.current = fetchKey;
+        // Save manual override plans to cache
+        setCachedPlans(number, {
+          operatorCode: nextOperator,
+          operatorName: meta.label,
+          circleCode: String(detectedCircleCode),
+          circleName,
+          plans: data.plans || {}
+        });
         const categories = Object.keys(data.plans || {}).filter((key) => Array.isArray(data.plans?.[key]) && data.plans[key].length > 0);
         const totalPlans = categories.reduce((sum, key) => sum + data.plans[key].length, 0);
         if (import.meta.env.DEV) console.log("[PLAN_FETCH_SUCCESS]", { totalPlans, categories });
@@ -565,8 +579,81 @@ export default function MobilePrepaid() {
   // Debounced Auto-Detection & Live Plan Fetching
   useEffect(() => {
     if (number.length === 10 && /^[6-9]\d{9}$/.test(number)) {
+      // Clear background timer if active
+      if (backgroundTimerRef.current) {
+        clearTimeout(backgroundTimerRef.current);
+      }
+
+      // Check client-side cache
+      const cached = getCachedPlans(number);
+      if (cached) {
+        // Restore instantly
+        setPlansData(cached.plans || {});
+        setDetectedCircle(cached.circleName || 'Delhi NCR');
+        setDetectedCircleCode(String(cached.circleCode || 5));
+        setDetectedOperator(cached.operatorCode);
+        setSelectedOperator(cached.operatorCode);
+        setIsManualOverride(false);
+        setShowOperatorSelector(false);
+        setFallbackMode(false);
+        setIsCached(true);
+        setDetecting(false);
+        setPlansLoading(false);
+        planCacheKeyRef.current = `${number}:${cached.operatorCode}:${cached.circleName}`;
+
+        // Trigger background refresh after 1000ms
+        const bgTimer = setTimeout(async () => {
+          setIsRefreshing(true);
+          try {
+            const { data } = await api.post('/recharge/prepaid/init', { mobile: number });
+            if (data.success) {
+              const circleName = data.circle?.name || 'Delhi NCR';
+              const circleCode = data.circle?.code || 5;
+              const detected = mapDetectedOperator(data.operator?.name || '') || OPERATORS.JIO;
+
+              const opChanged = detected !== cached.operatorCode;
+              const circleChanged = circleName !== cached.circleName;
+              const plansChanged = JSON.stringify(data.plans || {}) !== JSON.stringify(cached.plans || {});
+
+              if (opChanged || circleChanged || plansChanged) {
+                setPlansData(data.plans || {});
+                setDetectedCircle(circleName);
+                setDetectedCircleCode(String(circleCode));
+                setDetectedOperator(detected);
+                setSelectedOperator(detected);
+                planCacheKeyRef.current = `${number}:${detected}:${circleName}`;
+              }
+
+              // Update cache
+              setCachedPlans(number, {
+                operatorCode: detected,
+                operatorName: data.operator?.name || operatorMeta[detected]?.label,
+                circleCode: String(circleCode),
+                circleName,
+                plans: data.plans || {}
+              });
+            }
+          } catch (err) {
+            console.error("[Silent Refresh Error]:", err);
+          } finally {
+            setIsRefreshing(false);
+          }
+        }, 1000);
+        backgroundTimerRef.current = bgTimer;
+
+        return () => {
+          if (backgroundTimerRef.current) {
+            clearTimeout(backgroundTimerRef.current);
+          }
+        };
+      }
+
+      // Cache miss: normal flow
       setPlansData({});
       setActiveTab("popular");
+      setIsCached(false);
+      setIsRefreshing(false);
+
       const timer = setTimeout(async () => {
         if (detectionRequestRef.current.controller) {
           detectionRequestRef.current.controller.abort();
@@ -599,6 +686,15 @@ export default function MobilePrepaid() {
             setShowOperatorSelector(false);
             planCacheKeyRef.current = `${number}:${detected}:${circleName}`;
 
+            // Save to Cache
+            setCachedPlans(number, {
+              operatorCode: detected,
+              operatorName: data.operator?.name || operatorMeta[detected]?.label,
+              circleCode: String(circleCode),
+              circleName,
+              plans: data.plans || {}
+            });
+
             if (data.fallbackFlags?.revealDropdown || data.fallbackFlags?.revealAmount) {
               setFallbackMode(true);
             } else {
@@ -625,9 +721,14 @@ export default function MobilePrepaid() {
             setDetecting(false);
           }
         }
-      }, isIOS ? 1000 : 800);
+      }, isIOS ? 1000 : 500); // 500ms debounce performance guard
 
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        if (backgroundTimerRef.current) {
+          clearTimeout(backgroundTimerRef.current);
+        }
+      };
     } else if (
       detectionStateRef.current.selectedOperator ||
       detectionStateRef.current.detectedOperator ||
@@ -639,6 +740,7 @@ export default function MobilePrepaid() {
       const resetTimer = setTimeout(() => {
         if (planRequestRef.current.controller) planRequestRef.current.controller.abort();
         if (detectionRequestRef.current.controller) detectionRequestRef.current.controller.abort();
+        if (backgroundTimerRef.current) clearTimeout(backgroundTimerRef.current);
         setPlansData({});
         setActiveTab("popular");
         setDetectedCircle('');
@@ -648,9 +750,16 @@ export default function MobilePrepaid() {
         setIsManualOverride(false);
         setShowOperatorSelector(false);
         setFallbackMode(false);
+        setIsCached(false);
+        setIsRefreshing(false);
         planCacheKeyRef.current = '';
       }, isIOS ? 120 : 0);
-      return () => clearTimeout(resetTimer);
+      return () => {
+        clearTimeout(resetTimer);
+        if (backgroundTimerRef.current) {
+          clearTimeout(backgroundTimerRef.current);
+        }
+      };
     }
     return undefined;
   }, [number, isIOS]);
@@ -791,12 +900,24 @@ export default function MobilePrepaid() {
             </div>
             <p className="text-xs font-black text-[var(--text-secondary)] uppercase tracking-widest">Intelligent Auto-Detect Recharge Gateway</p>
           </div>
-          {operator && detectedCircle && (
-            <div className="flex max-w-full flex-wrap items-center gap-2 px-4 py-2.5 bg-[var(--bg-secondary)]/60 border border-[var(--glass-border)] rounded-2xl shadow-sm">
-              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">OPERATOR:</span>
-              <span className="min-w-0 break-words text-xs font-black uppercase tracking-wider text-[var(--color-primary)]">{operatorMeta[operator]?.label} • {detectedCircle}</span>
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-3">
+            {operator && detectedCircle && (
+              <div className="flex max-w-full flex-wrap items-center gap-2 px-4 py-2.5 bg-[var(--bg-secondary)]/60 border border-[var(--glass-border)] rounded-2xl shadow-sm">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">OPERATOR:</span>
+                <span className="min-w-0 break-words text-xs font-black uppercase tracking-wider text-[var(--color-primary)]">{operatorMeta[operator]?.label} • {detectedCircle}</span>
+              </div>
+            )}
+            {isCached && (
+              <div className="flex items-center gap-1.5 px-3 py-2 bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 rounded-2xl text-[10px] font-bold shadow-sm animate-pulse">
+                <span>⚡ Cached Plans</span>
+              </div>
+            )}
+            {isRefreshing && (
+              <div className="flex items-center gap-1.5 px-3 py-2 bg-blue-500/10 border border-blue-500/20 text-blue-500 rounded-2xl text-[10px] font-bold shadow-sm">
+                <span>🔄 Refreshing Plans...</span>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="p-6 md:p-10 space-y-8 relative z-10">

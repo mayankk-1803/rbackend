@@ -1,0 +1,122 @@
+[
+  {
+    "id": 1,
+    "packageId": 1,
+    "serviceCategoryId": 1,
+    "slabId": 1,
+    "createdAt": "2026-05-29T06:41:41.558Z",
+    "updatedAt": "2026-05-29T06:41:41.558Z"
+  },
+  {
+    "id": 2,
+    "packageId": 1,
+    "serviceCategoryId": 2,
+    "slabId": 1,
+    "createdAt": "2026-05-29T06:41:41.566Z",
+    "updatedAt": "2026-05-29T06:41:41.566Z"
+  },
+  {
+    "id": 3,
+    "packageId": 1,
+    "serviceCategoryId": 3,
+    "slabId": 1,
+    "createdAt": "2026-05-29T06:41:41.571Z",
+    "updatedAt": "2026-05-29T06:41:41.571Z"
+  },
+  {
+    "id": 4,
+    "packageId": 1,
+    "serviceCategoryId": 4,
+    "slabId": 1,
+    "createdAt": "2026-05-29T06:41:41.577Z",
+    "updatedAt": "2026-05-29T06:41:41.577Z"
+  },
+  {
+    "id": 5,
+    "packageId": 1,
+    "serviceCategoryId": 5,
+    "slabId": 1,
+    "createdAt": "2026-05-29T06:41:41.582Z",
+    "updatedAt": "2026-05-29T06:41:41.582Z"
+  },
+  {
+    "id": 6,
+    "packageId": 1,
+    "serviceCategoryId": 6,
+    "slabId": 1,
+    "createdAt": "2026-05-29T06:41:41.587Z",
+    "updatedAt": "2026-05-29T06:41:41.587Z"
+  },
+  {
+    "id": 7,
+    "packageId": 1,
+    "serviceCategoryId": 7,
+    "slabId": 1,
+    "createdAt": "2026-05-29T06:41:41.592Z",
+    "updatedAt": "2026-05-29T06:41:41.592Z"
+  },
+  {
+    "id": 8,
+    "packageId": 1,
+    "serviceCategoryId": 8,
+    "slabId": 1,
+    "createdAt": "2026-05-29T06:41:41.597Z",
+    "updatedAt": "2026-05-29T06:41:41.597Z"
+  },
+  {
+    "id": 9,
+    "packageId": 1,
+    "serviceCategoryId": 9,
+    "slabId": 1,
+    "createdAt": "2026-05-29T06:41:41.603Z",
+    "updatedAt": "2026-05-29T06:41:41.603Z"
+  },
+  {
+    "id": 10,
+    "packageId": 1,
+    "serviceCategoryId": 10,
+    "slabId": 1,
+    "createdAt": "2026-05-29T06:41:41.608Z",
+    "updatedAt": "2026-05-29T06:41:41.608Z"
+  },
+  {
+    "id": 30,
+    "packageId": 28,
+    "serviceCategoryId": 23,
+    "slabId": 85,
+    "createdAt": "2026-05-29T10:12:44.664Z",
+    "updatedAt": "2026-05-29T10:12:44.664Z"
+  },
+  {
+    "id": 31,
+    "packageId": 29,
+    "serviceCategoryId": 23,
+    "slabId": 86,
+    "createdAt": "2026-05-29T10:12:44.664Z",
+    "updatedAt": "2026-05-29T10:12:44.664Z"
+  },
+  {
+    "id": 42,
+    "packageId": 40,
+    "serviceCategoryId": 29,
+    "slabId": 107,
+    "createdAt": "2026-05-29T10:42:34.856Z",
+    "updatedAt": "2026-05-29T10:42:34.856Z"
+  },
+  {
+    "id": 43,
+    "packageId": 41,
+    "serviceCategoryId": 29,
+    "slabId": 108,
+    "createdAt": "2026-05-29T10:42:34.856Z",
+    "updatedAt": "2026-05-29T10:42:34.856Z"
+  },
+  {
+    "id": 48,
+    "packageId": 46,
+    "serviceCategoryId": 1,
+    "slabId": 118,
+    "createdAt": "2026-05-29T11:03:02.870Z",
+    "updatedAt": "2026-05-29T11:03:02.870Z"
+  }
+]

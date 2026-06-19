@@ -1591,7 +1591,17 @@ export const getCommissionOperators = async (req, res) => {
  */
 export const getCommissionRoles = async (req, res) => {
   try {
-    const roles = ["SUPER_ADMIN", "SUB_ADMIN", "MASTER_DISTRIBUTOR", "DISTRIBUTOR", "RETAILER", "API_USER", "CUSTOMER"];
+    const roles = [
+      "SUPER_ADMIN",
+      "SUB_ADMIN",
+      "MASTER_DISTRIBUTOR",
+      "SUPER_DISTRIBUTOR",
+      "DISTRIBUTOR",
+      "RETAILER",
+      "API_USER",
+      "API_PARTNER",
+      "CUSTOMER"
+    ];
     return res.json({ success: true, data: roles });
   } catch (error) {
     console.error("[Rules] Get Commission Roles Error:", error);

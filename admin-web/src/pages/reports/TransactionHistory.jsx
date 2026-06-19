@@ -366,6 +366,16 @@ export default function AdminTransactionHistory() {
             <option value="FAILED">Failed</option>
             <option value="REFUNDED">Refunded</option>
           </select>
+          <select 
+            className="px-4 py-2 bg-[var(--admin-input-bg)] border border-[var(--border-soft)] text-[var(--text-primary)] rounded-xl text-xs outline-none cursor-pointer"
+            value={filters.type}
+            onChange={(e) => setFilters({...filters, type: e.target.value, page: 1})}
+          >
+            <option value="">All Types</option>
+            <option value="MOBILE">Mobile Recharge</option>
+            <option value="DTH">DTH Recharge</option>
+            <option value="BILL_PAYMENT">Bill Payment</option>
+          </select>
           <div className="flex items-center gap-2 bg-[var(--admin-input-bg)] border border-[var(--border-soft)] text-[var(--text-primary)] rounded-xl px-3 text-xs">
             <Calendar className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
             <input 

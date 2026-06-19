@@ -1,6 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Wallet, Gift, Smartphone, ShoppingBag, Coins, TrendingUp, Zap } from "lucide-react";
+import Logo from "./Logo";
 
 export default function AuthLeftPanel() {
   // Staggered floating animations for 6 widgets
@@ -62,13 +63,8 @@ export default function AuthLeftPanel() {
       </div>
 
       {/* Logo & Header section */}
-      <div className="relative z-10 flex items-center gap-3">
-        <div className="w-10 h-10 bg-[var(--color-primary-glow)] rounded-xl flex items-center justify-center border border-[var(--color-primary)]/20 shadow-lg">
-          <Zap className="w-5 h-5 text-[var(--color-primary)] fill-[var(--color-primary-glow)]" />
-        </div>
-        <span className="text-xl font-black text-[var(--text-color)] lowercase">
-          irecharge
-        </span>
+      <div className="relative z-10 shrink-0 overflow-visible">
+        <Logo size="md" showSubtitle={true} />
       </div>
 
       {/* Center Widget Area & Brand Messaging */}
@@ -90,7 +86,7 @@ export default function AuthLeftPanel() {
           </h1>
 
           <p className="text-[var(--text-secondary)] text-sm sm:text-base max-w-md font-medium leading-relaxed">
-            Recharge, Wallet, Marketplace and Rewards in one intelligent platform. Build wealth, earn cashback, and manage capital seamlessly.
+            Recharge, Wallet, Marketplace and Rewards in one intelligent platform. Build wealth, earn rewards, and manage capital seamlessly.
           </p>
 
           {/* Core Pillars badges */}
@@ -127,7 +123,7 @@ export default function AuthLeftPanel() {
             </div>
           </motion.div>
 
-          {/* Card 2: Cashback Earned */}
+          {/* Card 2: Coins Credited */}
           <motion.div
             animate={floatAnimate}
             transition={floatTransition(1.2, 7.2)}
@@ -135,12 +131,12 @@ export default function AuthLeftPanel() {
             className="absolute top-[28%] right-[2%] w-44 p-4 rounded-2xl border border-[var(--glass-border)] bg-[var(--glass-bg)] shadow-[var(--shadow-card)] backdrop-blur-xl z-10 cursor-pointer"
           >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 text-emerald-500">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 text-amber-500">
                 <Gift className="w-4 h-4" />
               </div>
               <div className="min-w-0">
-                <p className="text-[9px] font-extrabold text-[var(--text-muted)] uppercase tracking-wider">Cashback Earned</p>
-                <p className="text-base font-black text-emerald-500 mt-0.5">₹125</p>
+                <p className="text-[9px] font-extrabold text-[var(--text-muted)] uppercase tracking-wider">Coins Credited</p>
+                <p className="text-base font-black text-amber-500 mt-0.5">+150 Coins</p>
               </div>
             </div>
           </motion.div>

@@ -73,6 +73,23 @@ export const Dashboard = () => {
   // Admin Wallet Balance state
   const [adminWallet, setAdminWallet] = useState(0);
 
+  // Recharge Pool Balance state
+  const [rechargePool, setRechargePool] = useState({ balance: 0, status: 'UNKNOWN', lastUpdated: null });
+
+  // DTH Stats state
+  const [dthStats, setDthStats] = useState({
+    totalDth: 0,
+    successfulDth: 0,
+    failedDth: 0,
+    refundedDth: 0,
+    dthSuccessRate: 100,
+    tataPlaySuccess: 0,
+    airtelDthSuccess: 0,
+    dishTvSuccess: 0,
+    sunDirectSuccess: 0,
+    videoconD2hSuccess: 0
+  });
+
   // Analytics tab selection
   const [activeTab, setActiveTab] = useState('revenue'); // revenue, transactions, operators, dmt
 
@@ -115,7 +132,8 @@ export const Dashboard = () => {
         alertsRes,
         txnsRes,
         commissionsRes,
-        walletRes
+        walletRes,
+        poolRes
       ] = await Promise.all([
         api.get('/admin/dashboard').catch(err => {
           console.error('[Dashboard API] Failed to load dashboard stats:', err);
@@ -152,6 +170,10 @@ export const Dashboard = () => {
         api.get('/admin/wallet').catch(err => {
           console.error('[Dashboard API] Failed to load admin wallet:', err);
           return { data: { success: false } };
+        }),
+        api.get('/admin/recharge-pool-balance').catch(err => {
+          console.error('[Dashboard API] Failed to load recharge pool balance:', err);
+          return { data: { success: false } };
         })
       ]);
 
@@ -171,6 +193,20 @@ export const Dashboard = () => {
         failureCount: Number(dStats.failureCount || 0),
         activeUsers: Number(uStats.activeUsers || 0),
         totalWalletBalance: Number(uStats.totalWalletBalance || 0)
+      });
+
+      const dthData = dStats.dthMetrics || {};
+      setDthStats({
+        totalDth: Number(dthData.totalDth || 0),
+        successfulDth: Number(dthData.successfulDth || 0),
+        failedDth: Number(dthData.failedDth || 0),
+        refundedDth: Number(dthData.refundedDth || 0),
+        dthSuccessRate: Number(dthData.dthSuccessRate ?? 100),
+        tataPlaySuccess: Number(dthData.tataPlaySuccess || 0),
+        airtelDthSuccess: Number(dthData.airtelDthSuccess || 0),
+        dishTvSuccess: Number(dthData.dishTvSuccess || 0),
+        sunDirectSuccess: Number(dthData.sunDirectSuccess || 0),
+        videoconD2hSuccess: Number(dthData.videoconD2hSuccess || 0)
       });
 
       // Parse Charts
@@ -198,6 +234,14 @@ export const Dashboard = () => {
       setCommissions(Array.isArray(commissionsRes?.data?.data) ? commissionsRes.data.data : []);
       setAdminWallet(Number(walletRes?.data?.data?.balance || 0));
 
+      if (poolRes?.data?.success) {
+        setRechargePool({
+          balance: Number(poolRes.data.balance || 0),
+          status: poolRes.data.status || 'ACTIVE',
+          lastUpdated: poolRes.data.lastUpdated
+        });
+      }
+
       setDataLoaded(true);
     } catch (err) {
       console.error('Error fetching dashboard statistics:', err);
@@ -211,6 +255,24 @@ export const Dashboard = () => {
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
+
+  // Read-only Recharge Pool Balance 60-second refresh cycle
+  useEffect(() => {
+    const timer = setInterval(() => {
+      api.get('/admin/recharge-pool-balance')
+        .then(res => {
+          if (res.data?.success) {
+            setRechargePool({
+              balance: Number(res.data.balance || 0),
+              status: res.data.status || 'ACTIVE',
+              lastUpdated: res.data.lastUpdated
+            });
+          }
+        })
+        .catch(err => console.error('[Dashboard API] Pool balance polling error:', err));
+    }, 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Socket updates
   const handleSocketTransactionUpdate = useCallback((data) => {
@@ -341,6 +403,20 @@ export const Dashboard = () => {
         </Button>
       </SectionHeader>
 
+      {/* Recharge Pool Balance Warnings */}
+      {rechargePool.balance === 0 && !loading && (
+        <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-xl text-xs font-semibold flex items-center gap-2">
+          <AlertCircle className="w-4.5 h-4.5" />
+          <span>Recharge Services May Be Interrupted (Recharge Pool Balance is ₹0.00)</span>
+        </div>
+      )}
+      {rechargePool.balance > 0 && rechargePool.balance < 50 && !loading && (
+        <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-xl text-xs font-semibold flex items-center gap-2">
+          <AlertTriangle className="w-4.5 h-4.5" />
+          <span>Recharge Pool Balance Running Low (Current: ₹{rechargePool.balance.toFixed(2)})</span>
+        </div>
+      )}
+
       {/* KPI Section */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <AnalyticsCard
@@ -415,7 +491,102 @@ export const Dashboard = () => {
           trendDirection={stats.fraudAlerts > 0 ? "down" : "flat"}
           trendLabel="security firewall check"
         />
+        <AnalyticsCard
+          title="Recharge Pool Balance"
+          value={loading ? '...' : `₹${rechargePool.balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}
+          icon={Server}
+          colorClass={
+            rechargePool.status === 'ACTIVE' 
+              ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" 
+              : "text-rose-500 bg-rose-500/10 border-rose-500/20"
+          }
+          loading={loading}
+          trend={rechargePool.status}
+          trendDirection={rechargePool.status === 'ACTIVE' ? 'up' : 'down'}
+          trendLabel={rechargePool.lastUpdated ? `Synced: ${formatTime(rechargePool.lastUpdated)}` : ''}
+        />
       </div>
+
+      {/* DTH Analytics Section */}
+      {!loading && (
+        <div className="space-y-4">
+          <SectionHeader
+            title="DTH Recharge"
+            highlight="Observability Telemetry"
+            subtitle="Platform-wide DTH success rates, health warnings, and operator execution counters"
+          />
+
+          {/* DTH Service Health Warning Alert */}
+          {dthStats.dthSuccessRate < 90 && dthStats.totalDth > 0 && (
+            <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-2xl text-xs font-black flex items-center gap-2 animate-pulse">
+              <ShieldAlert className="w-5 h-5 text-rose-500" />
+              <span>DTH Service Health Warning: DTH success rate has dropped below 90% (Current: {dthStats.dthSuccessRate}%)</span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <AnalyticsCard
+              title="Total DTH Recharges"
+              value={dthStats.totalDth.toLocaleString()}
+              icon={ClipboardList}
+              colorClass="text-purple-500 bg-purple-500/10 border-purple-500/20"
+              loading={loading}
+            />
+            <AnalyticsCard
+              title="Successful DTH"
+              value={dthStats.successfulDth.toLocaleString()}
+              icon={CheckCircle2}
+              colorClass="text-emerald-500 bg-emerald-500/10 border-emerald-500/20"
+              loading={loading}
+            />
+            <AnalyticsCard
+              title="Failed DTH"
+              value={dthStats.failedDth.toLocaleString()}
+              icon={AlertCircle}
+              colorClass="text-rose-500 bg-rose-500/10 border-rose-500/20"
+              loading={loading}
+            />
+            <AnalyticsCard
+              title="Refunded DTH"
+              value={dthStats.refundedDth.toLocaleString()}
+              icon={Wallet}
+              colorClass="text-blue-500 bg-blue-500/10 border-blue-500/20"
+              loading={loading}
+            />
+            <AnalyticsCard
+              title="DTH Success Rate"
+              value={`${dthStats.dthSuccessRate}%`}
+              icon={TrendingUp}
+              colorClass={dthStats.dthSuccessRate >= 90 ? "text-green-500 bg-green-500/10 border-green-500/20" : "text-rose-500 bg-rose-500/10 border-rose-500/20"}
+              loading={loading}
+              progress={dthStats.dthSuccessRate}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="p-4 bg-[var(--bg-secondary)] border border-[var(--border-soft)] rounded-2xl flex flex-col justify-between h-[110px]">
+              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block">Tata Play Success</span>
+              <span className="text-2xl font-black text-[var(--text-primary)] mt-2">{dthStats.tataPlaySuccess}</span>
+            </div>
+            <div className="p-4 bg-[var(--bg-secondary)] border border-[var(--border-soft)] rounded-2xl flex flex-col justify-between h-[110px]">
+              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block">Airtel DTH Success</span>
+              <span className="text-2xl font-black text-[var(--text-primary)] mt-2">{dthStats.airtelDthSuccess}</span>
+            </div>
+            <div className="p-4 bg-[var(--bg-secondary)] border border-[var(--border-soft)] rounded-2xl flex flex-col justify-between h-[110px]">
+              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block">Dish TV Success</span>
+              <span className="text-2xl font-black text-[var(--text-primary)] mt-2">{dthStats.dishTvSuccess}</span>
+            </div>
+            <div className="p-4 bg-[var(--bg-secondary)] border border-[var(--border-soft)] rounded-2xl flex flex-col justify-between h-[110px]">
+              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block">Sun Direct Success</span>
+              <span className="text-2xl font-black text-[var(--text-primary)] mt-2">{dthStats.sunDirectSuccess}</span>
+            </div>
+            <div className="p-4 bg-[var(--bg-secondary)] border border-[var(--border-soft)] rounded-2xl flex flex-col justify-between h-[110px]">
+              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block">Videocon D2H Success</span>
+              <span className="text-2xl font-black text-[var(--text-primary)] mt-2">{dthStats.videoconD2hSuccess}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick Actions Panel */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3.5">

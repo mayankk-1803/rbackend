@@ -259,21 +259,27 @@ const Wishlist = () => {
     setPaymentMessage("Authorizing secure iMart payment...");
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1200));
       const res = await api.post("/imart/checkout", { paymentMethod });
       if (res.data?.success) {
-        setPaymentStatus("SUCCESS");
-        setLatestOrder(res.data.order);
-        setPaymentMessage("Order Placed Successfully");
-        setWishlist((prev) => ({ ...(prev || {}), items: [] }));
-        await fetchOrders();
-        toast.success("iMart order paid successfully");
+        const paymentUrl = res.data.paymentUrl || res.data.payment?.paymentUrl || res.data.payment?.payment_url;
+        if (paymentUrl) {
+          setPaymentMessage("Redirecting to secure payment gateway...");
+          window.location.href = paymentUrl;
+        } else {
+          setPaymentStatus("SUCCESS");
+          setLatestOrder(res.data.order);
+          setPaymentMessage("Order Placed Successfully");
+          setWishlist((prev) => ({ ...(prev || {}), items: [] }));
+          await fetchOrders();
+          toast.success("iMart order paid successfully");
+        }
       }
     } catch (err) {
       if (import.meta.env.DEV) console.error(err);
       setPaymentStatus("FAILED");
-      setPaymentMessage("Payment Failed");
-      toast.error("Payment Failed");
+      const errMsg = err.response?.data?.message || "Payment Failed";
+      setPaymentMessage(errMsg);
+      toast.error(errMsg);
     } finally {
       setCheckoutLoading(false);
     }

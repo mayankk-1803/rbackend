@@ -13,6 +13,7 @@ import {
 } from "../services/webhookMonitoringService.js";
 import { isFinalizedStatus, isValidStatusTransition } from "../utils/transactionStateGuard.js";
 import { isValidOperatorRef } from "../utils/validators.js";
+import { getProviderOperatorCode } from "../config/operators.js";
 
 const PROCESSABLE_STATUSES = ["PENDING", "PENDING_REVIEW", "PROCESSING"];
 
@@ -266,6 +267,12 @@ export const handleApiboxCallback = async (req, res) => {
         }
 
         updatedTxn = await tx.transaction.findUnique({ where: { id: txn.id } });
+
+        const opCode = getProviderOperatorCode(txn.operator);
+        const isDth = ["6", "7", "8", "9", "10"].includes(opCode);
+        if (isDth) {
+          console.log(`[DTH_RECHARGE_SUCCESS] transactionId=${txn.id}, operator=${txn.operator}, subscriberId=${txn.mobile}, amount=${txn.amount}, providerRef=${updatedTxn.providerRef || 'N/A'}, providerTxnId=${updatedTxn.providerTxnId || 'N/A'}, status=SUCCESS`);
+        }
       }
 
       let updatedWallet = null;
@@ -339,6 +346,12 @@ export const handleApiboxCallback = async (req, res) => {
           return { updatedTxn: lockedTxn, updatedWallet: null, alreadyProcessed: true };
         }
 
+        const opCode = getProviderOperatorCode(txn.operator);
+        const isDth = ["6", "7", "8", "9", "10"].includes(opCode);
+        if (isDth) {
+          console.log(`[DTH_RECHARGE_FAILED] transactionId=${txn.id}, operator=${txn.operator}, subscriberId=${txn.mobile}, amount=${txn.amount}, providerRef=${finalProviderRef || 'N/A'}, providerTxnId=${providerTxId || 'N/A'}, status=FAILED`);
+        }
+
         // Step 2: transition from FAILED to REFUNDED
         const updateRefunded = await tx.transaction.updateMany({
           where: {
@@ -356,6 +369,10 @@ export const handleApiboxCallback = async (req, res) => {
         if (updateRefunded.count === 0) {
           console.log(`[FINAL_STATE_BLOCKED] REFUNDED transition blocked or already finalized: ${txn.id}`);
           return { updatedTxn: lockedTxn, updatedWallet: null, alreadyProcessed: true };
+        }
+
+        if (isDth) {
+          console.log(`[DTH_RECHARGE_REFUNDED] transactionId=${txn.id}, operator=${txn.operator}, subscriberId=${txn.mobile}, amount=${txn.amount}, providerRef=${finalProviderRef || 'N/A'}, providerTxnId=${providerTxId || 'N/A'}, status=REFUNDED`);
         }
 
         updatedTxn = await tx.transaction.findUnique({ where: { id: txn.id } });

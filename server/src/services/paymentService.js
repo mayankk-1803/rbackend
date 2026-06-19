@@ -8,6 +8,9 @@ import eventBus from "../config/eventBus.js";
 import { recordFinancialEntry } from "./ledgerService.js";
 import { claimIdempotencyKey } from "../utils/idempotency.js";
 import { structuredLog, structuredAlert } from "../utils/logger.js";
+import { validateMasterKeyAndRoutes } from "./masterKeyValidationService.js";
+import { getAdminWalletStats, updateAdminWalletBalance } from "./adminWalletService.js";
+import { notifyAdmins } from "./pendingWalletCreditService.js";
 
 // Ensure queue name matches the worker
 export const paymentQueue = new Queue("paymentQueue", { connection: redis });
@@ -235,6 +238,112 @@ export const processSuccessfulPayment = async ({
     const wallet = wallets[0];
     balanceBefore = wallet.balance;
 
+    // Step 2 — Master Key Validation
+    const isMasterValid = await validateMasterKeyAndRoutes(tx);
+    if (!isMasterValid) {
+      await tx.pendingWalletCredit.create({
+        data: {
+          userId: payment.userId,
+          paymentId: payment.id,
+          amount: payment.amount,
+          settlementStatus: "FAILED",
+          remarks: "Master Key validation failed or provider route unavailable"
+        }
+      });
+
+      const updatedPayment = await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: "SUCCESS",
+          gatewayTxnId: gatewayTxnId,
+          errorMessage: "Settlement validation failed",
+          webhookReceived: true
+        }
+      });
+
+      await notifyAdmins(
+        "MASTER KEY FAILURE",
+        `Master Key/Route validation check failed for User #${payment.userId} top-up payment #${payment.id}.`,
+        "MASTER_KEY_FAILURE",
+        tx
+      );
+
+      return {
+        alreadyProcessed: false,
+        payment: updatedPayment,
+        settlementFailed: true
+      };
+    }
+
+    // Step 3 — Admin Wallet Balance Check
+    const adminStats = await getAdminWalletStats(tx);
+    const amountNum = Number(payment.amount);
+
+    if (adminStats.availableBalance < amountNum) {
+      await tx.pendingWalletCredit.create({
+        data: {
+          userId: payment.userId,
+          paymentId: payment.id,
+          amount: payment.amount,
+          settlementStatus: "PENDING",
+          remarks: "Insufficient Admin Wallet Balance"
+        }
+      });
+
+      const updatedPayment = await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: "SUCCESS",
+          gatewayTxnId: gatewayTxnId,
+          errorMessage: "Insufficient admin wallet balance. Pending approval.",
+          webhookReceived: true
+        }
+      });
+
+      await notifyAdmins(
+        "LOW WALLET BALANCE",
+        `Insufficient Admin Wallet Balance to auto-settle user top-up of ₹${amountNum}.`,
+        "LOW_WALLET_BALANCE",
+        tx
+      );
+
+      await tx.notification.create({
+        data: {
+          userId: payment.userId,
+          title: "Wallet Credit Pending",
+          message: `Payment of ₹${amountNum} received successfully. Your wallet credit is pending administrative approval.`,
+          type: "WALLET_CREDIT_PENDING"
+        }
+      });
+
+      return {
+        alreadyProcessed: false,
+        payment: updatedPayment,
+        settlementPending: true
+      };
+    }
+
+    // Scenario A — Sufficient Balance
+    await updateAdminWalletBalance({
+      amount: -amountNum,
+      type: "SETTLEMENT_DEBIT",
+      description: `Auto-settlement debit for User #${payment.userId} top-up payment`,
+      referenceId: String(payment.id),
+      metadata: { paymentId: payment.id },
+      tx
+    });
+
+    await tx.pendingWalletCredit.create({
+      data: {
+        userId: payment.userId,
+        paymentId: payment.id,
+        amount: payment.amount,
+        settlementStatus: "APPROVED",
+        remarks: "Auto-approved",
+        approvedAt: new Date()
+      }
+    });
+
     if (payment.intent === "IMART") {
       const balanceAfterCredit = new Prisma.Decimal(balanceBefore).plus(new Prisma.Decimal(payment.amount));
       balanceAfter = balanceBefore;
@@ -313,7 +422,7 @@ export const processSuccessfulPayment = async ({
       if (order) {
         await tx.order.update({
           where: { id: order.id },
-          data: { paymentStatus: "SUCCESS", status: "PROCESSING" }
+          data: { paymentStatus: "PAID", status: "PROCESSING" }
         });
 
         for (const item of order.items) {
@@ -322,6 +431,13 @@ export const processSuccessfulPayment = async ({
             data: { stock: { decrement: item.quantity } }
           });
         }
+
+        // Delete wishlist items for the customer
+        await tx.wishlistItem.deleteMany({
+          where: {
+            wishlist: { userId: order.userId }
+          }
+        });
       }
     } else {
       balanceAfter = new Prisma.Decimal(balanceBefore).plus(new Prisma.Decimal(payment.amount));
@@ -406,7 +522,7 @@ export const processSuccessfulPayment = async ({
     isolationLevel: Prisma.TransactionIsolationLevel.Serializable
   });
 
-  if (!result.alreadyProcessed && !result.securityAlert && result.payment.status === "SUCCESS") {
+  if (!result.alreadyProcessed && !result.securityAlert && result.payment.status === "SUCCESS" && !result.settlementPending && !result.settlementFailed) {
     // Emit socket events
     try {
       const updatedWallet = await prisma.wallet.findUnique({

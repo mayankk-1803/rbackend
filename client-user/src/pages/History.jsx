@@ -1,13 +1,66 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../api';
 import { API_ROUTES } from '../api/routes';
-import { Smartphone, ShoppingBag, Search, Calendar, FileText, AlertCircle, ReceiptText, RefreshCw } from 'lucide-react';
+import { Smartphone, ShoppingBag, Search, Calendar, FileText, AlertCircle, ReceiptText, RefreshCw, Copy } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatAmount, safeArray, safeValue } from '../utils/helpers';
 import socket from '../services/socket';
 import toast from 'react-hot-toast';
 import { DisputeModal } from '../components/reports/DisputeModal';
 import { InvoiceModal } from '../components/reports/InvoiceModal';
+
+const getOperatorRef = (tx) => {
+  if (!tx) return "Pending";
+  const rawRef =
+    tx.operatorReferenceId ||
+    tx.providerRef ||
+    tx.providerRefId ||
+    tx.providerTxnId ||
+    null;
+
+  if (rawRef === null || rawRef === undefined) {
+    return "Pending";
+  }
+
+  const strVal = String(rawRef).trim();
+  if (strVal === "") {
+    return "Pending";
+  }
+
+  const upperVal = strVal.toUpperCase();
+  const invalidPlaceholders = [
+    "PENDING",
+    "PENDING_RECONCILIATION",
+    "TEST_OP_ID",
+    "TEST_REF",
+    "OP_SUCCESS",
+    "UNKNOWN",
+    "N/A",
+    "NULL",
+    "UNDEFINED"
+  ];
+
+  if (invalidPlaceholders.includes(upperVal)) {
+    return "Pending";
+  }
+
+  if (
+    upperVal.startsWith("TEST_OP_ID") ||
+    upperVal.startsWith("OP_SUCCESS") ||
+    upperVal.startsWith("OP_FAIL") ||
+    upperVal.startsWith("OP_FAKE") ||
+    upperVal.startsWith("RECON_") ||
+    upperVal.startsWith("NEXGATE_")
+  ) {
+    return "Pending";
+  }
+
+  if (tx.id && strVal === String(tx.id)) return "Pending";
+  if (tx.paymentId && strVal === String(tx.paymentId)) return "Pending";
+  if (tx.orderId && strVal === String(tx.orderId)) return "Pending";
+
+  return strVal;
+};
 
 const formatCurrency = (value) => `INR ${Number(value || 0).toLocaleString("en-IN", {
   minimumFractionDigits: 2,
@@ -340,6 +393,9 @@ export default function History() {
                           {txn.direction === 'DEBIT' ? '-' : '+'}INR {formatAmount(txn.amount)}
                         </p>
                         <p className="text-[8px] font-mono text-[var(--text-muted)]">#{safeValue(txn.id, 'N/A').toString().toUpperCase()}</p>
+                        {txn.publicRef && (
+                          <p className="text-[8px] font-mono text-[var(--color-accent)] font-bold">{txn.publicRef}</p>
+                        )}
                       </div>
                       <div className="flex gap-1">
                         {!['SUCCESS', 'FAILED', 'REFUNDED'].includes(txn.status) && (
@@ -387,10 +443,24 @@ export default function History() {
                           );
                         })}
                       </div>
-                      <div className="mt-2 text-[8px] text-[var(--text-muted)] uppercase tracking-widest">
+                      <div className="mt-2 text-[8px] text-[var(--text-muted)] uppercase tracking-widest flex flex-wrap items-center gap-y-1">
                         {txn.lastRetryAt && <span>Admin retry: {new Date(txn.lastRetryAt).toLocaleString()}</span>}
                         {txn.processingStartedAt && <span className="ml-3">Processing: {new Date(txn.processingStartedAt).toLocaleString()}</span>}
                         {getTimeline(txn).length > 0 && <span className="ml-3">{getTimeline(txn).length} timeline events</span>}
+                        <span 
+                          onClick={(e) => {
+                            const ref = getOperatorRef(txn);
+                            if (ref !== "Pending") {
+                              e.stopPropagation();
+                              navigator.clipboard.writeText(ref);
+                              toast.success("Operator Reference Copied");
+                            }
+                          }}
+                          className={`ml-3 normal-case flex items-center gap-1 font-mono font-bold text-[var(--text-secondary)] ${getOperatorRef(txn) !== "Pending" ? "cursor-pointer hover:text-[var(--color-accent)]" : ""}`}
+                          title={getOperatorRef(txn) !== "Pending" ? "Click to copy reference" : undefined}
+                        >
+                          REF: {getOperatorRef(txn)}
+                        </span>
                       </div>
                     </div>
                   </motion.div>

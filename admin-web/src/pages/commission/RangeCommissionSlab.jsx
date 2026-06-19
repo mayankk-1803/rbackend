@@ -10,7 +10,8 @@ import {
   ChevronRight,
   Calendar,
   Layers,
-  TrendingUp
+  TrendingUp,
+  X
 } from "lucide-react";
 import RangeSlabActionsMenu from "../../components/commission/RangeSlabActionsMenu";
 
@@ -186,27 +187,27 @@ export const RangeCommissionSlab = () => {
   const handleEditInit = (rule) => {
     setSelectedRule(rule);
     setFormData({
-      slabId: rule.slabId.toString(),
-      operatorId: rule.operatorId.toString(),
-      serviceCategoryId: rule.serviceCategoryId.toString(),
-      role: rule.role,
-      amountFrom: rule.amountFrom.toString(),
-      amountTo: rule.amountTo.toString(),
-      mode: rule.mode,
-      commissionType: rule.commissionType,
-      commissionValue: rule.commissionValue.toString(),
-      realCommission: rule.realCommission.toString(),
-      surchargeType: rule.surchargeType,
-      surchargeValue: rule.surchargeValue.toString(),
-      profitType: rule.profitType,
-      profitValue: rule.profitValue.toString(),
-      feeType: rule.feeType,
-      feeValue: rule.feeValue.toString(),
-      maxCommission: rule.maxCommission ? rule.maxCommission.toString() : "",
-      fixedCharge: rule.fixedCharge.toString(),
-      effectiveFrom: rule.effectiveFrom ? rule.effectiveFrom.substring(0, 10) : "",
-      effectiveTo: rule.effectiveTo ? rule.effectiveTo.substring(0, 10) : "",
-      status: rule.status
+      slabId: rule?.slabId?.toString?.() || "",
+      operatorId: rule?.operatorId?.toString?.() || "",
+      serviceCategoryId: rule?.serviceCategoryId?.toString?.() || "",
+      role: rule?.role || "",
+      amountFrom: rule?.amountFrom?.toString?.() || "0",
+      amountTo: rule?.amountTo?.toString?.() || "0",
+      mode: rule?.mode || "GENERAL",
+      commissionType: rule?.commissionType || "PERCENTAGE",
+      commissionValue: rule?.commissionValue?.toString?.() || "0",
+      realCommission: rule?.realCommission?.toString?.() || "0",
+      surchargeType: rule?.surchargeType || "PERCENTAGE",
+      surchargeValue: rule?.surchargeValue?.toString?.() || "0",
+      profitType: rule?.profitType || "PERCENTAGE",
+      profitValue: rule?.profitValue?.toString?.() || "0",
+      feeType: rule?.feeType || "PERCENTAGE",
+      feeValue: rule?.feeValue?.toString?.() || "0",
+      maxCommission: rule?.maxCommission ? rule.maxCommission.toString() : "",
+      fixedCharge: rule?.fixedCharge?.toString?.() || "0",
+      effectiveFrom: rule?.effectiveFrom ? rule.effectiveFrom.substring(0, 10) : "",
+      effectiveTo: rule?.effectiveTo ? rule.effectiveTo.substring(0, 10) : "",
+      status: rule?.status || "PENDING"
     });
     setIsEditOpen(true);
     setActiveActionMenu(null);
@@ -255,7 +256,7 @@ export const RangeCommissionSlab = () => {
 
   const handleClone = async (rule) => {
     try {
-      const response = await api.post(`/admin/commission/range-rules/${rule.id}/clone`);
+      const response = await api.post(`/admin/commission/range-rules/${rule?.id}/clone`);
       if (response.data?.success) {
         toast.success("Rule cloned into PENDING status!");
         fetchRules();
@@ -275,7 +276,7 @@ export const RangeCommissionSlab = () => {
   const handleApprove = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.post(`/admin/commission/range-rules/${selectedRule.id}/approve`, commentData);
+      const response = await api.post(`/admin/commission/range-rules/${selectedRule?.id}/approve`, commentData);
       if (response.data?.success) {
         toast.success("Rule approved and activated successfully!");
         setIsApproveOpen(false);
@@ -296,7 +297,7 @@ export const RangeCommissionSlab = () => {
   const handleReject = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.post(`/admin/commission/range-rules/${selectedRule.id}/reject`, commentData);
+      const response = await api.post(`/admin/commission/range-rules/${selectedRule?.id}/reject`, commentData);
       if (response.data?.success) {
         toast.success("Rule rejected successfully!");
         setIsRejectOpen(false);
@@ -307,11 +308,22 @@ export const RangeCommissionSlab = () => {
     }
   };
 
+  // Close dropdown menus
   useEffect(() => {
     const handleOutsideClick = () => setActiveActionMenu(null);
     window.addEventListener("click", handleOutsideClick);
     return () => window.removeEventListener("click", handleOutsideClick);
   }, []);
+
+  const safeSlabs = Array.isArray(slabs) ? slabs : [];
+  const safeOperators = Array.isArray(operators) ? operators : [];
+  const safeCategories = Array.isArray(categories) ? categories : [];
+  const safeRoles = Array.isArray(roles) ? roles : [];
+
+  const selectedSlab = safeSlabs.find(s => s?.id?.toString() === formData?.slabId) || null;
+  const selectedOperator = safeOperators.find(o => o?.id?.toString() === formData?.operatorId) || null;
+  const selectedCategory = safeCategories.find(c => c?.id?.toString() === formData?.serviceCategoryId) || null;
+  const selectedRole = safeRoles.find(r => r === formData?.role) || null;
 
   return (
     <div className="p-6 bg-[var(--bg-primary)] min-h-screen text-[var(--text-primary)]">
@@ -322,7 +334,18 @@ export const RangeCommissionSlab = () => {
           <p className="text-xs text-[var(--text-secondary)] uppercase tracking-widest mt-0.5">Telecom Amount-Range Dynamic Rate Configuration</p>
         </div>
         <button
-          onClick={() => { resetForm(); setIsCreateOpen(true); }}
+          onClick={() => {
+            try {
+              resetForm();
+              setIsCreateOpen(true);
+            } catch (error) {
+              console.error(
+                "[Range Commission Slab] Add Range Rule Modal Error",
+                error
+              );
+              toast.error("Failed to open Add Range Rule modal");
+            }
+          }}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase bg-[var(--color-primary)] text-[var(--bg-primary)] hover:bg-[var(--color-primary-hover)] rounded-lg shadow-sm transition-colors cursor-pointer"
         >
           <Plus className="w-3.5 h-3.5" />
@@ -341,7 +364,11 @@ export const RangeCommissionSlab = () => {
               className="w-full bg-[var(--bg-primary)] border border-[var(--border-soft)] px-2 py-1.5 rounded-md uppercase tracking-wider text-[10px] font-semibold focus:outline-hidden"
             >
               <option value="">ALL SLABS</option>
-              {slabs.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {safeSlabs.length === 0 ? (
+                <option disabled>No slabs available</option>
+              ) : (
+                safeSlabs.map(s => <option key={s.id} value={s.id}>{s.name}</option>)
+              )}
             </select>
           </div>
 
@@ -353,7 +380,11 @@ export const RangeCommissionSlab = () => {
               className="w-full bg-[var(--bg-primary)] border border-[var(--border-soft)] px-2 py-1.5 rounded-md uppercase tracking-wider text-[10px] font-semibold focus:outline-hidden"
             >
               <option value="">ALL OPERATORS</option>
-              {operators.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+              {safeOperators.length === 0 ? (
+                <option disabled>No operators available</option>
+              ) : (
+                safeOperators.map(o => <option key={o.id} value={o.id}>{o.name}</option>)
+              )}
             </select>
           </div>
 
@@ -365,7 +396,11 @@ export const RangeCommissionSlab = () => {
               className="w-full bg-[var(--bg-primary)] border border-[var(--border-soft)] px-2 py-1.5 rounded-md uppercase tracking-wider text-[10px] font-semibold focus:outline-hidden"
             >
               <option value="">ALL SERVICES</option>
-              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {safeCategories.length === 0 ? (
+                <option disabled>No categories available</option>
+              ) : (
+                safeCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)
+              )}
             </select>
           </div>
 
@@ -377,7 +412,11 @@ export const RangeCommissionSlab = () => {
               className="w-full bg-[var(--bg-primary)] border border-[var(--border-soft)] px-2 py-1.5 rounded-md uppercase tracking-wider text-[10px] font-semibold focus:outline-hidden"
             >
               <option value="">ALL ROLES</option>
-              {roles.map(r => <option key={r} value={r}>{r}</option>)}
+              {safeRoles.length === 0 ? (
+                <option disabled>No roles available</option>
+              ) : (
+                safeRoles.map(r => <option key={r} value={r}>{r}</option>)
+              )}
             </select>
           </div>
 
@@ -578,7 +617,11 @@ export const RangeCommissionSlab = () => {
                     className="w-full p-2 bg-[var(--bg-primary)] border border-[var(--border-soft)] rounded-md text-xs"
                   >
                     <option value="">SELECT SLAB...</option>
-                    {slabs.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    {safeSlabs.length === 0 ? (
+                      <option disabled>No slabs available</option>
+                    ) : (
+                      safeSlabs.map(s => <option key={s.id} value={s.id}>{s.name}</option>)
+                    )}
                   </select>
                 </div>
                 <div>
@@ -590,7 +633,11 @@ export const RangeCommissionSlab = () => {
                     className="w-full p-2 bg-[var(--bg-primary)] border border-[var(--border-soft)] rounded-md text-xs"
                   >
                     <option value="">SELECT OPERATOR...</option>
-                    {operators.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                    {safeOperators.length === 0 ? (
+                      <option disabled>No operators available</option>
+                    ) : (
+                      safeOperators.map(o => <option key={o.id} value={o.id}>{o.name}</option>)
+                    )}
                   </select>
                 </div>
                 <div>
@@ -602,7 +649,11 @@ export const RangeCommissionSlab = () => {
                     className="w-full p-2 bg-[var(--bg-primary)] border border-[var(--border-soft)] rounded-md text-xs"
                   >
                     <option value="">SELECT SERVICE...</option>
-                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    {safeCategories.length === 0 ? (
+                      <option disabled>No service categories available</option>
+                    ) : (
+                      safeCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)
+                    )}
                   </select>
                 </div>
                 <div>
@@ -614,7 +665,11 @@ export const RangeCommissionSlab = () => {
                     className="w-full p-2 bg-[var(--bg-primary)] border border-[var(--border-soft)] rounded-md text-xs"
                   >
                     <option value="">SELECT ROLE...</option>
-                    {roles.map(r => <option key={r} value={r}>{r}</option>)}
+                    {safeRoles.length === 0 ? (
+                      <option disabled>No roles available</option>
+                    ) : (
+                      safeRoles.map(r => <option key={r} value={r}>{r}</option>)
+                    )}
                   </select>
                 </div>
               </div>

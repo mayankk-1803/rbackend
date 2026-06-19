@@ -1,6 +1,27 @@
 import AppError from "../utils/AppError.js";
 
+const APPROVED_CLIENT_ERRORS = [
+  "Invalid DTH Subscriber ID",
+  "Invalid Recharge Amount",
+  "Invalid Operator",
+  "Insufficient Wallet Balance",
+  "Recharge Amount Required",
+  "Subscriber ID Required",
+  "Minimum DTH recharge amount is ₹100",
+  "Please verify DTH customer details before recharging.",
+  "Customer validation expired. Please verify again.",
+  "Customer validation failed."
+];
+
 const cleanClientMessage = (err) => {
+  const msgStr = err?.message || "";
+  const matched = APPROVED_CLIENT_ERRORS.find(
+    (approved) => approved.toLowerCase() === msgStr.trim().toLowerCase()
+  );
+  if (matched) {
+    return matched;
+  }
+
   const raw = String(err?.message || err?.code || "").toLowerCase();
   if (
     raw.includes("invalid credentials") ||
@@ -27,6 +48,7 @@ const cleanClientMessage = (err) => {
   if (raw.includes("processing")) return "Recharge processing";
   if (raw.includes("recharge") && raw.includes("failed")) return "Recharge failed";
   if (raw.includes("recharge") && raw.includes("success")) return "Recharge Successful";
+  if (raw.includes("insufficient admin")) return err?.message || "Insufficient Admin Vault Balance";
   if (raw.includes("insufficient")) return "Insufficient Wallet Balance";
   if (
     raw.includes("payment") ||

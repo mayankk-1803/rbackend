@@ -486,3 +486,270 @@ export const fetchMPlanPlans = async (operatorObj, circleObj) => {
 
   return finalResponse;
 };
+
+// DTH Fallback Records
+const DTH_FALLBACK_RECORDS = {
+  "10": { // TATA SKY
+    "Monthly Plans": [
+      { rs: "350", validity: "1 Month", desc: "Hindi Starter HD Pack - 75 SD + 15 HD Channels" },
+      { rs: "450", validity: "1 Month", desc: "Hindi Premium Sports HD Pack - 90 SD + 25 HD Channels" }
+    ],
+    "3 Month Plans": [
+      { rs: "999", validity: "3 Months", desc: "Hindi Starter 3M Pack - Value Saver Pack" }
+    ],
+    "Annual Plans": [
+      { rs: "3800", validity: "12 Months", desc: "Super Value Annual Saver - Hindi Basic" }
+    ]
+  },
+  "7": { // AIRTEL DTH
+    "Monthly Plans": [
+      { rs: "285", validity: "1 Month", desc: "Value Prime Hindi SD Pack - 65 Channels" },
+      { rs: "410", validity: "1 Month", desc: "Value Sports HD Hindi Pack - 80 Channels" }
+    ],
+    "Annual Plans": [
+      { rs: "3200", validity: "12 Months", desc: "Airtel Digital TV Annual Saver Hindi Pack" }
+    ]
+  },
+  "8": { // DISH TV
+    "Monthly Plans": [
+      { rs: "290", validity: "1 Month", desc: "Dish Maxi Sports Hindi Pack - 70 Channels" },
+      { rs: "380", validity: "1 Month", desc: "Super Family HD Hindi Pack - 85 Channels" }
+    ],
+    "Annual Plans": [
+      { rs: "3400", validity: "12 Months", desc: "Dish TV Annual Saver Pack" }
+    ]
+  },
+  "9": { // SUN DIRECT
+    "Monthly Plans": [
+      { rs: "210", validity: "1 Month", desc: "Sun Direct Joy Hindi Pack - 50 Channels" },
+      { rs: "320", validity: "1 Month", desc: "Sun Direct HD Cinema + Sports Hindi Pack" }
+    ],
+    "Annual Plans": [
+      { rs: "2500", validity: "12 Months", desc: "Sun Direct Annual Value Pack" }
+    ]
+  },
+  "6": { // VIDEOCON D2H
+    "Monthly Plans": [
+      { rs: "275", validity: "1 Month", desc: "D2H Value Hindi Combo Pack - 60 Channels" },
+      { rs: "390", validity: "1 Month", desc: "D2H Super HD Premium Sports Hindi Pack" }
+    ],
+    "Annual Plans": [
+      { rs: "3100", validity: "12 Months", desc: "D2H Annual Value Saver Combo" }
+    ]
+  }
+};
+
+/**
+ * Fetches live DTH plans from MPlan API or falls back to premium local records.
+ */
+export const fetchMPlanDthPlans = async (operatorObj) => {
+  const opCodeStr = String(operatorObj.code).trim();
+  const liveCacheKey = `v1:mplan:dth:live:${opCodeStr}`;
+  const fallbackCacheKey = `v1:mplan:dth:fallback:${opCodeStr}`;
+
+  // 1. Check LIVE Redis Cache
+  try {
+    const cachedLive = await redisClient.get(liveCacheKey);
+    if (cachedLive) {
+      console.log(`[MPLAN DTH CACHE HIT - LIVE] Op: ${opCodeStr}`);
+      return JSON.parse(cachedLive);
+    }
+  } catch (err) {
+    console.error("[MPlan DTH Live Cache Error]:", err.message);
+  }
+
+  const apiKey = process.env.MPLAN_API_KEY;
+  let rawRecords = null;
+  let source = "live-mplan-dth";
+  let isFallbackActivated = false;
+  let fallbackReason = "";
+
+  // 2. ALWAYS attempt REAL LIVE MPlan API request FIRST
+  if (apiKey && apiKey !== "mplan_demo_api_key_3675") {
+    try {
+      const baseUrl = process.env.MPLAN_BASE_URL || "https://www.mplan.in";
+      console.log(`[MPLAN DTH LIVE REQUEST] Fetching live DTH plans | Op: ${opCodeStr}`);
+      
+      const response = await axios.get(`${baseUrl}/apiv2/dthplans`, {
+        params: {
+          apikey: apiKey,
+          operator_code: opCodeStr
+        },
+        timeout: MPLAN_TIMEOUT,
+        headers: { "User-Agent": "Dizipay-MPlan-Engine/2.0" }
+      });
+
+      console.log(`[MPLAN DTH LIVE RESPONSE] Status: ${response.status}`);
+
+      if (response.data) {
+        if (response.data.records) {
+          rawRecords = response.data.records;
+        } else if (response.data.data) {
+          rawRecords = response.data.data;
+        } else if (response.data.plans) {
+          rawRecords = response.data.plans;
+        } else if (typeof response.data === 'object' && !response.data.status && Object.keys(response.data).length > 0) {
+          rawRecords = response.data;
+        }
+      }
+
+      let hasUsablePlans = false;
+      if (rawRecords) {
+        for (const cat in rawRecords) {
+          if (Array.isArray(rawRecords[cat]) && rawRecords[cat].length > 0) {
+            hasUsablePlans = true;
+            break;
+          }
+        }
+      }
+
+      if (!hasUsablePlans) {
+        isFallbackActivated = true;
+        fallbackReason = "API returned empty or unrecognized DTH plans structure";
+      }
+    } catch (apiErr) {
+      isFallbackActivated = true;
+      fallbackReason = `Live DTH plans fetch failed (${apiErr.message || apiErr})`;
+      console.error(`[MPLAN DTH ERROR] ${fallbackReason}`);
+    }
+  } else {
+    isFallbackActivated = true;
+    fallbackReason = "API Key missing or demo key configured in environment";
+  }
+
+  // 3. ONLY IF live API fails: THEN check FALLBACK cache or fallback records
+  if (!rawRecords || isFallbackActivated) {
+    console.log(`[MPLAN DTH FALLBACK ACTIVATED] Reason: ${fallbackReason} | Checking fallback cache for Op: ${opCodeStr}`);
+    source = "fallback-local-dth";
+
+    try {
+      const cachedFallback = await redisClient.get(fallbackCacheKey);
+      if (cachedFallback) {
+        return JSON.parse(cachedFallback);
+      }
+    } catch (err) {
+      console.error("[MPlan DTH Fallback Cache Get Error]:", err.message);
+    }
+
+    rawRecords = DTH_FALLBACK_RECORDS[opCodeStr] || DTH_FALLBACK_RECORDS["10"]; // Default to Tata Sky
+  }
+
+  // 4. Normalize DTH plans
+  const categorized = {};
+  for (const rawCat in rawRecords) {
+    const planList = rawRecords[rawCat];
+    if (!Array.isArray(planList)) continue;
+
+    categorized[rawCat] = planList.map(plan => {
+      const amount = Number(plan.amount || plan.rs || plan.price || 0);
+      const validity = plan.validity || plan.Validity || plan.val || "Monthly";
+      const description = plan.desc || plan.description || plan.detail || "";
+      return {
+        amount,
+        validity,
+        description,
+        operator: operatorObj.name
+      };
+    }).filter(p => p.amount > 0);
+  }
+
+  const finalResponse = {
+    success: true,
+    source,
+    operator: operatorObj,
+    plans: categorized
+  };
+
+  // 5. Cache response
+  try {
+    if (source === "live-mplan-dth") {
+      await redisClient.set(liveCacheKey, JSON.stringify(finalResponse), 'EX', CACHE_TTL_LIVE);
+    } else {
+      await redisClient.set(fallbackCacheKey, JSON.stringify(finalResponse), 'EX', CACHE_TTL_FALLBACK);
+    }
+  } catch (err) {
+    console.error("[MPlan DTH Cache Set Error]:", err.message);
+  }
+
+  return finalResponse;
+};
+
+/**
+ * Validates DTH customer info via MPlan API
+ */
+export const validateDthCustomerInfo = async (operatorCode, subscriberId) => {
+  const opCodeStr = String(operatorCode).trim();
+  const subIdStr = String(subscriberId).trim();
+  const cacheKey = `v1:mplan:dth:validate:${opCodeStr}:${subIdStr}`;
+
+  // 1. Check Redis Cache
+  try {
+    const cachedData = await redisClient.get(cacheKey);
+    if (cachedData) {
+      console.log(`[MPLAN DTH VALIDATE CACHE HIT] Op: ${opCodeStr} | SubId: ${subIdStr}`);
+      return JSON.parse(cachedData);
+    }
+  } catch (err) {
+    console.error("[DTH Validate Cache Error]:", err.message);
+  }
+
+  const apiKey = process.env.MPLAN_API_KEY;
+  if (apiKey && apiKey !== "mplan_demo_api_key_3675") {
+    try {
+      const baseUrl = process.env.MPLAN_BASE_URL || "https://www.mplan.in";
+      console.log(`[MPLAN DTH VALIDATE REQUEST] Op: ${opCodeStr} | SubId: ${subIdStr}`);
+      
+      const response = await axios.get(`${baseUrl}/apiv2/dthcustomerinfo.php`, {
+        params: {
+          apikey: apiKey,
+          operator_code: opCodeStr,
+          customer_id: subIdStr
+        },
+        timeout: MPLAN_TIMEOUT,
+        headers: { "User-Agent": "Dizipay-MPlan-Engine/2.0" }
+      });
+
+      console.log(`[MPLAN DTH VALIDATE RESPONSE]`, response.data);
+
+      const records = response.data && response.data.records ? response.data.records : response.data;
+      
+      if (records && (records.CustomerName || records.customername || records.Name || records.name)) {
+        const customerName = records.CustomerName || records.customername || records.Name || records.name || "N/A";
+        const balance = records.Balance || records.balance || records.BalanceAmount || "";
+        const planName = records.Planname || records.planname || records.PlanName || records.Plan || "";
+        const dueDate = records.NextRechargeDate || records.nextrechargedate || records.DueDate || "";
+
+        const result = {
+          success: true,
+          customerName,
+          planName,
+          balance: balance.toString(),
+          dueDate,
+          source: "live-mplan-dth-validate"
+        };
+
+        try {
+          await redisClient.set(cacheKey, JSON.stringify(result), 'EX', 300);
+        } catch (err) {
+          console.error("[DTH Validate Cache Set Error]:", err.message);
+        }
+
+        return result;
+      }
+    } catch (apiErr) {
+      console.error(`[MPLAN DTH VALIDATION ERROR]`, apiErr.message);
+    }
+  }
+
+  // Graceful fallback
+  return {
+    success: false,
+    message: "Customer lookup currently unavailable. Manual entry is supported.",
+    customerName: "",
+    planName: "",
+    balance: "",
+    dueDate: "",
+    source: "local-graceful-fallback"
+  };
+};
+

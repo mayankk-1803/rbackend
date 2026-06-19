@@ -15,7 +15,8 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  ArrowUpRight
+  ArrowUpRight,
+  Copy
 } from 'lucide-react';
 import api from '../../api';
 import socket from '../../services/socket';
@@ -24,8 +25,60 @@ import { downloadFile } from '../../utils/downloadFile';
 import { InvoiceModal } from '../../components/reports/InvoiceModal';
 import { DisputeModal } from '../../components/reports/DisputeModal';
 import toast from 'react-hot-toast';
+import { convertCashbackToCoins } from '../../utils/rewardDisplayHelper';
 
+const getOperatorRef = (tx) => {
+  if (!tx) return "Pending";
+  const rawRef =
+    tx.operatorReferenceId ||
+    tx.providerRef ||
+    tx.providerRefId ||
+    tx.providerTxnId ||
+    null;
 
+  if (rawRef === null || rawRef === undefined) {
+    return "Pending";
+  }
+
+  const strVal = String(rawRef).trim();
+  if (strVal === "") {
+    return "Pending";
+  }
+
+  const upperVal = strVal.toUpperCase();
+  const invalidPlaceholders = [
+    "PENDING",
+    "PENDING_RECONCILIATION",
+    "TEST_OP_ID",
+    "TEST_REF",
+    "OP_SUCCESS",
+    "UNKNOWN",
+    "N/A",
+    "NULL",
+    "UNDEFINED"
+  ];
+
+  if (invalidPlaceholders.includes(upperVal)) {
+    return "Pending";
+  }
+
+  if (
+    upperVal.startsWith("TEST_OP_ID") ||
+    upperVal.startsWith("OP_SUCCESS") ||
+    upperVal.startsWith("OP_FAIL") ||
+    upperVal.startsWith("OP_FAKE") ||
+    upperVal.startsWith("RECON_") ||
+    upperVal.startsWith("NEXGATE_")
+  ) {
+    return "Pending";
+  }
+
+  if (tx.id && strVal === String(tx.id)) return "Pending";
+  if (tx.paymentId && strVal === String(tx.paymentId)) return "Pending";
+  if (tx.orderId && strVal === String(tx.orderId)) return "Pending";
+
+  return strVal;
+};
 
 const StatCard = ({ title, value, color, icon: Icon }) => (
   <motion.div 
@@ -296,6 +349,7 @@ export default function TransactionHistory() {
                 <th className="px-8 py-5 text-left text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Operator / Mobile</th>
                 <th className="px-8 py-5 text-left text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Type</th>
                 <th className="px-8 py-5 text-left text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Amount</th>
+                <th className="px-8 py-5 text-left text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Operator Ref ID</th>
                 <th className="px-8 py-5 text-left text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Status</th>
                 <th className="px-8 py-5 text-right text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Actions</th>
               </tr>
@@ -304,7 +358,7 @@ export default function TransactionHistory() {
               {loading ? (
                 Array(5).fill(0).map((_, i) => (
                   <tr key={i} className="animate-pulse">
-                    <td colSpan={6} className="px-8 py-6"><div className="h-4 bg-[var(--bg-tertiary)] rounded-full w-full"></div></td>
+                    <td colSpan={7} className="px-8 py-6"><div className="h-4 bg-[var(--bg-tertiary)] rounded-full w-full"></div></td>
                   </tr>
                 ))
               ) : transactions.length > 0 ? (
@@ -312,6 +366,9 @@ export default function TransactionHistory() {
                   <tr key={tx.id} className="hover:bg-[var(--glass-button-bg)] transition-colors group">
                     <td className="px-8 py-6">
                       <p className="text-xs font-black text-[var(--text-color)]">#{tx.id}</p>
+                      {tx.publicRef && (
+                        <p className="text-[10px] font-mono font-bold text-[var(--color-accent)] mt-0.5">{tx.publicRef}</p>
+                      )}
                       <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase mt-1">{new Date(tx.createdAt).toLocaleString()}</p>
                     </td>
                     <td className="px-8 py-6">
@@ -326,10 +383,69 @@ export default function TransactionHistory() {
                       </div>
                     </td>
                     <td className="px-8 py-6">
-                      <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{tx.type}</span>
+                      <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                        {tx.type === 'CASHBACK' ? 'COINS EARNED' : tx.type}
+                      </span>
                     </td>
                     <td className="px-8 py-6">
-                      <p className="text-sm font-black text-[var(--text-color)] tracking-tighter">₹{formatAmount(tx.amount)}</p>
+                      {tx.type === 'CASHBACK' ? (
+                        <p className="text-sm font-black text-amber-500 font-mono tracking-tighter">
+                          +{convertCashbackToCoins(tx.amount)} Coins
+                        </p>
+                      ) : (
+                        <p className="text-sm font-black text-[var(--text-color)] tracking-tighter">
+                          ₹{formatAmount(tx.amount)}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-8 py-6 max-w-[200px]">
+                      {(() => {
+                        const displayRef = getOperatorRef(tx);
+                        return (
+                          <div className="flex items-center gap-2 min-w-0">
+                            {/* Desktop: Full value */}
+                            <span className="font-mono text-xs text-[var(--text-color)] hidden md:inline truncate select-all" title={displayRef}>
+                              {displayRef}
+                            </span>
+                            
+                            {/* Mobile: Truncated value with hover tooltip */}
+                            {displayRef !== "Pending" ? (
+                              <div className="relative group/tooltip inline-block md:hidden min-w-0">
+                                <span className="font-mono text-xs text-[var(--text-color)] cursor-help border-b border-dashed border-[var(--text-muted)]">
+                                  {displayRef.length > 12 ? `${displayRef.slice(0, 8)}...${displayRef.slice(-4)}` : displayRef}
+                                </span>
+                                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-[var(--bg-secondary)] border border-[var(--glass-border)] text-[9px] text-[var(--text-color)] font-mono rounded-lg shadow-lg opacity-0 pointer-events-none group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap z-50 font-black">
+                                  {displayRef}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-[var(--text-muted)] md:hidden font-black">
+                                Pending
+                              </span>
+                            )}
+                            
+                            {/* Copy button - visible on desktop and mobile */}
+                            {displayRef !== "Pending" && (
+                              <div className="relative group/copy-btn inline-flex items-center shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigator.clipboard.writeText(displayRef);
+                                    toast.success("Operator Reference Copied");
+                                  }}
+                                  className="p-1 hover:bg-[var(--glass-button-bg)] hover:text-[var(--color-accent)] rounded-lg transition-colors cursor-pointer text-[var(--text-secondary)]"
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                </button>
+                                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-black/85 text-[9px] text-white rounded opacity-0 pointer-events-none group-hover/copy-btn:opacity-100 transition-opacity whitespace-nowrap z-50 font-black">
+                                  Copy Reference
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-8 py-6">
                       {getStatusBadge(tx.status)}
@@ -364,7 +480,7 @@ export default function TransactionHistory() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-8 py-20 text-center text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">
+                  <td colSpan={7} className="px-8 py-20 text-center text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">
                     No transactions found
                   </td>
                 </tr>

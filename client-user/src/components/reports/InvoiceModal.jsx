@@ -1,9 +1,10 @@
 import React, { useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Printer, Download, Smartphone, CheckCircle2, ShieldCheck, Clock, AlertCircle } from 'lucide-react';
+import { X, Printer, Download, Smartphone, CheckCircle2, ShieldCheck, Clock, AlertCircle, Copy } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { formatAmount } from '../../utils/helpers';
 import toast from 'react-hot-toast';
+import { convertCashbackToCoins } from '../../utils/rewardDisplayHelper';
 
 // A4 Optimized Template for PDF Export (Remains light for printer friendliness)
 const PrintableInvoice = React.forwardRef(({ transaction, snapshot, displayDate, displayAmount, displayRef, displayOperator, displayMobile, customer }, ref) => (
@@ -40,7 +41,6 @@ const PrintableInvoice = React.forwardRef(({ transaction, snapshot, displayDate,
         <div>
           <h3 style={{ fontSize: '10px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '12px' }}>Issued To</h3>
           <p style={{ fontSize: '14px', fontWeight: '900', margin: 0 }}>{customer.name || 'Customer'}</p>
-          <p style={{ fontSize: '12px', color: '#64748b', fontWeight: '700', marginTop: '4px' }}>REF ID: #{transaction.id}</p>
         </div>
         <div style={{ textAlign: 'right' }}>
           <h3 style={{ fontSize: '10px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '12px' }}>Payment Mode</h3>
@@ -81,9 +81,9 @@ const PrintableInvoice = React.forwardRef(({ transaction, snapshot, displayDate,
             <span>RECHARGE AMOUNT</span>
             <span style={{ color: '#0f172a' }}>₹{formatAmount(displayAmount)}</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: '800', color: '#10b981', marginBottom: '12px' }}>
-            <span>CASHBACK EARNED</span>
-            <span>+₹{formatAmount(transaction.cashback || 0)}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: '800', color: '#f59e0b', marginBottom: '12px' }}>
+            <span>COINS EARNED</span>
+            <span>+{convertCashbackToCoins(transaction.cashback || 0)} Coins</span>
           </div>
           <div style={{ borderTop: '2px solid #f1f5f9', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '12px', fontWeight: '900', color: '#0f172a' }}>FINAL ADJUSTMENT</span>
@@ -123,48 +123,55 @@ export const InvoiceModal = ({ isOpen, onClose, transaction }) => {
   const displayAmount = snapshot.amount || transaction.amount;
 
   const getOperatorRef = () => {
-    const candidates = [
-      transaction.operatorReferenceId,
-      snapshot.providerRef,
-      transaction.providerRef,
-      transaction.providerRefId,
-      transaction.providerTxnId
-    ];
-    for (const val of candidates) {
-      if (val === null || val === undefined) continue;
-      const strVal = String(val).trim();
-      if (strVal === "") continue;
-      
-      const upperVal = strVal.toUpperCase();
-      const invalidPlaceholders = [
-        "PENDING",
-        "PENDING_RECONCILIATION",
-        "TEST_OP_ID",
-        "TEST_REF",
-        "OP_SUCCESS",
-        "UNKNOWN",
-        "N/A",
-        "NULL",
-        "UNDEFINED"
-      ];
-      if (invalidPlaceholders.includes(upperVal)) continue;
-      if (
-        upperVal.startsWith("TEST_OP_ID") ||
-        upperVal.startsWith("OP_SUCCESS") ||
-        upperVal.startsWith("OP_FAIL") ||
-        upperVal.startsWith("OP_FAKE") ||
-        upperVal.startsWith("RECON_") ||
-        upperVal.startsWith("NEXGATE_")
-      ) {
-        continue;
-      }
-      if (transaction.id && strVal === String(transaction.id)) continue;
-      if (transaction.paymentId && strVal === String(transaction.paymentId)) continue;
-      if (transaction.orderId && strVal === String(transaction.orderId)) continue;
-      
-      return strVal;
+    const rawRef =
+      transaction.operatorReferenceId ||
+      transaction.providerRef ||
+      transaction.providerRefId ||
+      transaction.providerTxnId ||
+      null;
+
+    if (rawRef === null || rawRef === undefined) {
+      return "Pending";
     }
-    return "Pending Operator Assignment";
+
+    const strVal = String(rawRef).trim();
+    if (strVal === "") {
+      return "Pending";
+    }
+
+    const upperVal = strVal.toUpperCase();
+    const invalidPlaceholders = [
+      "PENDING",
+      "PENDING_RECONCILIATION",
+      "TEST_OP_ID",
+      "TEST_REF",
+      "OP_SUCCESS",
+      "UNKNOWN",
+      "N/A",
+      "NULL",
+      "UNDEFINED"
+    ];
+
+    if (invalidPlaceholders.includes(upperVal)) {
+      return "Pending";
+    }
+
+    if (
+      upperVal.startsWith("TEST_OP_ID") ||
+      upperVal.startsWith("OP_SUCCESS") ||
+      upperVal.startsWith("OP_FAIL") ||
+      upperVal.startsWith("OP_FAKE") ||
+      upperVal.startsWith("RECON_") ||
+      upperVal.startsWith("NEXGATE_")
+    ) {
+      return "Pending";
+    }
+
+    if (transaction.id && strVal === String(transaction.id)) return "Pending";
+    if (transaction.paymentId && strVal === String(transaction.paymentId)) return "Pending";
+    if (transaction.orderId && strVal === String(transaction.orderId)) return "Pending";
+
+    return strVal;
   };
 
   const displayRef = getOperatorRef();
@@ -300,7 +307,6 @@ export const InvoiceModal = ({ isOpen, onClose, transaction }) => {
                     <div>
                       <h4 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-2">Customer</h4>
                       <p className="text-sm font-black text-[var(--text-color)]">{customer.name || 'Account Holder'}</p>
-                      <p className="text-xs text-[var(--text-muted)] font-bold mt-0.5">Ref: #{transaction.id}</p>
                     </div>
                     <div className="md:text-right">
                       <h4 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-2">Service</h4>
@@ -311,19 +317,65 @@ export const InvoiceModal = ({ isOpen, onClose, transaction }) => {
 
                   {/* Summary Box */}
                   <div className="bg-[var(--bg-secondary)]/40 rounded-2xl p-6 border border-[var(--glass-border)] space-y-4">
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center pb-2">
                       <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Recharge Amount</span>
                       <span className="text-lg font-black text-[var(--text-color)]">₹{formatAmount(displayAmount)}</span>
                     </div>
                     {transaction.cashback > 0 && (
-                      <div className="flex justify-between items-center text-emerald-400">
-                        <span className="text-[10px] font-black uppercase tracking-widest">Cashback Earned</span>
-                        <span className="text-sm font-black">+₹{formatAmount(transaction.cashback)}</span>
+                      <div className="flex justify-between items-center text-amber-400 pb-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest">COINS EARNED</span>
+                        <span className="text-sm font-black font-mono">+{convertCashbackToCoins(transaction.cashback)} Coins</span>
                       </div>
                     )}
-                    <div className="flex justify-between items-center pt-4 border-t border-[var(--glass-border)]">
-                      <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Operator Reference ID</span>
-                      <span className="text-[10px] font-mono font-bold text-[var(--text-secondary)] truncate max-w-[150px]">{displayRef}</span>
+                    
+                    {/* Transaction References Block */}
+                    <div className="pt-4 border-t border-[var(--glass-border)] space-y-4">
+                      <h4 className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-1">Transaction References</h4>
+
+                      {/* Transaction ID */}
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Transaction ID</span>
+                        <span className="font-mono font-bold text-[var(--text-color)]">#{transaction.id}</span>
+                      </div>
+
+                      {/* Reference ID */}
+                      {transaction.publicRef && (
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Reference ID</span>
+                          <span className="font-mono font-bold text-[var(--color-primary)]">{transaction.publicRef}</span>
+                        </div>
+                      )}
+
+                      {/* Provider Transaction ID */}
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Provider Transaction ID</span>
+                        <span className="font-mono font-bold text-[var(--text-secondary)] truncate max-w-[200px]" title={transaction.providerTxnId || "-"}>
+                          {transaction.providerTxnId || "-"}
+                        </span>
+                      </div>
+
+                      {/* Operator Reference ID */}
+                      <div className="pt-3 border-t border-[var(--glass-border)]/50">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                          <div className="min-w-0 flex-1">
+                            <span className="block text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1.5">Operator Reference ID</span>
+                            <span className="font-mono text-xs font-bold text-[var(--text-color)] break-all block leading-relaxed">{displayRef}</span>
+                          </div>
+                          {displayRef !== "Pending" && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(displayRef);
+                                toast.success("Operator Reference Copied");
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[var(--glass-button-bg)] hover:bg-[var(--glass-border-hover)] border border-[var(--glass-border)] rounded-xl text-[9px] font-black uppercase tracking-widest text-[var(--text-color)] transition-all cursor-pointer shadow-sm active:scale-95 self-start sm:self-auto shrink-0"
+                            >
+                              <Copy className="w-3.5 h-3.5 text-[var(--color-primary)]" />
+                              Copy
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
 

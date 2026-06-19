@@ -4,10 +4,66 @@ import { API_ROUTES } from '../api/routes';
 import { motion } from 'framer-motion';
 import socket from '../services/socket';
 import { toast } from 'react-hot-toast';
+import { useSearchParams } from 'react-router-dom';
+import { Copy } from 'lucide-react';
 
 import { sanitizeErrorMessage } from '../utils/sanitizeErrorMessage';
 
+const getOperatorRef = (tx) => {
+  if (!tx) return "Pending";
+  const rawRef =
+    tx.operatorReferenceId ||
+    tx.providerRef ||
+    tx.providerRefId ||
+    tx.providerTxnId ||
+    null;
+
+  if (rawRef === null || rawRef === undefined) {
+    return "Pending";
+  }
+
+  const strVal = String(rawRef).trim();
+  if (strVal === "") {
+    return "Pending";
+  }
+
+  const upperVal = strVal.toUpperCase();
+  const invalidPlaceholders = [
+    "PENDING",
+    "PENDING_RECONCILIATION",
+    "TEST_OP_ID",
+    "TEST_REF",
+    "OP_SUCCESS",
+    "UNKNOWN",
+    "N/A",
+    "NULL",
+    "UNDEFINED"
+  ];
+
+  if (invalidPlaceholders.includes(upperVal)) {
+    return "Pending";
+  }
+
+  if (
+    upperVal.startsWith("TEST_OP_ID") ||
+    upperVal.startsWith("OP_SUCCESS") ||
+    upperVal.startsWith("OP_FAIL") ||
+    upperVal.startsWith("OP_FAKE") ||
+    upperVal.startsWith("RECON_") ||
+    upperVal.startsWith("NEXGATE_")
+  ) {
+    return "Pending";
+  }
+
+  if (tx.id && strVal === String(tx.id)) return "Pending";
+  if (tx.paymentId && strVal === String(tx.paymentId)) return "Pending";
+  if (tx.orderId && strVal === String(tx.orderId)) return "Pending";
+
+  return strVal;
+};
+
 export default function Status() {
+  const [searchParams] = useSearchParams();
   const [txnId, setTxnId] = useState('');
   const [txn, setTxn] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -44,14 +100,13 @@ export default function Status() {
     };
   }, []);
 
-  const checkStatus = async (e) => {
-    e.preventDefault();
-    if(!txnId) return;
+  const fetchStatus = async (transactionId) => {
+    if (!transactionId) return;
     setLoading(true);
     setTxn(null);
     setError('');
     try {
-      const res = await api.get(API_ROUTES.RECHARGE.STATUS(txnId));
+      const res = await api.get(API_ROUTES.RECHARGE.STATUS(transactionId));
       if (res?.data?.success) {
         setTxn(res?.data?.data);
       } else {
@@ -62,6 +117,20 @@ export default function Status() {
     } finally {
       setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    const transactionId = searchParams.get('id');
+    if (transactionId) {
+      setTxnId(transactionId);
+      fetchStatus(transactionId);
+    }
+  }, [searchParams]);
+
+  const checkStatus = async (e) => {
+    e.preventDefault();
+    if(!txnId) return;
+    await fetchStatus(txnId);
   };
 
   const status = txn?.status?.toLowerCase();
@@ -111,7 +180,10 @@ export default function Status() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-[var(--glass-border)] border-b border-[var(--glass-border)]">
                     <div className="p-4 md:p-5">
                       <span className="block text-[8px] md:text-[10px] text-[var(--text-muted)] uppercase font-black tracking-widest mb-1.5">Transaction ID</span>
-                      <span className="font-mono text-[var(--text-color)] text-xs md:text-sm break-all">{txn.id}</span>
+                      <span className="font-mono text-[var(--text-color)] text-xs md:text-sm break-all">
+                        #{txn.id}
+                        {txn.publicRef && ` / ${txn.publicRef}`}
+                      </span>
                     </div>
                     <div className="p-4 md:p-5">
                       <span className="block text-[8px] md:text-[10px] text-[var(--text-muted)] uppercase font-black tracking-widest mb-1.5">Current State</span>
@@ -131,7 +203,7 @@ export default function Status() {
                       )}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 divide-x divide-[var(--glass-border)]">
+                  <div className="grid grid-cols-2 divide-x divide-[var(--glass-border)] border-b border-[var(--glass-border)]">
                     <div className="p-4 md:p-5">
                       <span className="block text-[8px] md:text-[10px] text-[var(--text-muted)] uppercase font-black tracking-widest mb-1.5">Payment</span>
                       <span className="font-black text-[var(--text-color)] text-lg md:text-xl tracking-tighter">₹{txn.amount}</span>
@@ -142,6 +214,27 @@ export default function Status() {
                         <p className="text-[var(--text-color)] text-xs md:text-sm font-black tracking-tight">{txn.mobile}</p>
                         <p className="text-[9px] text-[var(--text-secondary)] font-black uppercase">{txn.operator}</p>
                       </div>
+                    </div>
+                  </div>
+                  <div className="p-4 md:p-5">
+                    <span className="block text-[8px] md:text-[10px] text-[var(--text-muted)] uppercase font-black tracking-widest mb-1.5">Operator Reference ID</span>
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="font-mono text-[var(--text-color)] text-xs md:text-sm break-all font-bold">
+                        {getOperatorRef(txn)}
+                      </span>
+                      {getOperatorRef(txn) !== "Pending" && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(getOperatorRef(txn));
+                            toast.success("Operator Reference Copied");
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--glass-button-bg)] hover:bg-[var(--glass-border-hover)] border border-[var(--glass-border)] rounded-xl text-[9px] font-black uppercase tracking-widest text-[var(--text-color)] transition-all cursor-pointer shadow-sm shrink-0 active:scale-95"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          Copy
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

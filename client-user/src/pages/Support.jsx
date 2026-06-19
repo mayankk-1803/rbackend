@@ -18,8 +18,8 @@ const FAQs = [
     answer: "If the recharge fails but your wallet balance is deducted, our system automatically detects this and initiates a refund. It will reflect in your wallet shortly."
   },
   {
-    question: "How do I redeem Earned Coins?",
-    answer: "You can redeem your Earned Coins from the 'Earned Coins' section in your Profile. You need a minimum of 50 coins to redeem them for wallet balance."
+    question: "How do Reward Coins work?",
+    answer: "Reward Coins are automatically earned on successful transactions. Every ₹1.00 of cashback is represented as 100 Reward Coins. They reflect your loyalty rewards and are managed seamlessly within your portal."
   },
   {
     question: "Wallet balance is not updating?",

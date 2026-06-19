@@ -43,8 +43,46 @@ export const Orders = () => {
   const [updatingId, setUpdatingId] = useState(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [refundAmountInput, setRefundAmountInput] = useState("");
+  const [refundRemarksInput, setRefundRemarksInput] = useState("");
+  const [refundLoading, setRefundLoading] = useState(false);
   const containerRef = useRef(null);
   const invoiceRef = useRef(null);
+
+  const handleRefundAction = async (orderId, action, amount = null) => {
+    try {
+      setRefundLoading(true);
+      let mKey = window.masterKeySession || "";
+      if (!mKey) {
+        mKey = prompt("Please enter System Master Key to authorize refund:");
+        if (!mKey) {
+          setRefundLoading(false);
+          return;
+        }
+      }
+
+      const res = await api.post(`/imart/admin/orders/${orderId}/refund`, {
+        action,
+        amount: amount ? Number(amount) : undefined,
+        remarks: refundRemarksInput.trim(),
+        masterKey: mKey
+      });
+
+      if (res.data?.success) {
+        toast.success(res.data.message || "Refund operation completed successfully");
+        setRefundRemarksInput("");
+        setRefundAmountInput("");
+        await fetchOrders();
+        setSelectedOrder(null);
+        setModalOpen(false);
+      }
+    } catch (error) {
+      console.error("Refund failed:", error);
+      toast.error(error.response?.data?.message || "Refund operation failed");
+    } finally {
+      setRefundLoading(false);
+    }
+  };
 
   const fetchOrders = async () => {
     if (!sessionStorage.getItem("dizipay_admin_token")) {
@@ -349,6 +387,89 @@ export const Orders = () => {
                     <p className="text-[11px] text-[var(--text-primary)] font-medium">Created: {format(new Date(selectedOrder.createdAt), "dd MMM yyyy HH:mm:ss")}</p>
                   </div>
                 </section>
+
+                {(selectedOrder.paymentStatus === "PAID" || selectedOrder.paymentStatus === "REFUND_PENDING" || selectedOrder.paymentStatus === "SUCCESS") && (
+                  <section className="space-y-2 border-t border-[var(--border-soft)] pt-4">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-rose-500 flex items-center gap-1.5">
+                      Order Refund Management
+                    </h3>
+                    <div className="p-3.5 rounded-xl border border-rose-500/20 bg-rose-500/5 space-y-3">
+                      {selectedOrder.paymentStatus === "REFUND_PENDING" ? (
+                        <div className="space-y-2.5">
+                          <p className="text-xs text-[var(--text-primary)] font-bold">Pending Refund Request</p>
+                          <textarea
+                            value={refundRemarksInput}
+                            onChange={(e) => setRefundRemarksInput(e.target.value)}
+                            placeholder="Approval/Rejection remarks..."
+                            className="w-full p-2 bg-[var(--admin-input-bg)] border border-[var(--border-soft)] rounded-lg text-xs font-medium text-[var(--text-primary)] outline-none"
+                            rows="2"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              disabled={refundLoading}
+                              onClick={() => handleRefundAction(selectedOrder.id, "APPROVE")}
+                              className="flex-1 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold uppercase cursor-pointer text-center"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              disabled={refundLoading}
+                              onClick={() => handleRefundAction(selectedOrder.id, "REJECT")}
+                              className="flex-1 px-3 py-1.5 rounded-lg bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold uppercase cursor-pointer text-center"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2.5">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Partial Refund Amount (Optional)</label>
+                            <input
+                              type="number"
+                              value={refundAmountInput}
+                              onChange={(e) => setRefundAmountInput(e.target.value)}
+                              placeholder="Leave blank for full refund..."
+                              className="w-full p-2 bg-[var(--admin-input-bg)] border border-[var(--border-soft)] rounded-lg text-xs font-semibold text-[var(--text-primary)] outline-none"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Refund Reason / Remarks</label>
+                            <textarea
+                              value={refundRemarksInput}
+                              onChange={(e) => setRefundRemarksInput(e.target.value)}
+                              placeholder="Reason for refund..."
+                              className="w-full p-2 bg-[var(--admin-input-bg)] border border-[var(--border-soft)] rounded-lg text-xs font-medium text-[var(--text-primary)] outline-none"
+                              rows="2"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              disabled={refundLoading}
+                              onClick={() => {
+                                const actionType = refundAmountInput ? "PARTIAL" : "FULL";
+                                handleRefundAction(selectedOrder.id, actionType, refundAmountInput || null);
+                              }}
+                              className="flex-1 px-3 py-2 rounded-lg bg-rose-500 hover:bg-rose-600 text-white text-[10px] font-bold uppercase cursor-pointer text-center"
+                            >
+                              Instant Refund
+                            </button>
+                            <button
+                              disabled={refundLoading}
+                              onClick={() => {
+                                const actionType = refundAmountInput ? "REQUEST_PARTIAL" : "REQUEST_FULL";
+                                handleRefundAction(selectedOrder.id, actionType, refundAmountInput || null);
+                              }}
+                              className="flex-1 px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold uppercase cursor-pointer text-center"
+                            >
+                              Request Refund
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                )}
               </div>
 
               <div className="space-y-4">

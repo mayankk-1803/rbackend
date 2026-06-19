@@ -6,11 +6,40 @@ import api from '../api';
 import toast from 'react-hot-toast';
 import { useWallet } from '../context/WalletContext';
 import { APP_MESSAGES } from '../constants/messages';
+import { convertCashbackToCoins } from '../utils/rewardDisplayHelper';
 
 export default function Profile() {
   const [user, setUser] = useState(JSON.parse(sessionStorage.getItem('dizipay_user_data')) || { name: 'User Account', phone: '+91 9876543210' });
   const { wallet } = useWallet();
   const [isEditing, setIsEditing] = useState(false);
+  const [lifetimeCoins, setLifetimeCoins] = useState(0);
+
+  React.useEffect(() => {
+    const fetchLifetimeCoins = async () => {
+      try {
+        const res = await api.get('/user/transactions');
+        const txns = res.data?.data || [];
+        const lifetime = txns
+          .filter(t => t.type === 'CASHBACK' && t.status === 'SUCCESS')
+          .reduce((acc, t) => acc + Number(t.amount || t.cashback || 0), 0);
+        setLifetimeCoins(Math.round(lifetime * 100));
+      } catch (err) {
+        if (import.meta.env.DEV) console.error(err);
+      }
+    };
+    fetchLifetimeCoins();
+  }, []);
+
+  const getRewardTier = (coins) => {
+    if (coins >= 5000) return { label: 'Platinum', color: 'text-sky-400 bg-sky-500/10 border-sky-500/20' };
+    if (coins >= 2000) return { label: 'Gold', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' };
+    if (coins >= 500) return { label: 'Silver', color: 'text-slate-400 bg-slate-500/10 border-slate-500/20' };
+    return { label: 'Bronze', color: 'text-orange-400 bg-orange-500/10 border-orange-500/20' };
+  };
+
+  const currentCoins = convertCashbackToCoins(wallet?.cashbackBalance || 0);
+  const tier = getRewardTier(currentCoins);
+
   const [newName, setNewName] = useState(user.name || '');
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
@@ -200,20 +229,25 @@ export default function Profile() {
           </div>
 
           <div className="space-y-6">
-            <h3 className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-4">Earned Coins</h3>
+            <h3 className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-4">REWARDS SUMMARY</h3>
             <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 p-6 rounded-3xl relative overflow-hidden group">
               <div className="relative z-10 space-y-4">
-                <div className="flex justify-between items-center">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-1">Your Coins</p>
-                    <h4 className="text-3xl font-black text-[var(--text-color)]">{wallet.coinBalance || 0}</h4>
+                    <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-1">Total Coins</p>
+                    <h4 className="text-xl font-black text-[var(--text-color)]">{convertCashbackToCoins(wallet?.cashbackBalance || 0)} Coins</h4>
                   </div>
-                  <button 
-                    onClick={() => navigate('/earned-coins')}
-                    className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-[10px] font-black uppercase shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
-                  >
-                    Manage
-                  </button>
+                  <div>
+                    <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-1">Lifetime Coins</p>
+                    <h4 className="text-xl font-black text-[var(--text-color)]">{lifetimeCoins} Coins</h4>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-[var(--bg-secondary)]/40 rounded-2xl border border-amber-500/10">
+                  <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Reward Tier</span>
+                  <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${tier.color}`}>
+                    {tier.label}
+                  </span>
                 </div>
                 
                 <div className="p-4 bg-[var(--bg-secondary)]/40 rounded-2xl border border-amber-500/10 space-y-3">
@@ -232,7 +266,7 @@ export default function Profile() {
                   </div>
                 </div>
                 
-                <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed font-medium">Earn 1-2 coins on successful recharges. 50 Coins = ₹1 Wallet Balance.</p>
+                <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed font-medium">Earn coins on successful recharges. Reward coins automatically sync with your wallet rebates.</p>
               </div>
               <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-amber-500/5 rounded-full blur-3xl group-hover:bg-amber-500/10 transition-all duration-700"></div>
             </div>

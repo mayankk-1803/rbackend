@@ -11,6 +11,7 @@ import { claimIdempotencyKey } from "../utils/idempotency.js";
 import { recordReconciliationLatency } from "./webhookMonitoringService.js";
 import { isFinalizedStatus, isValidStatusTransition } from "../utils/transactionStateGuard.js";
 import { isValidOperatorRef } from "../utils/validators.js";
+import { getProviderOperatorCode } from "../config/operators.js";
 
 // In-memory lock to prevent overlapping reconciliation runs
 let isReconciling = false;
@@ -277,6 +278,12 @@ export async function handleSuccessfulSync(txn, response) {
     updatedTxn = await tx.transaction.findUnique({
       where: { id: txn.id }
     });
+
+    const opCode = getProviderOperatorCode(txn.operator);
+    const isDth = ["6", "7", "8", "9", "10"].includes(opCode);
+    if (isDth) {
+      console.log(`[DTH_RECONCILIATION_SUCCESS] transactionId=${txn.id}, operator=${txn.operator}, subscriberId=${txn.mobile}, amount=${txn.amount}, providerRef=${updatedTxn.providerRef || 'N/A'}, providerTxnId=${updatedTxn.providerTxnId || 'N/A'}, status=SUCCESS`);
+    }
   }, {
     isolationLevel: Prisma.TransactionIsolationLevel.Serializable
   });
@@ -413,6 +420,13 @@ export async function handleFailedSync(txn, response) {
       where: { id: txn.id }
     });
 
+    const opCode = getProviderOperatorCode(txn.operator);
+    const isDth = ["6", "7", "8", "9", "10"].includes(opCode);
+    if (isDth) {
+      console.log(`[DTH_RECONCILIATION_FAILED] transactionId=${txn.id}, operator=${txn.operator}, subscriberId=${txn.mobile}, amount=${txn.amount}, providerRef=${updatedTxn.providerRef || 'N/A'}, providerTxnId=${updatedTxn.providerTxnId || 'N/A'}, status=FAILED`);
+      console.log(`[DTH_RECONCILIATION_REFUNDED] transactionId=${txn.id}, operator=${txn.operator}, subscriberId=${txn.mobile}, amount=${txn.amount}, providerRef=${updatedTxn.providerRef || 'N/A'}, providerTxnId=${updatedTxn.providerTxnId || 'N/A'}, status=REFUNDED`);
+    }
+
     // 2. recordFinancialEntry automatically credits wallet balance and creates ledger record atomically.
     const res = await recordFinancialEntry({
       userId: txn.userId,
@@ -477,6 +491,59 @@ export async function handleFailedSync(txn, response) {
 }
 
 /**
+ * Recovers stale processing locks.
+ * Releases transactions where:
+ * - processingLock = true
+ * - status IN ('PENDING', 'PROCESSING')
+ * - updatedAt older than 10 minutes
+ * - providerRef is null
+ * - providerTxnId is null
+ * Before releasing, verifies status is not SUCCESS/FAILED/REFUNDED, no webhook/refund/completion exists.
+ */
+export const recoverStaleProcessingLocks = async () => {
+  try {
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    const lockedTxns = await prisma.transaction.findMany({
+      where: { processingLock: true }
+    });
+
+    for (const txn of lockedTxns) {
+      try {
+        const isPendingOrProcessing = ['PENDING', 'PROCESSING'].includes(txn.status);
+        const isOld = txn.updatedAt < tenMinutesAgo;
+        const hasNoProviderRef = txn.providerRef === null;
+        const hasNoProviderTxnId = txn.providerTxnId === null;
+        const hasNoFinalStatus = !['SUCCESS', 'FAILED', 'REFUNDED'].includes(txn.status);
+        const hasNoRefund = !txn.refundStatus || txn.refundStatus === 'none';
+        const hasNoProcessedAt = txn.processedAt === null;
+
+        if (
+          isPendingOrProcessing &&
+          isOld &&
+          hasNoProviderRef &&
+          hasNoProviderTxnId &&
+          hasNoFinalStatus &&
+          hasNoRefund &&
+          hasNoProcessedAt
+        ) {
+          await prisma.transaction.update({
+            where: { id: txn.id },
+            data: { processingLock: false }
+          });
+          console.log(`[STALE_LOCK_RECOVERED] Transaction ID: ${txn.id} lock successfully recovered.`);
+        } else {
+          console.log(`[STALE_LOCK_SKIPPED] Transaction ID: ${txn.id} skipped.`);
+        }
+      } catch (err) {
+        console.error(`[STALE_LOCK_RECOVERY_FAILED] Transaction ID: ${txn.id} recovery failed: ${err.message}`);
+      }
+    }
+  } catch (globalErr) {
+    console.error(`[STALE_LOCK_RECOVERY_FAILED] Global recovery job failed: ${globalErr.message}`);
+  }
+};
+
+/**
  * Starts the periodic reconciliation job.
  * Only runs on the primary instance (0) if PM2 clustering is used.
  */
@@ -489,10 +556,11 @@ export const startReconciliationCron = () => {
     return;
   }
 
-  // Sync every 10 seconds for fast-first polling
+  // Sync every 10 seconds for fast-first polling and lock recovery
   const INTERVAL_MS = 10 * 1000;
   setInterval(async () => {
     try {
+      await recoverStaleProcessingLocks();
       await reconcilePendingTransactions();
     } catch (err) {
       console.error("[Reconciliation Cron Error]:", err.message);

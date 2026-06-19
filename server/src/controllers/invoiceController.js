@@ -1,5 +1,6 @@
 import prisma from "../config/prisma.js";
 import AppError from "../utils/AppError.js";
+import { decodeTxnId } from "../utils/referenceHelper.js";
 
 /**
  * Generates an immutable snapshot for an invoice if it doesn't exist.
@@ -9,8 +10,12 @@ export const getInvoice = async (req, res) => {
   const userId = req.user.id;
 
   try {
+    const decodedId = decodeTxnId(transactionId);
+    if (isNaN(decodedId)) {
+      throw new AppError("Invalid transaction ID", 400);
+    }
     const txn = await prisma.transaction.findUnique({
-      where: { id: parseInt(transactionId) },
+      where: { id: decodedId },
       include: {
         user: { select: { name: true, phone: true, email: true } }
       }

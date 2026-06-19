@@ -19,18 +19,17 @@ import {
   ClipboardList,
   Users,
   Shuffle,
-  Lock
+  Lock,
+  Wallet
 } from 'lucide-react';
 
 const navItemsBefore = [
   { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-  { name: 'Transactions', path: '/reports/transactions', icon: ClipboardList },
   { name: 'Users', path: '/users', icon: Users },
   { name: 'Control Center', path: '/control-center', icon: Server },
 ];
 
 const navItemsAfter = [
-  { name: 'Complaints', path: '/reports/disputes', icon: ShieldAlert },
   { name: 'Operators', path: '/providers', icon: Server },
   { name: 'iMart Products', path: '/imart/products', icon: ShoppingBag },
   { name: 'iMart Categories', path: '/imart/categories', icon: Tag },
@@ -39,6 +38,9 @@ const navItemsAfter = [
 
 export const Sidebar = ({ isOpen, setIsOpen }) => {
   const location = useLocation();
+  const [analyticsOpen, setAnalyticsOpen] = React.useState(() => {
+    return location.pathname.startsWith('/reports');
+  });
   const [commissionOpen, setCommissionOpen] = React.useState(() => {
     return location.pathname.startsWith('/commission');
   });
@@ -50,6 +52,9 @@ export const Sidebar = ({ isOpen, setIsOpen }) => {
   });
   const [platformIntelOpen, setPlatformIntelOpen] = React.useState(() => {
     return location.pathname.startsWith('/platform-intelligence');
+  });
+  const [masterWalletOpen, setMasterWalletOpen] = React.useState(() => {
+    return location.pathname.startsWith('/master-wallet');
   });
 
   const [adminUser] = React.useState(() => {
@@ -156,6 +161,65 @@ export const Sidebar = ({ isOpen, setIsOpen }) => {
                 </Link>
               );
             })}
+
+            {/* Collapsible Analytics Menu */}
+            <div className="space-y-1">
+              <button
+                onClick={() => setAnalyticsOpen(!analyticsOpen)}
+                className={`
+                  w-full group relative flex items-center px-4 py-2.5 transition-all duration-150 rounded-xl cursor-pointer text-sm font-medium text-left border border-transparent
+                  ${location.pathname.startsWith('/reports')
+                    ? "bg-[var(--color-primary-glow)] text-[var(--color-primary)] border border-[var(--border-soft)] shadow-sm"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--accent-hover)]"
+                  }
+                `}
+              >
+                <ClipboardList className={`w-4 h-4 mr-3 transition-colors ${location.pathname.startsWith('/reports') ? "text-[var(--color-primary)]" : "text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"}`} />
+                <span className="tracking-wide flex-1">Analytics</span>
+                {analyticsOpen ? (
+                  <ChevronDown className="w-4 h-4 ml-auto text-[var(--text-secondary)]" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 ml-auto text-[var(--text-secondary)]" />
+                )}
+              </button>
+
+              <AnimatePresence>
+                {analyticsOpen && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden pl-7 space-y-1"
+                  >
+                    {[
+                      { name: 'Transaction History', path: '/reports/transactions' },
+                      { name: 'Commission Yields', path: '/reports/commissions' },
+                      { name: 'Operator Dashboard', path: '/reports/operator-dashboard' },
+                      { name: 'Financial Dashboard', path: '/reports/financial-dashboard' },
+                      { name: 'Provider Health', path: '/reports/provider-health' },
+                      { name: 'Complaints & Disputes', path: '/reports/disputes' }
+                    ].map((sub) => {
+                      const isSubActive = location.pathname === sub.path;
+                      return (
+                        <Link
+                          key={sub.name}
+                          to={sub.path}
+                          className={`
+                            block px-4 py-1.5 text-xs rounded-lg transition-colors font-medium
+                            ${isSubActive
+                              ? "text-[var(--color-primary)] font-semibold bg-[var(--color-primary-glow)] border border-[var(--border-soft)] shadow-xs"
+                              : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--accent-hover)]"
+                            }
+                          `}
+                        >
+                          {sub.name}
+                        </Link>
+                      );
+                    })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
             {/* Collapsible Commission Menu */}
             <div className="space-y-1">
@@ -355,6 +419,64 @@ export const Sidebar = ({ isOpen, setIsOpen }) => {
                       { name: 'Threat Analytics', path: '/api-marketplace/threats' },
                       { name: 'Documentation', path: '/api-docs' }
                     ].map((sub) => {
+                      const isSubActive = location.pathname === sub.path;
+                      return (
+                        <Link
+                          key={sub.name}
+                          to={sub.path}
+                          className={`
+                            block px-4 py-1.5 text-xs rounded-lg transition-colors font-medium
+                            ${isSubActive
+                              ? "text-[var(--color-primary)] font-semibold bg-[var(--color-primary-glow)] border border-[var(--border-soft)] shadow-xs"
+                              : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--accent-hover)]"
+                            }
+                          `}
+                        >
+                          {sub.name}
+                        </Link>
+                      );
+                    })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Collapsible Master Wallet Menu */}
+            <div className="space-y-1">
+              <button
+                onClick={() => setMasterWalletOpen(!masterWalletOpen)}
+                className={`
+                  w-full group relative flex items-center px-4 py-2.5 transition-all duration-150 rounded-xl cursor-pointer text-sm font-medium text-left border border-transparent
+                  ${location.pathname.startsWith('/master-wallet')
+                    ? "bg-[var(--color-primary-glow)] text-[var(--color-primary)] border border-[var(--border-soft)] shadow-sm"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--accent-hover)]"
+                  }
+                `}
+              >
+                <Wallet className={`w-4 h-4 mr-3 transition-colors ${location.pathname.startsWith('/master-wallet') ? "text-[var(--color-primary)]" : "text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"}`} />
+                <span className="tracking-wide flex-1">Master Wallet</span>
+                {masterWalletOpen ? (
+                  <ChevronDown className="w-4 h-4 ml-auto text-[var(--text-secondary)]" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 ml-auto text-[var(--text-secondary)]" />
+                )}
+              </button>
+
+              <AnimatePresence>
+                {masterWalletOpen && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden pl-7 space-y-1"
+                  >
+                    {[
+                      { name: 'Dashboard', path: '/master-wallet/dashboard' },
+                      { name: 'Wallet Ledger', path: '/master-wallet/ledger' },
+                      { name: 'Pending Settlements', path: '/master-wallet/pending' },
+                      { name: 'User Wallet Funding', path: '/master-wallet/user-funding' },
+                      { name: 'Admin Wallet Funding', path: '/master-wallet/admin-funding', isSuperAdminOnly: true }
+                    ].filter(sub => !sub.isSuperAdminOnly || adminUser.role === 'SUPER_ADMIN').map((sub) => {
                       const isSubActive = location.pathname === sub.path;
                       return (
                         <Link

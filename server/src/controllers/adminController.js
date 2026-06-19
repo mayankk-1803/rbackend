@@ -14,6 +14,7 @@ import bcrypt from "bcryptjs";
 import { sendTempPasswordWhatsApp } from "../services/otp/nxtbyteOtpService.js";
 import { sendTempPasswordEmail } from "../services/emailService.js";
 import { mapProviderToAlias, ALIAS_TO_REAL } from "../config/providerAliases.js";
+import { encodeTxnId } from "../utils/referenceHelper.js";
 import fs from "fs";
 import path from "path";
 
@@ -68,6 +69,54 @@ export const getDashboard = async (req, res) => {
 
     const apibox = operators.find(p => p.code === 'APIBOX');
 
+    // DTH Metrics
+    const dthOperators = ["TATA SKY", "AIRTEL DTH", "DISH TV", "SUN DIRECT", "VIDEOCON D2H"];
+    const totalDth = await prisma.transaction.count({
+      where: {
+        type: "RECHARGE",
+        operator: { in: dthOperators }
+      }
+    });
+    const successfulDth = await prisma.transaction.count({
+      where: {
+        type: "RECHARGE",
+        operator: { in: dthOperators },
+        status: "SUCCESS"
+      }
+    });
+    const failedDth = await prisma.transaction.count({
+      where: {
+        type: "RECHARGE",
+        operator: { in: dthOperators },
+        status: "FAILED"
+      }
+    });
+    const refundedDth = await prisma.transaction.count({
+      where: {
+        type: "RECHARGE",
+        operator: { in: dthOperators },
+        status: "REFUNDED"
+      }
+    });
+    const dthSuccessRate = totalDth > 0 ? Number(((successfulDth / totalDth) * 100).toFixed(2)) : 100;
+
+    // Operator Metrics
+    const tataPlaySuccess = await prisma.transaction.count({
+      where: { type: "RECHARGE", operator: "TATA SKY", status: "SUCCESS" }
+    });
+    const airtelDthSuccess = await prisma.transaction.count({
+      where: { type: "RECHARGE", operator: "AIRTEL DTH", status: "SUCCESS" }
+    });
+    const dishTvSuccess = await prisma.transaction.count({
+      where: { type: "RECHARGE", operator: "DISH TV", status: "SUCCESS" }
+    });
+    const sunDirectSuccess = await prisma.transaction.count({
+      where: { type: "RECHARGE", operator: "SUN DIRECT", status: "SUCCESS" }
+    });
+    const videoconD2hSuccess = await prisma.transaction.count({
+      where: { type: "RECHARGE", operator: "VIDEOCON D2H", status: "SUCCESS" }
+    });
+
     const data = {
       totalUsers,
       totalTransactions,
@@ -84,6 +133,18 @@ export const getDashboard = async (req, res) => {
         health: apibox?.healthStatus || "UNKNOWN",
         responseTime: apibox?.avgResponseTime || 0,
         successRate: apibox?.successRate || 0
+      },
+      dthMetrics: {
+        totalDth,
+        successfulDth,
+        failedDth,
+        refundedDth,
+        dthSuccessRate,
+        tataPlaySuccess,
+        airtelDthSuccess,
+        dishTvSuccess,
+        sunDirectSuccess,
+        videoconD2hSuccess
       }
     };
 
@@ -729,6 +790,7 @@ export const getTransactions = async (req, res) => {
 
       return {
         ...t,
+        publicRef: encodeTxnId(t.id),
         mobile: displayMobile,
         provider: displayProvider
       };

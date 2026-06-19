@@ -188,9 +188,8 @@ import InactivityManager from './components/InactivityManager';
               <div className="relative z-10">
               <Toaster position="top-right" />
               <InactivityManager />
-              {isAuth && <RewardPopup />}
-
               <WalletProvider>
+                {isAuth && <RewardPopup />}
                 <Layout>
                   <Routes>
                     <Route path="/login" element={<PublicRoute isAuth={isAuth}><Login /></PublicRoute>} />
@@ -217,7 +216,7 @@ import InactivityManager from './components/InactivityManager';
                     <Route path="/profile" element={<PrivateRoute isAuth={isAuth}><Profile /></PrivateRoute>} />
                     <Route path="/profile/security" element={<PrivateRoute isAuth={isAuth}><Security /></PrivateRoute>} />
                     <Route path="/profile/support" element={<PrivateRoute isAuth={isAuth}><Support /></PrivateRoute>} />
-                    <Route path="/earned-coins" element={<PrivateRoute isAuth={isAuth}><EarnedCoins /></PrivateRoute>} />
+                    <Route path="/earned-coins" element={<Navigate to="/profile" replace />} />
                     <Route path="/payment-success" element={<PrivateRoute isAuth={isAuth}><PaymentSuccess /></PrivateRoute>} />
 
 

@@ -74,6 +74,9 @@ async function runOperationsSuiteTests() {
   };
 
   try {
+    // Cleanup any leaked test records from previous runs
+    await prisma.serviceSection.deleteMany({ where: { code: "FASTAG_TEST" } }).catch(() => {});
+
     const configBefore = await prisma.routingConfig.findUnique({ where: { id: 1 } });
     const initialVersion = configBefore ? configBefore.currentVersion : 1;
 

@@ -66,6 +66,7 @@ model payment {
   updatedAt       DateTime       @updatedAt
   user            user           @relation(fields: [userId], references: [id])
   order           Order?
+  pendingWalletCredits PendingWalletCredit[]
 
   @@index([status])
   @@index([userId])
@@ -318,6 +319,15 @@ model user {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
+  // Mobile Profile Fields
+  address          String?   @db.Text
+  alternatePhone   String?
+  city             String?
+  state            String?
+  dob              DateTime?
+  gender           String?
+  pincode          String?
+
   apiAccesses      ApiAccess[]
   apiAccessRequests ApiAccessRequest[]
   apiKeys          apiKey[]
@@ -355,6 +365,7 @@ model user {
   packageAssignedAt    DateTime?
   packageExpiresAt     DateTime?
   slabAssignedAt       DateTime?
+  pendingWalletCredits PendingWalletCredit[]
 
 
   user       user?  @relation("userToUser", fields: [referredBy], references: [id])
@@ -499,6 +510,7 @@ enum ledgerEntry_type {
   ADMIN_ADJUSTMENT
   TOPUP_CREDIT
   IMART_DEBIT
+  ADMIN_CREDIT
 }
 
 enum reward_mode {
@@ -1725,3 +1737,59 @@ model ApiCreditWallet {
   lifetimeConsumed  Decimal  @default(0.00) @db.Decimal(12, 2)
   updatedAt         DateTime @updatedAt
 }
+
+enum settlement_status {
+  PENDING
+  APPROVED
+  REJECTED
+  FAILED
+}
+
+model AdminWallet {
+  id                        Int      @id @default(autoincrement())
+  balance                   Decimal  @default(0.00) @db.Decimal(12, 2)
+  reservedBalance           Decimal  @default(0.00) @db.Decimal(12, 2)
+  minimumOperationalBalance Decimal  @default(0.00) @db.Decimal(12, 2)
+  totalCredits              Decimal  @default(0.00) @db.Decimal(12, 2)
+  totalDebits               Decimal  @default(0.00) @db.Decimal(12, 2)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  @@map("admin_wallet")
+}
+
+model AdminLedger {
+  id             Int      @id @default(autoincrement())
+  type           String
+  amount         Decimal  @db.Decimal(12, 2)
+  openingBalance Decimal  @db.Decimal(12, 2)
+  closingBalance Decimal  @db.Decimal(12, 2)
+  referenceId    String?
+  description    String   @db.Text
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  @@map("admin_ledger")
+}
+
+model PendingWalletCredit {
+  id               Int               @id @default(autoincrement())
+  userId           Int
+  paymentId        Int
+  amount           Decimal           @db.Decimal(12, 2)
+  settlementStatus settlement_status @default(PENDING)
+  remarks          String?           @db.Text
+  approvedBy       Int?
+  approvedAt       DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  user    user    @relation(fields: [userId], references: [id])
+  payment payment @relation(fields: [paymentId], references: [id])
+
+  @@index([userId])
+  @@index([paymentId])
+  @@index([settlementStatus])
+  @@map("pending_wallet_credit")
+}
+

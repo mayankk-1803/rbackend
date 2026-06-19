@@ -2,6 +2,7 @@ import prisma from "../config/prisma.js";
 import { normalizeTransactionStatus } from "../utils/statusHelper.js";
 import { convertToCSV, downloadCSV } from "../utils/exportHelper.js";
 import { getMetricsReport } from "../services/webhookMonitoringService.js";
+import { encodeTxnId, decodeTxnId } from "../utils/referenceHelper.js";
 
 
 /**
@@ -26,10 +27,67 @@ export const getTransactionHistory = async (req, res) => {
   const where = {
     userId,
     status: (status && status.toUpperCase() !== 'REFUNDED') ? status.toUpperCase() : undefined,
-    type: type ? type.toUpperCase() : undefined,
     mobile: mobile ? { contains: mobile } : undefined,
-    operator: operator ? { contains: operator } : undefined,
   };
+
+  if (type && type.toUpperCase() === 'DTH') {
+    const dthOperators = await prisma.operator.findMany({
+      where: { active: true },
+      select: { name: true, codes: true }
+    });
+    const dthNames = dthOperators
+      .filter(op => {
+        try {
+          const parsed = JSON.parse(op.codes);
+          return parsed.category === 'DTH';
+        } catch {
+          return false;
+        }
+      })
+      .map(op => op.name);
+    if (dthNames.length === 0) {
+      dthNames.push("VIDEOCON D2H", "AIRTEL DTH", "DISH TV", "SUN DIRECT", "TATA SKY", "TATA PLAY");
+    }
+
+    where.type = 'RECHARGE';
+    if (operator) {
+      where.operator = { in: dthNames, contains: operator };
+    } else {
+      where.operator = { in: dthNames };
+    }
+  } else if (type && type.toUpperCase() === 'MOBILE') {
+    const dthOperators = await prisma.operator.findMany({
+      where: { active: true },
+      select: { name: true, codes: true }
+    });
+    const dthNames = dthOperators
+      .filter(op => {
+        try {
+          const parsed = JSON.parse(op.codes);
+          return parsed.category === 'DTH';
+        } catch {
+          return false;
+        }
+      })
+      .map(op => op.name);
+    if (dthNames.length === 0) {
+      dthNames.push("VIDEOCON D2H", "AIRTEL DTH", "DISH TV", "SUN DIRECT", "TATA SKY", "TATA PLAY");
+    }
+
+    where.type = 'RECHARGE';
+    if (operator) {
+      where.operator = { notIn: dthNames, contains: operator };
+    } else {
+      where.operator = { notIn: dthNames };
+    }
+  } else {
+    if (type) {
+      where.type = type.toUpperCase();
+    }
+    if (operator) {
+      where.operator = { contains: operator };
+    }
+  }
 
   if (status?.toUpperCase() === 'REFUNDED') {
     where.refundStatus = 'refunded';
@@ -71,6 +129,7 @@ export const getTransactionHistory = async (req, res) => {
       const { provider, providerTxnId, providerResponse, ...sanitized } = tx;
       return {
         ...sanitized,
+        publicRef: encodeTxnId(tx.id),
         operatorReferenceId: tx.providerRef || tx.providerRefId || tx.providerTxnId || null
       };
     });
@@ -246,21 +305,31 @@ export const searchRecharge = async (req, res) => {
   if (!query) return res.status(400).json({ success: false, message: "Search query required" });
 
   try {
+    const decodedId = decodeTxnId(query);
+    const orConditions = [
+      { mobile: { contains: query } },
+      { providerRef: { contains: query } },
+      { providerRefId: { contains: query } },
+      { providerTxnId: { contains: query } }
+    ];
+    if (!isNaN(decodedId)) {
+      orConditions.push({ id: decodedId });
+    }
+
     const transactions = await prisma.transaction.findMany({
       where: {
-        OR: [
-          { mobile: { contains: query } },
-          { providerRef: { contains: query } },
-          { providerRefId: { contains: query } },
-          { providerTxnId: { contains: query } },
-          { id: isNaN(parseInt(query)) ? undefined : parseInt(query) }
-        ].filter(Boolean)
+        OR: orConditions
       },
       include: { user: { select: { name: true, phone: true } } },
       take: 10
     });
 
-    res.json({ success: true, data: transactions });
+    const mappedTransactions = transactions.map(tx => ({
+      ...tx,
+      publicRef: encodeTxnId(tx.id)
+    }));
+
+    res.json({ success: true, data: mappedTransactions });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

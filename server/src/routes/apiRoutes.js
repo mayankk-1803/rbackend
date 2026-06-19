@@ -4,11 +4,12 @@ import { idempotency, requireIdempotency } from "../middlewares/idempotency.js";
 import { fraudDetectionMiddleware } from "../middlewares/fraudDetection.js";
 import { getOperator } from "../controllers/operatorController.js";
 import { getWallet } from "../controllers/walletController.js";
-import { getPlans, recharge, payPostpaidBill, initPrepaidRecharge, initPostpaidRecharge, refreshStatus, getActiveOperators } from "../controllers/rechargeController.js";
+import { getPlans, recharge, payPostpaidBill, initPrepaidRecharge, initPostpaidRecharge, refreshStatus, getActiveOperators, getDthPlans, validateDthCustomer } from "../controllers/rechargeController.js";
 import { validateRechargeInput } from "../middlewares/validateInput.js";
 import { rechargeInitLimiter } from "../middlewares/rateLimiter.js";
 import prisma from "../config/prisma.js";
 import { requireNoHardFreeze } from "../middlewares/freezeCheck.js";
+import { encodeTxnId, decodeTxnId } from "../utils/referenceHelper.js";
 
 const router = express.Router();
 
@@ -26,6 +27,16 @@ router.get("/recharge/operators", getActiveOperators);
  * @route GET /api/recharge/plans
  */
 router.get("/recharge/plans", getPlans);
+
+/**
+ * @route GET /api/recharge/dth/plans
+ */
+router.get("/recharge/dth/plans", rechargeInitLimiter, getDthPlans);
+
+/**
+ * @route POST /api/recharge/dth/validate
+ */
+router.post("/recharge/dth/validate", auth, rechargeInitLimiter, validateDthCustomer);
 
 /**
  * @route POST /api/recharge/prepaid/init
@@ -53,8 +64,12 @@ router.post("/recharge", auth, requireNoHardFreeze, validateRechargeInput, idemp
  */
 router.get("/debug/transaction/:txnId", async (req, res) => {
   try {
+    const decodedId = decodeTxnId(req.params.txnId);
+    if (isNaN(decodedId)) {
+      return res.status(400).json({ success: false, message: "Invalid transaction ID" });
+    }
     const txn = await prisma.transaction.findUnique({
-      where: { id: parseInt(req.params.txnId) }
+      where: { id: decodedId }
     });
     res.json({ success: true, txn });
   } catch (err) {
@@ -65,16 +80,21 @@ router.get("/debug/transaction/:txnId", async (req, res) => {
 /**
  * Get Status
  */
-router.get("/status/:id", auth, async (req, res) => {
+const getStatusHandler = async (req, res) => {
   try {
+    const decodedId = decodeTxnId(req.params.id);
+    if (isNaN(decodedId)) {
+      return res.status(400).json({ success: false, message: "Invalid transaction ID" });
+    }
     const txn = await prisma.transaction.findFirst({
-      where: { id: parseInt(req.params.id), userId: req.user.id },
-      select: { status: true, amount: true, mobile: true, operator: true, createdAt: true, providerTxnId: true, providerRef: true, providerRefId: true }
+      where: { id: decodedId, userId: req.user.id },
+      select: { id: true, status: true, amount: true, mobile: true, operator: true, createdAt: true, providerTxnId: true, providerRef: true, providerRefId: true }
     });
     if (!txn) return res.status(404).json({ success: false, message: "Transaction not found" });
     
     const responseData = {
       ...txn,
+      publicRef: encodeTxnId(txn.id),
       operatorReferenceId: txn.providerRef || txn.providerRefId || txn.providerTxnId || null
     };
     
@@ -82,7 +102,10 @@ router.get("/status/:id", auth, async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, message: "Server error" });
   }
-});
+};
+
+router.get("/status/:id", auth, getStatusHandler);
+router.get("/recharge/status/:id", auth, getStatusHandler);
 
 router.get("/recharge/:txnId/refresh-status", auth, refreshStatus);
 
@@ -95,7 +118,11 @@ router.get("/history", auth, async (req, res) => {
       orderBy: { createdAt: 'desc' },
       take: 50
     });
-    res.json({ success: true, data: transactions });
+    const mappedTransactions = transactions.map(tx => ({
+      ...tx,
+      publicRef: encodeTxnId(tx.id)
+    }));
+    res.json({ success: true, data: mappedTransactions });
   } catch (err) {
     res.status(500).json({ success: false, message: "Server error" });
   }

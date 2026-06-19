@@ -4,6 +4,10 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
+import { createPaymentOrder } from "../services/paymentService.js";
+import { logAction } from "../services/auditService.js";
+import { logTransactionEvent } from "../services/transactionEventService.js";
+import { recordFinancialEntry } from "../services/ledgerService.js";
 
 // ==========================================
 // MULTER IMAGE UPLOAD CONFIGURATION
@@ -1025,10 +1029,13 @@ export const createCheckout = async (req, res) => {
       return res.status(400).json({ success: false, message: "Your wishlist/cart is empty" });
     }
 
-    // 1. Calculate iMart-only subtotal/GST/grand total and verify stock.
+    // 1. Validate products, stock, and calculate totals.
     const orderItemsData = [];
 
     for (const item of wishlist.items) {
+      if (!item.product) {
+        return res.status(404).json({ success: false, message: "Product not found." });
+      }
       if (item.product.stock < 1) {
         return res.status(400).json({
           success: false,
@@ -1036,6 +1043,9 @@ export const createCheckout = async (req, res) => {
         });
       }
       const price = item.product.discountPrice || item.product.price;
+      if (!price || Number(price) <= 0) {
+        return res.status(400).json({ success: false, message: `Product '${item.product.name}' has invalid price` });
+      }
       orderItemsData.push({
         productId: item.product.id,
         price: new Prisma.Decimal(price),
@@ -1044,119 +1054,95 @@ export const createCheckout = async (req, res) => {
     }
 
     const totals = calculateIMartTotals(orderItemsData);
-    const succeeded = Math.random() < 0.9;
+    const amount = totals.totalAmount;
 
-    if (!succeeded) {
-      return res.status(402).json({
+    // Generate idempotency key for payment order
+    const randomHex = crypto.randomBytes(4).toString("hex");
+    const idempotencyKey = `imart_${Date.now()}_${userId}_${randomHex}`;
+
+    // Create payment order via Nexgate gateway
+    const paymentResult = await createPaymentOrder(
+      userId,
+      Number(amount),
+      idempotencyKey,
+      null,
+      "IMART"
+    );
+
+    if (!paymentResult || !paymentResult.success) {
+      return res.status(400).json({
         success: false,
-        paymentStatus: "FAILED",
-        cartPreserved: true,
-        message: "Simulated iMart payment failed. Cart items were preserved.",
-        subtotalAmount: moneyNumber(totals.subtotalAmount),
-        gstRate: moneyNumber(totals.gstRate),
-        gstAmount: moneyNumber(totals.gstAmount),
-        totalAmount: moneyNumber(totals.totalAmount)
+        message: paymentResult?.message || "Failed to initialize payment gateway order."
       });
     }
 
-    const gatewayRef = `FAKE-IMART-${Date.now()}-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
-    const idempotencyKey = `imart_fake_${Date.now()}_${userId}_${crypto.randomBytes(4).toString("hex")}`;
-    const financialSequenceId = `IMARTFAKE_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
+    const paymentId = paymentResult.id || paymentResult.orderId;
+    const gatewayRef = paymentResult.gatewayTxnId || "";
+    const paymentUrl = paymentResult.paymentUrl || paymentResult.payment_url;
+
     const invoiceId = `INV-IMART-${Date.now()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`;
 
-    const order = await prisma.$transaction(async (tx) => {
-      const createdOrder = await tx.order.create({
-        data: {
-          userId,
-          subtotalAmount: totals.subtotalAmount,
-          gstAmount: totals.gstAmount,
-          gstRate: totals.gstRate,
-          totalAmount: totals.totalAmount,
-          paymentStatus: "PAID",
-          status: "PROCESSING",
-          gatewayRef,
-          paymentMethod,
-          invoiceId,
-          paidAt: new Date(),
-          items: {
-            create: orderItemsData.map(item => ({
-              productId: item.productId,
-              price: item.price,
-              quantity: item.quantity
-            }))
-          }
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              phone: true
-            }
-          },
-          items: {
-            include: {
-              product: {
-                include: {
-                  images: true
-                }
-              }
-            }
+    // Create Order with PENDING_PAYMENT status
+    const order = await prisma.order.create({
+      data: {
+        userId,
+        subtotalAmount: totals.subtotalAmount,
+        gstAmount: totals.gstAmount,
+        gstRate: totals.gstRate,
+        totalAmount: totals.totalAmount,
+        paymentId: paymentId,
+        paymentStatus: "PENDING_PAYMENT",
+        status: "PENDING",
+        gatewayRef,
+        paymentMethod,
+        invoiceId,
+        items: {
+          create: orderItemsData.map(item => ({
+            productId: item.productId,
+            price: item.price,
+            quantity: item.quantity
+          }))
+        }
+      },
+      include: {
+        items: {
+          include: {
+            product: true
           }
         }
-      });
-
-      for (const item of orderItemsData) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: {
-            stock: {
-              decrement: item.quantity
-            }
-          }
-        });
       }
+    });
 
-      await tx.wishlistItem.deleteMany({
-        where: { wishlistId: wishlist.id }
-      });
-
-      await tx.transaction.create({
-        data: {
-          userId,
-          amount: totals.totalAmount,
-          type: "IMART_BUY",
-          status: "SUCCESS",
-          direction: "DEBIT",
-          gatewayTxnId: gatewayRef,
-          paymentGateway: `FAKE_IMART_${paymentMethod}`,
-          description: `iMart fake gateway purchase | Order: ${createdOrder.id}`,
-          idempotencyKey,
-          financialSequenceId,
-          invoiceSnapshot: buildOrderInvoiceSnapshot(createdOrder, createdOrder.user, totals, {
-            paymentMethod,
-            gatewayRef
-          })
-        }
-      });
-
-      return createdOrder;
+    // Create a pending Transaction Record (User side)
+    await prisma.transaction.create({
+      data: {
+        userId,
+        amount: totals.totalAmount,
+        type: "IMART_BUY",
+        status: "PENDING",
+        direction: "DEBIT",
+        gatewayTxnId: gatewayRef || null,
+        description: `iMart purchase pending | Order: ${order.id}`,
+        idempotencyKey: `checkout:${paymentId}`,
+        financialSequenceId: `CHKF-${order.id}-${Date.now()}`
+      }
     });
 
     return res.json({
       success: true,
       order: formatOrder(order),
+      paymentUrl,
       payment: {
         success: true,
-        provider: "FAKE_IMART_GATEWAY",
-        status: "SUCCESS",
+        provider: "NEXGATE",
+        status: "PENDING",
         gatewayRef,
         paymentMethod,
         amount: moneyNumber(totals.totalAmount),
         subtotalAmount: moneyNumber(totals.subtotalAmount),
         gstRate: moneyNumber(totals.gstRate),
-        gstAmount: moneyNumber(totals.gstAmount)
+        gstAmount: moneyNumber(totals.gstAmount),
+        paymentUrl
       }
     });
   } catch (error) {
@@ -1473,6 +1459,199 @@ export const updateOrderStatus = async (req, res) => {
     return res.json({ success: true, data: formattedOrder });
   } catch (error) {
     console.error("[UPDATE ORDER STATUS ERROR]:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const handleOrderRefund = async (req, res) => {
+  try {
+    const orderId = parseInt(req.params.id);
+    const { action, amount, remarks } = req.body;
+    const adminId = req.user.id;
+
+    if (isNaN(orderId)) {
+      return res.status(400).json({ success: false, message: "Invalid Order ID" });
+    }
+
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { user: true, payment: true }
+    });
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    const ipAddress = req.ip || req.headers['x-forwarded-for'] || "127.0.0.1";
+    const userAgent = req.headers['user-agent'] || "admin-terminal";
+
+    // 1. Maker-Checker / Action Router
+    if (action === "REQUEST_FULL" || action === "REQUEST_PARTIAL" || action === "REQUEST") {
+      const refundAmount = action === "REQUEST_PARTIAL" ? parseFloat(amount) : Number(order.totalAmount);
+      if (isNaN(refundAmount) || refundAmount <= 0 || refundAmount > Number(order.totalAmount)) {
+        return res.status(400).json({ success: false, message: "Invalid refund amount" });
+      }
+
+      await prisma.order.update({
+        where: { id: orderId },
+        data: { paymentStatus: "REFUND_PENDING" }
+      });
+
+      const txn = await prisma.transaction.findFirst({
+        where: { userId: order.userId, gatewayTxnId: order.gatewayRef || String(order.paymentId) }
+      });
+
+      if (txn) {
+        await logTransactionEvent(txn.id, "REFUND_REQUESTED", {
+          amount: refundAmount,
+          requestedBy: adminId,
+          remarks: remarks || "Refund requested by Admin"
+        });
+      }
+
+      await logAction({
+        action: "IMART_REFUND_REQUESTED",
+        adminId,
+        userId: order.userId,
+        entity: "order",
+        entityId: orderId,
+        details: { orderId, refundAmount, remarks },
+        req
+      });
+
+      return res.json({ success: true, message: "Refund request submitted successfully. Status updated to REFUND_PENDING." });
+    }
+
+    if (action === "REJECT") {
+      if (order.paymentStatus !== "REFUND_PENDING") {
+        return res.status(400).json({ success: false, message: "Only orders in REFUND_PENDING status can be rejected." });
+      }
+
+      await prisma.order.update({
+        where: { id: orderId },
+        data: { paymentStatus: "PAID" }
+      });
+
+      const txn = await prisma.transaction.findFirst({
+        where: { userId: order.userId, gatewayTxnId: order.gatewayRef || String(order.paymentId) }
+      });
+
+      if (txn) {
+        await logTransactionEvent(txn.id, "REFUND_REJECTED", {
+          rejectedBy: adminId,
+          remarks: remarks || "Refund rejected by Admin"
+        });
+      }
+
+      await logAction({
+        action: "IMART_REFUND_REJECTED",
+        adminId,
+        userId: order.userId,
+        entity: "order",
+        entityId: orderId,
+        details: { orderId, remarks },
+        req
+      });
+
+      return res.json({ success: true, message: "Refund request rejected. Status restored to PAID." });
+    }
+
+    if (action === "FULL" || action === "PARTIAL" || action === "APPROVE") {
+      let refundAmount = 0;
+
+      if (action === "APPROVE") {
+        if (order.paymentStatus !== "REFUND_PENDING") {
+          return res.status(400).json({ success: false, message: "Only orders in REFUND_PENDING status can be approved." });
+        }
+        const txn = await prisma.transaction.findFirst({
+          where: { userId: order.userId, gatewayTxnId: order.gatewayRef || String(order.paymentId) }
+        });
+        const timeline = txn?.invoiceSnapshot?.timeline || [];
+        // clone and reverse timeline to find the last request event
+        const timelineClone = [...timeline];
+        const requestEvent = timelineClone.reverse().find(e => e.event === "REFUND_REQUESTED");
+        refundAmount = requestEvent?.details?.amount ? parseFloat(requestEvent.details.amount) : Number(order.totalAmount);
+      } else {
+        refundAmount = action === "PARTIAL" ? parseFloat(amount) : Number(order.totalAmount);
+      }
+
+      if (isNaN(refundAmount) || refundAmount <= 0 || refundAmount > Number(order.totalAmount)) {
+        return res.status(400).json({ success: false, message: "Invalid refund amount" });
+      }
+
+      await prisma.$transaction(async (tx) => {
+        const refundTxn = await tx.transaction.create({
+          data: {
+            userId: order.userId,
+            amount: new Prisma.Decimal(refundAmount),
+            type: "REFUND",
+            status: "SUCCESS",
+            direction: "CREDIT",
+            gatewayTxnId: `REFUND-${orderId}-${Date.now()}`,
+            balanceAfter: new Prisma.Decimal(0),
+            description: remarks ? `${remarks} (Order #${orderId})` : `Refund for iMart Order #${orderId}`,
+            idempotencyKey: `refund:${orderId}:${Date.now()}`,
+            financialSequenceId: `RFND-${orderId}-${Date.now()}`
+          }
+        });
+
+        const { balanceAfter } = await recordFinancialEntry({
+          userId: order.userId,
+          amount: refundAmount,
+          type: "REFUND_CREDIT",
+          transactionId: refundTxn.id,
+          description: remarks ? `${remarks} (Order #${orderId})` : `Refund for iMart Order #${orderId}`,
+          metadata: {
+            source: "IMART_REFUND",
+            orderId: String(orderId),
+            adminId: String(adminId)
+          },
+          context: { ipAddress, userAgent, correlationId: `RFND-${orderId}` },
+          tx
+        });
+
+        await tx.transaction.update({
+          where: { id: refundTxn.id },
+          data: { balanceAfter }
+        });
+
+        const finalPaymentStatus = (refundAmount === Number(order.totalAmount)) ? "REFUNDED" : "PARTIALLY_REFUNDED";
+        await tx.order.update({
+          where: { id: orderId },
+          data: { paymentStatus: finalPaymentStatus, status: "CANCELLED" }
+        });
+      }, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+      });
+
+      const txn = await prisma.transaction.findFirst({
+        where: { userId: order.userId, gatewayTxnId: order.gatewayRef || String(order.paymentId) }
+      });
+
+      if (txn) {
+        await logTransactionEvent(txn.id, "REFUNDED", {
+          amount: refundAmount,
+          approvedBy: adminId,
+          remarks: remarks || "Refund processed successfully"
+        });
+      }
+
+      await logAction({
+        action: "IMART_ORDER_REFUNDED",
+        adminId,
+        userId: order.userId,
+        entity: "order",
+        entityId: orderId,
+        details: { orderId, refundAmount, remarks },
+        req
+      });
+
+      return res.json({ success: true, message: `Refund of ₹${refundAmount} processed successfully.` });
+    }
+
+    return res.status(400).json({ success: false, message: "Invalid action. Supported actions: REQUEST_FULL, REQUEST_PARTIAL, APPROVE, REJECT, FULL, PARTIAL." });
+  } catch (error) {
+    console.error("[IMART REFUND ERROR]:", error);
     return res.status(500).json({ success: false, message: error.message });
   }
 };

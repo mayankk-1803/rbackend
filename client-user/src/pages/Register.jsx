@@ -6,6 +6,7 @@ import { Phone, User, Mail, Tag, Loader2, ArrowRight, Lock } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion';
 import OTPInput from '../components/OTPInput';
 import AuthLeftPanel from '../components/AuthLeftPanel';
+import Logo from '../components/Logo';
 
 export default function Register() {
   const [authMethod, setAuthMethod] = useState('phone'); // 'phone' or 'email'
@@ -132,12 +133,10 @@ export default function Register() {
           <div className="glass-card p-8 sm:p-10 rounded-[32px] shadow-[var(--shadow-card)] border border-[#E5E7EB] dark:border-[#2A2A45] bg-[var(--glass-card-bg)] backdrop-blur-xl">
             
             {/* Heading Zone */}
-            <div className="text-left mb-8">
-              <h2 className="text-3xl font-black text-[var(--text-color)] tracking-tight lowercase navbar-logo-text leading-tight">
-                irecharge
-              </h2>
+            <div className="text-left mb-8 shrink-0 overflow-visible">
+              <Logo size="lg" className="mb-2" />
               <p className="text-[var(--text-secondary)] text-xs font-semibold mt-2 leading-relaxed">
-                Start earning rewards, cashback and seamless payments.
+                Start earning reward coins and seamless payments.
               </p>
             </div>
 

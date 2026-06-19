@@ -20,7 +20,8 @@ import {
   updateProduct,
   deleteProduct,
   getAdminOrders,
-  updateOrderStatus
+  updateOrderStatus,
+  handleOrderRefund
 } from "../controllers/imartController.js";
 
 const router = express.Router();
@@ -58,5 +59,6 @@ router.delete("/admin/products/:id", auth, isAdmin, masterKeySessionMiddleware, 
 
 router.get("/admin/orders", auth, isAdmin, getAdminOrders);
 router.put("/admin/orders/:id/status", auth, isAdmin, masterKeySessionMiddleware, updateOrderStatus);
+router.post("/admin/orders/:id/refund", auth, isAdmin, masterKeySessionMiddleware, handleOrderRefund);
 
 export default router;

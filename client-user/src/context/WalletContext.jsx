@@ -8,6 +8,8 @@ export const WalletProvider = ({ children }) => {
   const [wallet, setWallet] = useState({
     balance: 0,
     cashbackBalance: 0,
+    // Legacy coinBalance retained for backward compatibility.
+    // Primary rewards experience uses cashbackBalance converted to Coins.
     coinBalance: 0,
     totalCoins: 0,
     availableCoins: 0,
@@ -29,6 +31,8 @@ export const WalletProvider = ({ children }) => {
         setWallet({
           balance: Number(d.walletBalance) || 0,
           cashbackBalance: Number(d.cashbackBalance) || 0,
+          // Legacy coinBalance retained for backward compatibility.
+          // Primary rewards experience uses cashbackBalance converted to Coins.
           coinBalance: Number(d.coinBalance) || 0,
           totalCoins: Number(d.totalCoins) || 0,
           availableCoins: Number(d.availableCoins) || 0,

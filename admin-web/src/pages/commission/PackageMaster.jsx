@@ -275,6 +275,10 @@ export const PackageMaster = () => {
     }));
   };
 
+  const safeSlabs = Array.isArray(slabs) ? slabs : [];
+  const safeCategories = Array.isArray(categories) ? categories : [];
+  const safePackages = Array.isArray(packages) ? packages : [];
+
   return (
     <div className="p-6 bg-[var(--bg-primary)] min-h-screen text-[var(--text-primary)]">
       {/* Header Panel */}
@@ -363,7 +367,7 @@ export const PackageMaster = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border-soft)] bg-[var(--bg-primary)]/10 font-medium">
-                {packages.map((pkg, index) => (
+                {safePackages.map((pkg, index) => (
                   <tr key={pkg.id} className="hover:bg-[var(--accent-hover)]/30 transition-colors">
                     <td className="py-2 px-3 text-center font-mono text-[var(--text-secondary)]">
                       {(page - 1) * limit + index + 1}
@@ -553,21 +557,29 @@ export const PackageMaster = () => {
                 <div className="border border-[var(--border-soft)] rounded-lg p-3 bg-[var(--bg-primary)]/20 flex flex-col h-[280px]">
                   <h3 className="text-[10px] font-bold tracking-wider mb-2 text-[var(--text-secondary)] border-b border-[var(--border-soft)] pb-1.5">SERVICE CATEGORIES MATRIX</h3>
                   <div className="overflow-y-auto flex-1 space-y-2.5 pr-1">
-                    {categories.map(cat => (
-                      <div key={cat.id} className="flex items-center justify-between gap-3 text-[11px]">
-                        <span className="font-bold text-[var(--text-primary)] tracking-wide truncate max-w-[150px]">{cat.code}</span>
-                        <select
-                          value={formData.matrix[cat.id] || ""}
-                          onChange={(e) => handleMatrixCellChange(cat.id, e.target.value)}
-                          className="bg-[var(--bg-primary)] border border-[var(--border-soft)] px-2 py-1 rounded-md text-[10px] tracking-wide font-semibold focus:outline-hidden focus:border-[var(--color-primary)] transition-colors w-48"
-                        >
-                          <option value="">NO SLAB (COMMISSION DISABLED)</option>
-                          {slabs.map(s => (
-                            <option key={s.id} value={s.id}>{s.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                    ))}
+                    {safeCategories.length === 0 ? (
+                      <div className="text-center text-xs text-[var(--text-secondary)] py-4">No service categories available</div>
+                    ) : (
+                      safeCategories.map(cat => (
+                        <div key={cat.id} className="flex items-center justify-between gap-3 text-[11px]">
+                          <span className="font-bold text-[var(--text-primary)] tracking-wide truncate max-w-[150px]">{cat.code}</span>
+                          <select
+                            value={formData.matrix[cat.id] || ""}
+                            onChange={(e) => handleMatrixCellChange(cat.id, e.target.value)}
+                            className="bg-[var(--bg-primary)] border border-[var(--border-soft)] px-2 py-1 rounded-md text-[10px] tracking-wide font-semibold focus:outline-hidden focus:border-[var(--color-primary)] transition-colors w-48"
+                          >
+                            <option value="">NO SLAB (COMMISSION DISABLED)</option>
+                            {safeSlabs.length === 0 ? (
+                              <option disabled>No slabs available</option>
+                            ) : (
+                              safeSlabs.map(s => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
+                              ))
+                            )}
+                          </select>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>
@@ -675,21 +687,29 @@ export const PackageMaster = () => {
                 <div className="border border-[var(--border-soft)] rounded-lg p-3 bg-[var(--bg-primary)]/20 flex flex-col h-[280px]">
                   <h3 className="text-[10px] font-bold tracking-wider mb-2 text-[var(--text-secondary)] border-b border-[var(--border-soft)] pb-1.5">SERVICE CATEGORIES MATRIX</h3>
                   <div className="overflow-y-auto flex-1 space-y-2.5 pr-1">
-                    {categories.map(cat => (
-                      <div key={cat.id} className="flex items-center justify-between gap-3 text-[11px]">
-                        <span className="font-bold text-[var(--text-primary)] tracking-wide truncate max-w-[150px]">{cat.code}</span>
-                        <select
-                          value={formData.matrix[cat.id] || ""}
-                          onChange={(e) => handleMatrixCellChange(cat.id, e.target.value)}
-                          className="bg-[var(--bg-primary)] border border-[var(--border-soft)] px-2 py-1 rounded-md text-[10px] tracking-wide font-semibold focus:outline-hidden focus:border-[var(--color-primary)] transition-colors w-48"
-                        >
-                          <option value="">NO SLAB (COMMISSION DISABLED)</option>
-                          {slabs.map(s => (
-                            <option key={s.id} value={s.id}>{s.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                    ))}
+                    {safeCategories.length === 0 ? (
+                      <div className="text-center text-xs text-[var(--text-secondary)] py-4">No service categories available</div>
+                    ) : (
+                      safeCategories.map(cat => (
+                        <div key={cat.id} className="flex items-center justify-between gap-3 text-[11px]">
+                          <span className="font-bold text-[var(--text-primary)] tracking-wide truncate max-w-[150px]">{cat.code}</span>
+                          <select
+                            value={formData.matrix[cat.id] || ""}
+                            onChange={(e) => handleMatrixCellChange(cat.id, e.target.value)}
+                            className="bg-[var(--bg-primary)] border border-[var(--border-soft)] px-2 py-1 rounded-md text-[10px] tracking-wide font-semibold focus:outline-hidden focus:border-[var(--color-primary)] transition-colors w-48"
+                          >
+                            <option value="">NO SLAB (COMMISSION DISABLED)</option>
+                            {safeSlabs.length === 0 ? (
+                              <option disabled>No slabs available</option>
+                            ) : (
+                              safeSlabs.map(s => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
+                              ))
+                            )}
+                          </select>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>

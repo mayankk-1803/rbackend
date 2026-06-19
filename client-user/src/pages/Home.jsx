@@ -2,13 +2,15 @@ import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../api';
 import { useWallet } from '../context/WalletContext';
+import { convertCashbackToCoins } from '../utils/rewardDisplayHelper';
+
 import { API_ROUTES } from '../api/routes';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Wallet, Smartphone, Tv, Zap, Droplets, Flame, Wifi, 
   CreditCard, MoreHorizontal, ArrowUpRight, X, Plus, 
   History as HistoryIcon, ShieldAlert, Cpu, CheckCircle2,
-  TrendingUp, Activity, Shield, RefreshCw, Key
+  TrendingUp, Activity, Shield, RefreshCw, Key, Coins
 } from 'lucide-react';
 import socket from '../services/socket';
 import { toast } from 'react-hot-toast';
@@ -250,6 +252,20 @@ export default function Home() {
   });
 
   const user = JSON.parse(sessionStorage.getItem('dizipay_user_data') || '{}');
+
+  const getCoinsThisMonth = () => {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    return Math.round(
+      allTransactions
+        .filter(t => t.type === 'CASHBACK' && t.status === 'SUCCESS' && new Date(t.createdAt) >= startOfMonth)
+        .reduce((acc, t) => acc + Number(t.cashback || t.amount || 0), 0) * 100
+    );
+  };
+  const coinsThisMonth = getCoinsThisMonth();
+
 
   const welcomeRef = useRef(null);
   const shieldRef = useRef(null);
@@ -514,27 +530,46 @@ export default function Home() {
         {/* Right Shield & Balance Container */}
         <div ref={balanceCardRef} className="lg:w-[480px] flex flex-col md:flex-row gap-6">
           
-          {/* Security Shield Illustration */}
-          <div ref={shieldRef} className="flex-1 md:w-36 bg-[var(--glass-card-bg)] border border-[var(--glass-border)] rounded-3xl p-6 flex flex-col items-center justify-center relative overflow-hidden min-h-[220px]">
-            <div className="absolute inset-0 bg-radial-gradient from-[var(--color-primary-glow)] to-transparent pointer-events-none opacity-40"></div>
+          {/* Coins Balance Card & Reward Progress Widget */}
+          <div ref={shieldRef} className="flex-1 md:w-56 bg-gradient-to-br from-amber-500/10 via-[var(--glass-card-bg)] to-orange-500/10 border border-amber-500/20 rounded-3xl p-6 shadow-2xl relative overflow-hidden flex flex-col justify-between min-h-[220px] group">
+            <div className="absolute inset-0 bg-radial-gradient from-amber-500/10 to-transparent pointer-events-none opacity-40"></div>
             
-            {/* Animated SVG Shield */}
-            <svg className="w-24 h-24 overflow-visible relative z-10" viewBox="0 0 100 100">
-              <defs>
-                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="4" result="blur" />
-                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                </filter>
-              </defs>
-              {/* Outer Orbit */}
-              <circle className="orbit-ring stroke-[var(--color-primary)] opacity-30" cx="50" cy="50" r="42" fill="none" strokeWidth="1" strokeDasharray="5,15" />
-              {/* Inner Orbit */}
-              <circle className="orbit-ring stroke-[var(--color-accent)] opacity-40" cx="50" cy="50" r="34" fill="none" strokeWidth="1.5" strokeDasharray="30,10" />
-              {/* Center Core Shield */}
-              <path d="M50 15 L25 25 V45 C25 65 50 82 50 82 C50 82 75 65 75 45 V25 L50 15 Z" fill="var(--color-primary-glow)" stroke="var(--color-primary)" strokeWidth="2" filter="url(#glow)" className="opacity-80" />
-              <path d="M50 22 L32 30 V45 C32 60 50 74 50 74 C50 74 68 60 68 45 V30 L50 22 Z" fill="none" stroke="var(--color-accent)" strokeWidth="1.5" strokeDasharray="4,4" />
-            </svg>
-            <span className="text-[8px] font-black text-[var(--text-secondary)] tracking-widest mt-4">SHIELD ACTIVE</span>
+            <div className="flex justify-between items-start relative z-10">
+              <div className="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center border border-amber-500/20 group-hover:rotate-12 transition-transform duration-300">
+                <Coins className="w-6 h-6 text-amber-400 fill-amber-400/20" />
+              </div>
+              <span className="text-[7px] px-2 py-0.5 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded font-black uppercase tracking-widest">
+                Rewards
+              </span>
+            </div>
+
+            <div className="my-3 relative z-10">
+              <p className="text-[8px] text-[var(--text-secondary)] uppercase font-black tracking-widest mb-1">COIN BALANCE</p>
+              <h2 className="text-3xl font-black tracking-tighter text-[var(--text-color)] flex items-baseline gap-1">
+                <span className="purple-glow font-mono">
+                  {convertCashbackToCoins(wallet?.cashbackBalance || 0)}
+                </span>
+                <span className="text-xs text-amber-400 font-bold">Coins</span>
+              </h2>
+            </div>
+
+            {/* Reward Progress Widget */}
+            <div className="pt-3 border-t border-[var(--glass-border)] relative z-10 space-y-2">
+              <div className="flex justify-between items-center text-[7px] font-black uppercase tracking-wider text-[var(--text-secondary)]">
+                <span>Monthly Progress</span>
+                <span className="text-amber-400">{coinsThisMonth} / 1000 Coins</span>
+              </div>
+              <div className="w-full h-1.5 bg-[var(--bg-tertiary)] rounded-full overflow-hidden border border-[var(--glass-border)]">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min((coinsThisMonth / 1000) * 100, 100)}%` }}
+                  className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full"
+                />
+              </div>
+              <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase tracking-tighter">
+                {coinsThisMonth} Coins earned this month
+              </p>
+            </div>
           </div>
 
           {/* Premium Wallet Balance Card */}

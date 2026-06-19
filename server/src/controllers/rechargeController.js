@@ -1,5 +1,6 @@
 import prisma from "../config/prisma.js";
 import crypto from "crypto";
+import { decodeTxnId } from "../utils/referenceHelper.js";
 import { claimIdempotencyKey } from "../utils/idempotency.js";
 import { APIBOX_OPERATORS } from "../config/operators.js";
 import eventBus from "../config/eventBus.js";
@@ -7,7 +8,7 @@ import { Prisma } from "@prisma/client";
 import { getCommissionDetails } from "../services/commissionEngine.js";
 import { detectEzytmHLR } from "../services/hlr/ezytmHlrService.js";
 import { mapEzytmToMplan } from "../config/mplanMappings.js";
-import { fetchMPlanPlans } from "../services/mplan/mplanService.js";
+import { fetchMPlanPlans, fetchMPlanDthPlans, validateDthCustomerInfo } from "../services/mplan/mplanService.js";
 import { recordFinancialEntry } from "../services/ledgerService.js";
 import { TXN_EVENTS } from "../services/transactionEventService.js";
 import { rechargeQueue } from "../config/rechargeQueue.js";
@@ -15,11 +16,49 @@ import { isFinalizedStatus } from "../utils/transactionStateGuard.js";
 import { reconcileSingleTransaction } from "../services/reconciliationService.js";
 import { redisClient } from "../config/redis.js";
 import { getIO } from "../config/socket.js";
+import { getRechargePlanCache, setRechargePlanCache } from "../services/rechargePlanCacheService.js";
 
 const summarizePlanPayload = (plans = {}) => {
   const categories = Object.keys(plans).filter((key) => Array.isArray(plans[key]) && plans[key].length > 0);
   const totalPlans = categories.reduce((sum, key) => sum + plans[key].length, 0);
   return { totalPlans, categories };
+};
+
+export const dthMemoryCache = new Map();
+
+export const getDthValidationCache = async (key) => {
+  if (redisClient.status === "ready") {
+    try {
+      const data = await redisClient.get(key);
+      return data ? JSON.parse(data) : null;
+    } catch (err) {
+      console.warn("[Cache] Redis get error, falling back to memory:", err.message);
+    }
+  }
+  const item = dthMemoryCache.get(key);
+  if (item) {
+    if (Date.now() > item.expiresAt) {
+      dthMemoryCache.delete(key);
+      return null;
+    }
+    return item.value;
+  }
+  return null;
+};
+
+export const setDthValidationCache = async (key, value, ttlSeconds) => {
+  if (redisClient.status === "ready") {
+    try {
+      await redisClient.setex(key, ttlSeconds, JSON.stringify(value));
+      return;
+    } catch (err) {
+      console.warn("[Cache] Redis set error, falling back to memory:", err.message);
+    }
+  }
+  dthMemoryCache.set(key, {
+    value,
+    expiresAt: Date.now() + ttlSeconds * 1000
+  });
 };
 
 
@@ -81,13 +120,56 @@ export const recharge = async (req, res) => {
     if (!operatorName) {
       return res.status(400).json({
         success: false,
-        message: `Unsupported operator: ${operatorCode}`
+        message: "Invalid Operator"
       });
     }
 
+    const opCodeStr = String(operatorCode);
+    const isDth = ["6", "7", "8", "9", "10"].includes(opCodeStr);
+
+    const isDthOperator = ['6','7','8','9','10'].includes(String(operatorCode));
+
+    if (isDthOperator && Number(amount) < 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'Minimum DTH recharge amount is ₹100'
+      });
+    }
+
+    if (isDthOperator) {
+      const validationKey = `dth_validation:${userId}:${operatorCode}:${mobile}`;
+      const validation = await getDthValidationCache(validationKey);
+      
+      if (!validation || !validation.verified) {
+        return res.status(400).json({
+          success: false,
+          message: "Please verify DTH customer details before recharging."
+        });
+      }
+
+      const validatedAt = new Date(validation.validatedAt).getTime();
+      const ageMs = Date.now() - validatedAt;
+      if (ageMs > 5 * 60 * 1000) {
+        return res.status(400).json({
+          success: false,
+          message: "Customer validation expired. Please verify again."
+        });
+      }
+    }
+
     // 1. VALIDATE BASIC INPUT
-    if (!mobile || !amount || mobile.length !== 10) {
-      return res.status(400).json({ success: false, message: "Valid 10-digit mobile and amount required" });
+    if (!mobile || !amount) {
+      return res.status(400).json({ success: false, message: "Subscriber ID/Mobile and amount are required" });
+    }
+
+    if (isDth) {
+      if (mobile.length < 8 || mobile.length > 15 || !/^\d+$/.test(mobile)) {
+        return res.status(400).json({ success: false, message: "Valid DTH Subscriber ID / VC Number required (8-15 digits)" });
+      }
+    } else {
+      if (mobile.length !== 10 || !/^\d+$/.test(mobile)) {
+        return res.status(400).json({ success: false, message: "Valid 10-digit mobile number required" });
+      }
     }
 
     // 2. PREVENT DUPLICATE RECHARGES
@@ -125,7 +207,7 @@ export const recharge = async (req, res) => {
         amount: -amount,
         type: 'RECHARGE_DEBIT',
         transactionId: null,
-        description: `Recharge for mobile: ${mobile}`,
+        description: isDth ? `DTH Recharge for VC: ${mobile}` : `Recharge for mobile: ${mobile}`,
         allowNegative: isAdmin,
         context: { correlationId, ipAddress: req.ip },
         tx
@@ -144,6 +226,7 @@ export const recharge = async (req, res) => {
           idempotencyKey,
           financialSequenceId: correlationId,
           balanceAfter: balanceAfter,
+          description: isDth ? `DTH Recharge for VC: ${mobile}` : `Recharge for mobile: ${mobile}`,
           commission: commDetails.commission,
           cashback: commDetails.cashback,
           profit: commDetails.profit,
@@ -172,10 +255,14 @@ export const recharge = async (req, res) => {
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 10000 });
 
     if (!initResult) {
-      return res.status(400).json({ success: false, message: "Insufficient wallet balance" });
+      return res.status(400).json({ success: false, message: "Insufficient Wallet Balance" });
     }
 
     const { transaction } = initResult;
+
+    if (isDth) {
+      console.log(`[DTH_RECHARGE_CREATED] transactionId=${transaction.id}, operator=${operatorName}, subscriberId=${mobile}, amount=${amount}, providerRef=N/A, providerTxnId=N/A, requestStatus=SUCCESS, validationResult=CREATED`);
+    }
 
     console.log("[QUEUE_DEBUG] About to add recharge job for txn:", transaction.id);
     console.log("[QUEUE_DEBUG] Queue object exists:", !!rechargeQueue);
@@ -314,7 +401,7 @@ export const payPostpaidBill = async (req, res) => {
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
     if (!initResult) {
-      return res.status(400).json({ success: false, message: "Insufficient wallet balance" });
+      return res.status(400).json({ success: false, message: "Insufficient Wallet Balance" });
     }
 
     const { transaction } = initResult;
@@ -381,6 +468,13 @@ export const initPrepaidRecharge = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid 10-digit mobile number" });
     }
 
+    // Check Server Cache
+    const cached = await getRechargePlanCache(mobile);
+    if (cached) {
+      console.log("[Server Cache Hit]", mobile);
+      return res.json(cached);
+    }
+
     // 1. Detect HLR via EzyTM (Operator + Circle)
     const hlrResult = await detectEzytmHLR(mobile);
 
@@ -423,6 +517,10 @@ export const initPrepaidRecharge = async (req, res) => {
       hlr: hlrSource || "ezytm-live",
       plans: mplanResponse.source || "mplan-live"
     };
+
+    // Save to Cache
+    const cacheKey = `recharge_cache_${mobile}_${mapResult.operatorCode}_${mapResult.circleCode}`;
+    await setRechargePlanCache(cacheKey, mplanResponse);
 
     return res.json(mplanResponse);
 
@@ -513,7 +611,7 @@ export const initPostpaidRecharge = async (req, res) => {
  */
 export const refreshStatus = async (req, res) => {
   const { txnId } = req.params;
-  const txnIdNum = Number(txnId);
+  const txnIdNum = decodeTxnId(txnId);
 
   try {
     if (isNaN(txnIdNum) || !Number.isInteger(txnIdNum)) {
@@ -642,3 +740,67 @@ export const getActiveOperators = async (req, res) => {
     return res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
+
+/**
+ * Fetch DTH recharge plans for an operator
+ */
+export const getDthPlans = async (req, res) => {
+  const { operatorCode, operatorName } = req.query;
+  try {
+    if (!operatorCode) return res.status(400).json({ success: false, message: "operatorCode is required" });
+
+    const operatorObj = {
+      name: operatorName || "DTH",
+      code: Number(operatorCode)
+    };
+
+    console.log("[MPLAN_DTH_FETCH]", {
+      operator: operatorObj.name,
+      mplanCode: operatorObj.code
+    });
+
+    const plansResponse = await fetchMPlanDthPlans(operatorObj);
+    console.log(`[DTH_PLANS_FETCH] transactionId=N/A, operator=${operatorCode}, subscriberId=N/A, amount=N/A, providerRef=N/A, providerTxnId=N/A, requestStatus=SUCCESS, validationResult=${plansResponse.success ? 'SUCCESSFUL' : 'FAILED'}`);
+    return res.json(plansResponse);
+  } catch (error) {
+    console.error("[DTH Plans Error]:", error);
+    console.log(`[DTH_PLANS_FETCH] transactionId=N/A, operator=${operatorCode || 'N/A'}, subscriberId=N/A, amount=N/A, providerRef=N/A, providerTxnId=N/A, requestStatus=ERROR, validationResult=FAILED_ERROR`);
+    res.status(500).json({ success: false, message: "Failed to fetch DTH plans" });
+  }
+};
+
+/**
+ * Validate DTH subscriber/customer details
+ */
+export const validateDthCustomer = async (req, res) => {
+  const { operatorCode, subscriberId } = req.body;
+  try {
+    if (!operatorCode || !subscriberId) {
+      return res.status(400).json({ success: false, message: "operatorCode and subscriberId are required" });
+    }
+
+    console.log("[MPLAN_DTH_VALIDATE]", { operatorCode, subscriberId });
+
+    const result = await validateDthCustomerInfo(operatorCode, subscriberId);
+    console.log(`[DTH_CUSTOMER_VALIDATION] transactionId=N/A, operator=${operatorCode}, subscriberId=${subscriberId}, amount=N/A, providerRef=N/A, providerTxnId=N/A, requestStatus=SUCCESS, validationResult=${result.success ? 'VALID' : 'INVALID'}`);
+    
+    if (result && result.success) {
+      const cacheKey = `dth_validation:${req.user.id}:${operatorCode}:${subscriberId}`;
+      await setDthValidationCache(cacheKey, {
+        verified: true,
+        validatedAt: new Date().toISOString()
+      }, 1800); // 30 mins cache, 5 mins validation limit checked on read
+      return res.json(result);
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: "Customer validation failed."
+      });
+    }
+  } catch (error) {
+    console.error("[DTH Validation Error]:", error);
+    console.log(`[DTH_CUSTOMER_VALIDATION] transactionId=N/A, operator=${operatorCode || 'N/A'}, subscriberId=${subscriberId || 'N/A'}, amount=N/A, providerRef=N/A, providerTxnId=N/A, requestStatus=ERROR, validationResult=FAILED_ERROR`);
+    return res.status(400).json({ success: false, message: "Customer validation failed." });
+  }
+};
+

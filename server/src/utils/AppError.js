@@ -10,4 +10,13 @@ class AppError extends Error {
   }
 }
 
+export class ClientError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "ClientError";
+    this.isClientError = true;
+    this.statusCode = 400;
+  }
+}
+
 export default AppError;

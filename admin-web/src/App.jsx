@@ -11,12 +11,21 @@ import { Login } from './pages/Login';
 import AdminTransactionHistory from './pages/reports/TransactionHistory';
 import CommissionReport from './pages/reports/CommissionReport';
 import DisputeManagement from './pages/reports/DisputeManagement';
+import CommissionDashboard from './pages/reports/CommissionDashboard';
+import OperatorDashboard from './pages/reports/OperatorDashboard';
+import FinancialDashboard from './pages/reports/FinancialDashboard';
+import ProviderHealthDashboard from './pages/reports/ProviderHealthDashboard';
 import { CashbackSettings } from './pages/CashbackSettings';
 import { ControlCenter } from './pages/ControlCenter';
 import { Users } from './pages/users/Users';
 import { Wallet } from './pages/Wallet';
 import ErrorBoundary from './components/ErrorBoundary';
 import InactivityManager from './components/InactivityManager';
+import MasterWalletDashboard from './pages/master-wallet/Dashboard';
+import MasterWalletLedger from './pages/master-wallet/WalletLedger';
+import PendingSettlements from './pages/master-wallet/PendingSettlements';
+import UserWalletFunding from './pages/master-wallet/UserWalletFunding';
+import AdminWalletFunding from './pages/master-wallet/AdminWalletFunding';
 
 // Commission Suite Imports
 import { SlabMaster } from './pages/commission/SlabMaster';
@@ -144,11 +153,19 @@ function App() {
           <Route path="transactions" element={<Navigate to="/reports/transactions" replace />} />
           <Route path="wallet" element={<Wallet />} />
           <Route path="users" element={<Users />} />
+          <Route path="master-wallet/dashboard" element={<MasterWalletDashboard />} />
+          <Route path="master-wallet/ledger" element={<MasterWalletLedger />} />
+          <Route path="master-wallet/pending" element={<PendingSettlements />} />
+          <Route path="master-wallet/user-funding" element={<UserWalletFunding />} />
+          <Route path="master-wallet/admin-funding" element={<AdminWalletFunding />} />
           <Route path="control-center" element={<ControlCenter />} />
           <Route path="alerts" element={<Alerts />} />
           <Route path="providers" element={<Operators />} />
           <Route path="reports/transactions" element={<AdminTransactionHistory />} />
-          <Route path="reports/commissions" element={<CommissionReport />} />
+          <Route path="reports/commissions" element={<CommissionDashboard />} />
+          <Route path="reports/operator-dashboard" element={<OperatorDashboard />} />
+          <Route path="reports/financial-dashboard" element={<FinancialDashboard />} />
+          <Route path="reports/provider-health" element={<ProviderHealthDashboard />} />
           <Route path="reports/disputes" element={<DisputeManagement />} />
           <Route path="api-docs" element={<ApiDocs />} />
           

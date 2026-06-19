@@ -25,6 +25,8 @@ import healthRoutes from "./routes/healthRoutes.js";
 import apiDevRoutes from "./routes/apiDevRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
 import adminReportRoutes from "./routes/adminReportRoutes.js";
+import analyticsRoutes from "./routes/analyticsRoutes.js";
+import providerHealthRoutes from "./routes/providerHealthRoutes.js";
 
 import cookieParser from "cookie-parser";
 import { globalErrorHandler } from "./middlewares/errorHandler.js";
@@ -125,7 +127,28 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(apiLogger);
 
+const APPROVED_CLIENT_ERRORS = [
+  "Invalid DTH Subscriber ID",
+  "Invalid Recharge Amount",
+  "Invalid Operator",
+  "Insufficient Wallet Balance",
+  "Recharge Amount Required",
+  "Subscriber ID Required",
+  "Minimum DTH recharge amount is ₹100",
+  "Please verify DTH customer details before recharging.",
+  "Customer validation expired. Please verify again.",
+  "Customer validation failed."
+];
+
 const cleanClientMessage = (message = "") => {
+  const msgStr = typeof message === "string" ? message : (message?.message || "");
+  const matched = APPROVED_CLIENT_ERRORS.find(
+    (approved) => approved.toLowerCase() === msgStr.trim().toLowerCase()
+  );
+  if (matched) {
+    return matched;
+  }
+
   const raw = String(message || "").toLowerCase();
   if (
     raw.includes("invalid credentials") ||
@@ -148,6 +171,7 @@ const cleanClientMessage = (message = "") => {
     return "Invalid or expired reset code";
   }
   if (raw.includes("password") || raw.includes("mustchangepassword")) return message;
+  if (raw.includes("insufficient admin")) return msgStr;
   if (raw.includes("insufficient")) return "Insufficient Wallet Balance";
   if (raw.includes("refund")) return "Refund processed";
   if (raw.includes("queued") || raw.includes("pending_review") || raw.includes("pending review")) return "Recharge queued";
@@ -338,6 +362,8 @@ app.use("/api/imart", imartRoutes);
 app.use("/api/disputes", disputesRoutes);
 app.use("/api/admin/api-settings", apiSettingsRoutes);
 app.use("/api/admin/commission", commissionAdminRoutes);
+app.use("/api/admin/analytics", analyticsRoutes);
+app.use("/api/admin/provider-health", providerHealthRoutes);
 app.use("/api", apiRoutes);
 
 

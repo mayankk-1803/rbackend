@@ -8,6 +8,7 @@ import RechargePaymentModal from '../components/RechargePaymentModal';
 import { OPERATORS, operatorMeta } from '../config/operators';
 import socket from '../services/socket';
 import { Smartphone, ChevronDown, CheckCircle2, Activity } from 'lucide-react';
+import { getCachedPlans, setCachedPlans } from '../utils/rechargePlanCache';
 
 const OperatorDropdown = ({ selected, onSelect }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -106,23 +107,91 @@ export default function MobileRecharge() {
   const [plansLoading, setPlansLoading] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [showRechargeModal, setShowRechargeModal] = useState(false);
+  const [isCached, setIsCached] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const skipNextPlansFetchRef = useRef(false);
+  const backgroundTimerRef = useRef(null);
   const navigate = useNavigate();
-  
+    
   const opAbortRef = useRef(null);
 
   useEffect(() => {
     if (number.length === 10 && /^[6-9]\d{9}$/.test(number)) {
+      if (backgroundTimerRef.current) clearTimeout(backgroundTimerRef.current);
+
+      const cached = getCachedPlans(number);
+      if (cached) {
+        // Restore instantly
+        skipNextPlansFetchRef.current = true;
+        setOperator(cached.operatorCode);
+        setPlans(cached.plans || []);
+        setIsCached(true);
+        setDetecting(false);
+        setPlansLoading(false);
+
+        // Silent background refresh after 1000ms
+        const bgTimer = setTimeout(async () => {
+          setIsRefreshing(true);
+          try {
+            // 1. Detect Operator
+            const { data: opData } = await api.get(`/v1/dev/operator/${number}`);
+            if (opData.success && opData.operator) {
+              const detected = opData.operator.toUpperCase();
+              const matchedKey = Object.keys(OPERATORS).find(k => k === detected || OPERATORS[k] === detected);
+              if (matchedKey) {
+                const nextOp = OPERATORS[matchedKey];
+                const opCode = operatorMeta[nextOp]?.code || "1";
+
+                // 2. Fetch Plans
+                const { data: plansData } = await api.get(`/v1/dev/plans?operatorCode=${opCode}&mobile=${number}&circle=Delhi`);
+                if (plansData.success) {
+                  const newPlans = plansData.data || [];
+                  const opChanged = nextOp !== cached.operatorCode;
+                  const plansChanged = JSON.stringify(newPlans) !== JSON.stringify(cached.plans || []);
+
+                  if (opChanged || plansChanged) {
+                    skipNextPlansFetchRef.current = true;
+                    setOperator(nextOp);
+                    setPlans(newPlans);
+                  }
+
+                  // Update cache
+                  setCachedPlans(number, {
+                    operatorCode: nextOp,
+                    operatorName: operatorMeta[nextOp]?.label,
+                    circleCode: '',
+                    circleName: 'Delhi',
+                    plans: newPlans
+                  });
+                }
+              }
+            }
+          } catch (err) {
+            console.error("[Silent Refresh Error]:", err);
+          } finally {
+            setIsRefreshing(false);
+          }
+        }, 1000);
+        backgroundTimerRef.current = bgTimer;
+
+        return () => {
+          if (backgroundTimerRef.current) clearTimeout(backgroundTimerRef.current);
+        };
+      }
+
+      // Cache miss: normal detection
+      setIsCached(false);
+      setIsRefreshing(false);
+
       const detectOp = async () => {
         if (opAbortRef.current) opAbortRef.current.abort();
-        const controller = new AbortManageler();
+        const controller = new AbortController();
         opAbortRef.current = controller;
         setDetecting(true);
         try {
-          // Use the dedicated developer endpoint for best accuracy
           const { data } = await api.get(`/v1/dev/operator/${number}`, { signal: controller.signal });
           if (data.success && data.operator) {
             const detected = data.operator.toUpperCase();
-            // Match against our standard OPERATORS list
             const matchedKey = Object.keys(OPERATORS).find(k => k === detected || OPERATORS[k] === detected);
             if (matchedKey) {
               setOperator(OPERATORS[matchedKey]);
@@ -135,18 +204,49 @@ export default function MobileRecharge() {
           if (opAbortRef.current === controller) setDetecting(false);
         }
       };
-      detectOp();
+
+      // 500ms debounce performance guard
+      const timer = setTimeout(() => {
+        detectOp();
+      }, 500);
+
+      return () => {
+        clearTimeout(timer);
+        if (backgroundTimerRef.current) clearTimeout(backgroundTimerRef.current);
+      };
+    } else {
+      if (backgroundTimerRef.current) clearTimeout(backgroundTimerRef.current);
+      setOperator('');
+      setPlans([]);
+      setIsCached(false);
+      setIsRefreshing(false);
     }
+    return undefined;
   }, [number]);
 
   useEffect(() => {
+    if (skipNextPlansFetchRef.current) {
+      skipNextPlansFetchRef.current = false;
+      return;
+    }
     if (operator && number.length === 10) {
       const getPlans = async () => {
         setPlansLoading(true);
         try {
           const opCode = operatorMeta[operator]?.code || "1";
           const { data } = await api.get(`/v1/dev/plans?operatorCode=${opCode}&mobile=${number}&circle=Delhi`);
-          if (data.success) setPlans(data.data || []);
+          if (data.success) {
+            const newPlans = data.data || [];
+            setPlans(newPlans);
+            // Save to Cache on success
+            setCachedPlans(number, {
+              operatorCode: operator,
+              operatorName: operatorMeta[operator]?.label,
+              circleCode: '',
+              circleName: 'Delhi',
+              plans: newPlans
+            });
+          }
         } catch (err) {
           setPlans([]);
         } finally {
@@ -203,12 +303,24 @@ export default function MobileRecharge() {
       <div className="bg-white border border-slate-200 rounded-[2.5rem] shadow-xl overflow-hidden">
         <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
           <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase italic">Secure <span className="text-cyan-600">Recharge</span></h2>
-          {operator && (
-            <div className="flex items-center gap-3 px-4 py-2 bg-white border border-slate-200 rounded-full shadow-sm">
-               <span className="text-[10px] font-black uppercase text-slate-400">Operator:</span>
-               <span className="text-[10px] font-black uppercase text-cyan-600">{operatorMeta[operator].label} (Code: {operatorMeta[operator].code})</span>
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {operator && (
+              <div className="flex items-center gap-3 px-4 py-2 bg-white border border-slate-200 rounded-full shadow-sm">
+                 <span className="text-[10px] font-black uppercase text-slate-400">Operator:</span>
+                 <span className="text-[10px] font-black uppercase text-cyan-600">{operatorMeta[operator].label} (Code: {operatorMeta[operator].code})</span>
+              </div>
+            )}
+            {isCached && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 rounded-full text-[10px] font-bold shadow-sm animate-pulse">
+                <span>⚡ Cached Plans</span>
+              </div>
+            )}
+            {isRefreshing && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 text-blue-500 rounded-full text-[10px] font-bold shadow-sm">
+                <span>🔄 Refreshing Plans...</span>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="p-8 space-y-8">
